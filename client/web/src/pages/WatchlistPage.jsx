@@ -115,7 +115,7 @@ export function WatchlistPage() {
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={getMiniChart(token.id)}>
                             <YAxis hide domain={['auto', 'auto']} />
-                            <Line type="monotone" dataKey="v" stroke={isUp ? '#b85450' : '#4a72a0'} strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="v" stroke={isUp ? 'var(--color-brand-red)' : 'var(--color-brand-blue)'} strokeWidth={2} dot={false} />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
@@ -166,7 +166,7 @@ export function WatchlistPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={getMiniChart(token.id)}>
                       <YAxis hide domain={['auto', 'auto']} />
-                      <Line type="monotone" dataKey="v" stroke={isUp ? '#b85450' : '#4a72a0'} strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="v" stroke={isUp ? 'var(--color-brand-red)' : 'var(--color-brand-blue)'} strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>

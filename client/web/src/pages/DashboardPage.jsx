@@ -133,7 +133,7 @@ export function DashboardPage() {
                   <Line
                     type="monotone"
                     dataKey="val"
-                    stroke={selectedToken.change >= 0 ? '#b85450' : '#4a72a0'}
+                    stroke={selectedToken.change >= 0 ? 'var(--color-brand-red)' : 'var(--color-brand-blue)'}
                     strokeWidth={3}
                     dot={false}
                   />

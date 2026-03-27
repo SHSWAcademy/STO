@@ -34,11 +34,11 @@ export function AdminLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-[#f7f5f0] font-sans">
+    <div className="flex h-screen bg-stone-100 font-sans">
       {/* Sidebar */}
-      <aside className="w-64 bg-[#2a2820] text-white flex flex-col shrink-0">
+      <aside className="w-64 bg-stone-800 text-white flex flex-col shrink-0">
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
-          <div className="w-8 h-8 bg-[#4a72a0] rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-brand-blue rounded-lg flex items-center justify-center">
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
           <span className="font-black text-lg tracking-tight">STO ADMIN</span>
@@ -52,7 +52,7 @@ export function AdminLayout() {
               className={cn(
                 'flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors',
                 isActive(item.path)
-                  ? 'bg-[#4a72a0] text-white'
+                  ? 'bg-brand-blue text-white'
                   : 'text-white/60 hover:text-white hover:bg-white/5',
               )}
             >
@@ -65,7 +65,7 @@ export function AdminLayout() {
         <div className="p-4 border-t border-white/10">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-bold text-[#b85450] hover:bg-[#b85450]/10 transition-all"
+            className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-bold text-brand-red hover:bg-brand-red/10 transition-all"
           >
             <LogOut className="w-5 h-5" />
             로그아웃
@@ -76,21 +76,21 @@ export function AdminLayout() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-[#e0dace] flex items-center justify-between px-8 shrink-0">
-          <div className="flex items-center gap-4 bg-[#e0dace] px-4 py-2 rounded-xl w-96">
-            <Search className="w-4 h-4 text-[#9a9080]" />
+        <header className="h-16 bg-white border-b border-stone-200 flex items-center justify-between px-8 shrink-0">
+          <div className="flex items-center gap-4 bg-stone-200 px-4 py-2 rounded-xl w-96">
+            <Search className="w-4 h-4 text-stone-400" />
             <input
               type="text"
               placeholder="사용자, 거래번호 검색..."
               className="bg-transparent border-none outline-none text-sm w-full"
             />
           </div>
-          <div className="flex items-center gap-3 pl-6 border-l border-[#e0dace]">
+          <div className="flex items-center gap-3 pl-6 border-l border-stone-200">
             <div className="text-right">
-              <p className="text-sm font-black text-[#2a2820]">{user?.name || '관리자'}</p>
-              <p className="text-[10px] font-bold text-[#9a9080]">Super Admin</p>
+              <p className="text-sm font-black text-stone-800">{user?.name || '관리자'}</p>
+              <p className="text-[10px] font-bold text-stone-400">Super Admin</p>
             </div>
-            <div className="w-10 h-10 bg-[#e0dace] rounded-full flex items-center justify-center font-black text-[#9a9080]">
+            <div className="w-10 h-10 bg-stone-200 rounded-full flex items-center justify-center font-black text-stone-400">
               {user?.name?.[0] ?? 'A'}
             </div>
           </div>

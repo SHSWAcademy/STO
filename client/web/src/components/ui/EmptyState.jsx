@@ -11,13 +11,13 @@ export function EmptyState({ message = '데이터가 없습니다.', light = fal
     )}>
       <div className={cn(
         'w-7 h-7 rounded-md flex items-center justify-center mb-3 text-base font-light select-none',
-        light ? 'bg-[#f0ede4] text-[#c0b8b0]' : 'bg-stone-elevated text-stone-border'
+        light ? 'bg-stone-100 text-[#c0b8b0]' : 'bg-stone-elevated text-stone-border'
       )}>
         —
       </div>
       <p className={cn(
         'text-sm font-medium',
-        light ? 'text-[#9a9080]' : 'text-stone-muted'
+        light ? 'text-stone-400' : 'text-stone-muted'
       )}>
         {message}
       </p>

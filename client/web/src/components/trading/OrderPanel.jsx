@@ -37,17 +37,17 @@ export function OrderPanel({ asset, currentPrice }) {
   }
 
   return (
-    <div className="w-[360px] bg-[#ffffff] rounded-lg border border-[#e0dace] flex flex-col overflow-hidden">
+    <div className="w-[360px] bg-[#ffffff] rounded-lg border border-stone-200 flex flex-col overflow-hidden">
 
       {/* ── 탭: 매수 / 매도 / 대기 ────────────────── */}
-      <div className="flex border-b border-[#e0dace]">
+      <div className="flex border-b border-stone-200">
         <button
           onClick={() => setOrderSide('buy')}
           className={cn(
             'flex-1 py-4 text-sm font-black transition-all',
             orderSide === 'buy'
-              ? 'text-[#b85450] border-b-2 border-[#b85450] bg-stone-buy-bg/30'
-              : 'text-[#9a9080] hover:text-[#7a7060]'
+              ? 'text-brand-red border-b-2 border-brand-red bg-stone-buy-bg/30'
+              : 'text-stone-400 hover:text-stone-500'
           )}
         >
           매수
@@ -57,8 +57,8 @@ export function OrderPanel({ asset, currentPrice }) {
           className={cn(
             'flex-1 py-4 text-sm font-black transition-all',
             orderSide === 'sell'
-              ? 'text-[#4a72a0] border-b-2 border-[#4a72a0] bg-stone-sell-bg/30'
-              : 'text-[#9a9080] hover:text-[#7a7060]'
+              ? 'text-brand-blue border-b-2 border-brand-blue bg-stone-sell-bg/30'
+              : 'text-stone-400 hover:text-stone-500'
           )}
         >
           매도
@@ -68,13 +68,13 @@ export function OrderPanel({ asset, currentPrice }) {
           className={cn(
             'flex-1 py-4 text-sm font-black transition-all relative',
             orderSide === 'pending'
-              ? 'text-[#c9a84c] border-b-2 border-[#c9a84c] bg-stone-buy-bg/30'
-              : 'text-[#9a9080] hover:text-[#7a7060]'
+              ? 'text-brand-gold border-b-2 border-brand-gold bg-stone-buy-bg/30'
+              : 'text-stone-400 hover:text-stone-500'
           )}
         >
           대기
           {pendingCount > 0 && (
-            <span className="absolute top-3 right-4 w-4 h-4 bg-[#c9a84c] text-white text-[8px] font-black rounded-full flex items-center justify-center">
+            <span className="absolute top-3 right-4 w-4 h-4 bg-brand-gold text-white text-[8px] font-black rounded-full flex items-center justify-center">
               {pendingCount}
             </span>
           )}
@@ -88,16 +88,16 @@ export function OrderPanel({ asset, currentPrice }) {
         {isPending ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-black text-[#c9a84c]">미체결 주문</h3>
-              <span className="text-[10px] font-bold text-[#9a9080]">{pendingOrders.length}건</span>
+              <h3 className="text-sm font-black text-brand-gold">미체결 주문</h3>
+              <span className="text-[10px] font-bold text-stone-400">{pendingOrders.length}건</span>
             </div>
 
             {pendingOrders.length === 0 ? (
               <div className="py-16 flex flex-col items-center gap-3 text-center">
-                <div className="w-12 h-12 bg-[#e0dace] rounded-lg flex items-center justify-center">
-                  <MoreHorizontal size={24} className="text-[#9a9080]" />
+                <div className="w-12 h-12 bg-stone-200 rounded-lg flex items-center justify-center">
+                  <MoreHorizontal size={24} className="text-stone-400" />
                 </div>
-                <p className="text-sm font-bold text-[#9a9080]">대기 중인 주문이 없습니다</p>
+                <p className="text-sm font-bold text-stone-400">대기 중인 주문이 없습니다</p>
               </div>
             ) : (
               pendingOrders.map(order => (
@@ -115,7 +115,7 @@ export function OrderPanel({ asset, currentPrice }) {
           <div className="space-y-5">
             {/* 주문 유형 + 입력 모드 */}
             <div className="flex items-center justify-between">
-              <div className="flex bg-[#e0dace] p-1 rounded-lg">
+              <div className="flex bg-stone-200 p-1 rounded-lg">
                 {[{ id: 'limit', label: '지정가' }, { id: 'market', label: '시장가' }].map(t => (
                   <button
                     key={t.id}
@@ -123,15 +123,15 @@ export function OrderPanel({ asset, currentPrice }) {
                     className={cn(
                       'px-3 py-1 rounded-md text-[10px] font-bold transition-all',
                       orderType === t.id
-                        ? 'bg-[#ffffff] text-[#2a2820] shadow-sm'
-                        : 'text-[#9a9080]'
+                        ? 'bg-[#ffffff] text-stone-800 shadow-sm'
+                        : 'text-stone-400'
                     )}
                   >
                     {t.label}
                   </button>
                 ))}
               </div>
-              <div className="flex bg-[#e0dace] p-1 rounded-lg">
+              <div className="flex bg-stone-200 p-1 rounded-lg">
                 {[{ id: 'qty', label: '수량' }, { id: 'amount', label: '금액' }].map(m => (
                   <button
                     key={m.id}
@@ -139,8 +139,8 @@ export function OrderPanel({ asset, currentPrice }) {
                     className={cn(
                       'px-3 py-1 rounded-md text-[10px] font-bold transition-all',
                       inputMode === m.id
-                        ? 'bg-[#ffffff] text-[#2a2820] shadow-sm'
-                        : 'text-[#9a9080]'
+                        ? 'bg-[#ffffff] text-stone-800 shadow-sm'
+                        : 'text-stone-400'
                     )}
                   >
                     {m.label}
@@ -151,56 +151,56 @@ export function OrderPanel({ asset, currentPrice }) {
 
             {/* 가격 입력 */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-[#9a9080]">
+              <label className="text-[10px] font-bold text-stone-400">
                 {isBuy ? '매수' : '매도'} 가격
               </label>
-              <div className="flex items-center gap-2 bg-[#e0dace] border border-[#e0dace] rounded-md px-4 py-2.5">
+              <div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5">
                 <input
                   type="text"
                   value={isMarket ? '' : price}
                   onChange={e => setPrice(e.target.value)}
                   readOnly={isMarket}
                   placeholder={isMarket ? '시장가 자동' : ''}
-                  className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-[#2a2820] placeholder-[#9a9080]"
+                  className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800 placeholder-stone-400"
                 />
-                <span className="text-sm font-bold text-[#9a9080]">원</span>
+                <span className="text-sm font-bold text-stone-400">원</span>
               </div>
             </div>
 
             {/* 수량 또는 금액 입력 */}
             {inputMode === 'qty' ? (
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-[#9a9080]">
+                <label className="text-[10px] font-bold text-stone-400">
                   {isBuy ? '매수' : '매도'} 수량
                 </label>
-                <div className="flex items-center gap-2 bg-[#e0dace] border border-[#e0dace] rounded-md px-4 py-2.5">
+                <div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5">
                   <input
                     type="text"
                     placeholder="수량 입력"
                     value={qty}
                     onChange={e => setQty(e.target.value)}
-                    className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-[#2a2820]"
+                    className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800"
                   />
-                  <span className="text-sm font-bold text-[#9a9080]">주</span>
+                  <span className="text-sm font-bold text-stone-400">주</span>
                 </div>
               </div>
             ) : (
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-[#9a9080]">
+                <label className="text-[10px] font-bold text-stone-400">
                   {isBuy ? '매수' : '매도'} 금액
                 </label>
-                <div className="flex items-center gap-2 bg-[#e0dace] border border-[#e0dace] rounded-md px-4 py-2.5">
+                <div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5">
                   <input
                     type="text"
                     placeholder="금액 입력"
                     value={amount}
                     onChange={e => setAmount(e.target.value)}
-                    className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-[#2a2820]"
+                    className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800"
                   />
-                  <span className="text-sm font-bold text-[#9a9080]">원</span>
+                  <span className="text-sm font-bold text-stone-400">원</span>
                 </div>
                 {amount && numPrice > 0 && (
-                  <p className="text-[10px] text-[#9a9080] font-bold text-right">
+                  <p className="text-[10px] text-stone-400 font-bold text-right">
                     ≈ {Math.floor(Number(amount) / numPrice)}주
                   </p>
                 )}
@@ -212,7 +212,7 @@ export function OrderPanel({ asset, currentPrice }) {
               {['10%', '25%', '50%', '최대'].map(p => (
                 <button
                   key={p}
-                  className="py-1.5 bg-[#e0dace] hover:bg-[#d0ccc0] rounded-lg text-[10px] font-bold text-[#9a9080] transition-all border border-[#e0dace]"
+                  className="py-1.5 bg-stone-200 hover:bg-[#d0ccc0] rounded-lg text-[10px] font-bold text-stone-400 transition-all border border-stone-200"
                 >
                   {p}
                 </button>
@@ -220,21 +220,21 @@ export function OrderPanel({ asset, currentPrice }) {
             </div>
 
             {/* 주문 요약 */}
-            <div className="pt-3 border-t border-[#e0dace] space-y-2">
+            <div className="pt-3 border-t border-stone-200 space-y-2">
               <div className="flex justify-between text-[10px] font-bold">
-                <span className="text-[#9a9080]">
+                <span className="text-stone-400">
                   {isBuy ? '매수가능 금액' : '매도가능 수량'}
                 </span>
-                <span className="text-[#2a2820]">
+                <span className="text-stone-800">
                   {isBuy ? '0원' : '0주'}
                 </span>
               </div>
               <div className="flex justify-between text-[10px] font-bold">
-                <span className="text-[#9a9080]">총 주문 금액</span>
-                <span className="text-[#2a2820]">{numAmount.toLocaleString()}원</span>
+                <span className="text-stone-400">총 주문 금액</span>
+                <span className="text-stone-800">{numAmount.toLocaleString()}원</span>
               </div>
               {orderType === 'limit' && (
-                <div className="flex items-center gap-1.5 text-[10px] text-[#c9a84c] font-bold bg-stone-buy-bg px-3 py-2 rounded-lg">
+                <div className="flex items-center gap-1.5 text-[10px] text-brand-gold font-bold bg-stone-buy-bg px-3 py-2 rounded-lg">
                   <MoreHorizontal size={12} />
                   지정가 주문은 체결 전까지 대기 상태로 유지됩니다
                 </div>
@@ -247,8 +247,8 @@ export function OrderPanel({ asset, currentPrice }) {
               className={cn(
                 'w-full py-3.5 text-white rounded-md font-black text-sm transition-colors',
                 isBuy
-                  ? 'bg-[#b85450] hover:bg-[#c92a2a]'
-                  : 'bg-[#4a72a0] hover:bg-[#1971c2]'
+                  ? 'bg-brand-red hover:bg-[#c92a2a]'
+                  : 'bg-brand-blue hover:bg-[#1971c2]'
               )}
             >
               {isBuy ? '매수하기' : '매도하기'}
@@ -265,48 +265,48 @@ function PendingOrderCard({ order, onCancel }) {
   const isBuy = order.side === 'buy';
 
   return (
-    <div className="p-4 bg-[#f7f5f0] rounded-lg border border-[#e0dace] space-y-3">
+    <div className="p-4 bg-stone-100 rounded-lg border border-stone-200 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className={cn(
             'text-[10px] font-black px-2 py-0.5 rounded-md',
-            isBuy ? 'bg-stone-buy-bg text-[#b85450]' : 'bg-stone-sell-bg text-[#4a72a0]'
+            isBuy ? 'bg-stone-buy-bg text-brand-red' : 'bg-stone-sell-bg text-brand-blue'
           )}>
             {isBuy ? '매수' : '매도'}
           </span>
-          <span className="text-[10px] font-black bg-stone-buy-bg text-[#c9a84c] px-2 py-0.5 rounded-md">
+          <span className="text-[10px] font-black bg-stone-buy-bg text-brand-gold px-2 py-0.5 rounded-md">
             대기
           </span>
         </div>
-        <span className="text-[9px] text-[#9a9080] font-bold">{order.time}</span>
+        <span className="text-[9px] text-stone-400 font-bold">{order.time}</span>
       </div>
 
       <div className="space-y-1.5 text-[11px] font-bold">
         <div className="flex justify-between">
-          <span className="text-[#9a9080]">종목</span>
-          <span className="text-[#2a2820]">{order.asset}</span>
+          <span className="text-stone-400">종목</span>
+          <span className="text-stone-800">{order.asset}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#9a9080]">지정가격</span>
-          <span className="font-mono text-[#2a2820]">{order.price.toLocaleString()}원</span>
+          <span className="text-stone-400">지정가격</span>
+          <span className="font-mono text-stone-800">{order.price.toLocaleString()}원</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#9a9080]">수량</span>
-          <span className="font-mono text-[#2a2820]">{order.qty}주</span>
+          <span className="text-stone-400">수량</span>
+          <span className="font-mono text-stone-800">{order.qty}주</span>
         </div>
-        <div className="flex justify-between border-t border-[#e0dace] pt-1.5">
-          <span className="text-[#9a9080]">주문금액</span>
-          <span className="font-mono font-black text-[#2a2820]">{order.amount.toLocaleString()}원</span>
+        <div className="flex justify-between border-t border-stone-200 pt-1.5">
+          <span className="text-stone-400">주문금액</span>
+          <span className="font-mono font-black text-stone-800">{order.amount.toLocaleString()}원</span>
         </div>
       </div>
 
       <div className="flex gap-2 pt-1">
-        <button className="flex-1 py-2 bg-[#ffffff] border border-[#e0dace] rounded-md text-[11px] font-black text-[#7a7060] hover:bg-[#e0dace] transition-all flex items-center justify-center gap-1">
+        <button className="flex-1 py-2 bg-[#ffffff] border border-stone-200 rounded-md text-[11px] font-black text-stone-500 hover:bg-stone-200 transition-all flex items-center justify-center gap-1">
           <Edit3 size={12} /> 수정
         </button>
         <button
           onClick={() => onCancel(order.id)}
-          className="flex-1 py-2 bg-stone-buy-bg border border-stone-buy-bg rounded-md text-[11px] font-black text-[#b85450] hover:bg-stone-buy-bg transition-all flex items-center justify-center gap-1"
+          className="flex-1 py-2 bg-stone-buy-bg border border-stone-buy-bg rounded-md text-[11px] font-black text-brand-red hover:bg-stone-buy-bg transition-all flex items-center justify-center gap-1"
         >
           <X size={12} /> 취소
         </button>

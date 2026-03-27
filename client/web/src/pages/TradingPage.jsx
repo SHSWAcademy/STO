@@ -10,7 +10,7 @@ import { OrderPanel }  from '../components/trading/OrderPanel.jsx';
 // TradingPage — 원본 TradingPage.tsx 구조 복원
 //
 // 레이아웃 (원본 그대로):
-//   - 전체: flex flex-col h-[calc(100vh-64px)] -m-8 bg-[#f7f5f0]
+//   - 전체: flex flex-col h-[calc(100vh-64px)] -m-8 bg-stone-100
 //   - 상단: AssetHeader (종목 정보 + 탭)
 //   - 콘텐츠: flex-1 flex overflow-hidden p-6 gap-6
 //       차트 탭: [좌 flex-[2]] [중 w-400] [우 w-360]
@@ -30,7 +30,7 @@ export function TradingPage() {
   return (
     // 원본: h-[calc(100vh-64px)] -m-8 (MainLayout p-8을 상쇄)
     // 여기서는 AppHeader h-16(64px)을 직접 차감
-    <div className="flex flex-col bg-[#f7f5f0] text-[#2a2820] overflow-hidden"
+    <div className="flex flex-col bg-stone-100 text-stone-800 overflow-hidden"
          style={{ height: 'calc(100vh - 64px)' }}>
 
       {/* 상단: 종목 정보 헤더 */}
@@ -54,7 +54,7 @@ export function TradingPage() {
           </>
         ) : (
           /* 기타 탭: 콘텐츠 패널 */
-          <div className="flex-1 bg-[#ffffff] rounded-lg border border-[#e0dace] p-8 overflow-y-auto">
+          <div className="flex-1 bg-[#ffffff] rounded-lg border border-stone-200 p-8 overflow-y-auto">
             {activeTab === 'info'     && <InfoTab     asset={asset} />}
             {activeTab === 'dividend' && <DividendTab />}
             {activeTab === 'news'     && <NewsTab />}
@@ -73,7 +73,7 @@ function InfoTab({ asset }) {
   return (
     <div className="space-y-8 max-w-4xl">
       <section>
-        <h3 className="text-lg font-bold mb-4 text-[#2a2820]">종목 상세 정보</h3>
+        <h3 className="text-lg font-bold mb-4 text-stone-800">종목 상세 정보</h3>
         <div className="grid grid-cols-2 gap-4">
           {[
             { label: '총 토큰',  value: asset.issued.toLocaleString() },
@@ -81,37 +81,37 @@ function InfoTab({ asset }) {
             { label: '상장일',   value: '2024-01-15' },
             { label: '자산 이름', value: asset.name },
           ].map((item, i) => (
-            <div key={i} className="flex justify-between p-4 bg-[#f7f5f0] rounded-xl border border-[#e0dace]">
-              <span className="text-[#9a9080] font-bold">{item.label}</span>
-              <span className="text-[#2a2820] font-bold">{item.value}</span>
+            <div key={i} className="flex justify-between p-4 bg-stone-100 rounded-xl border border-stone-200">
+              <span className="text-stone-400 font-bold">{item.label}</span>
+              <span className="text-stone-800 font-bold">{item.value}</span>
             </div>
           ))}
         </div>
       </section>
 
       <section>
-        <h3 className="text-lg font-bold mb-4 text-[#2a2820]">사업 개요</h3>
-        <p className="text-[#7a7060] text-sm leading-relaxed">{asset.desc}</p>
+        <h3 className="text-lg font-bold mb-4 text-stone-800">사업 개요</h3>
+        <p className="text-stone-500 text-sm leading-relaxed">{asset.desc}</p>
       </section>
 
       {asset.pdfUrl && (
         <section>
-          <h3 className="text-lg font-bold mb-4 text-[#2a2820]">투자 설명서</h3>
-          <div className="p-6 bg-[#f7f5f0] rounded-lg border border-[#e0dace] flex items-center justify-between group hover:border-[#4a72a0] transition-all">
+          <h3 className="text-lg font-bold mb-4 text-stone-800">투자 설명서</h3>
+          <div className="p-6 bg-stone-100 rounded-lg border border-stone-200 flex items-center justify-between group hover:border-brand-blue transition-all">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-stone-buy-bg flex items-center justify-center text-stone-buy">
                 <FileText size={24} />
               </div>
               <div>
-                <p className="font-bold text-[#2a2820]">{asset.name} 투자설명서.pdf</p>
-                <p className="text-xs text-[#9a9080] font-bold uppercase tracking-widest">PDF Document · 2.4 MB</p>
+                <p className="font-bold text-stone-800">{asset.name} 투자설명서.pdf</p>
+                <p className="text-xs text-stone-400 font-bold uppercase tracking-widest">PDF Document · 2.4 MB</p>
               </div>
             </div>
             <a
               href={asset.pdfUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-6 py-3 bg-[#ffffff] border border-[#e0dace] rounded-xl text-sm font-black text-[#7a7060] hover:bg-[#4a72a0] hover:text-white hover:border-[#4a72a0] transition-all shadow-sm"
+              className="flex items-center gap-2 px-6 py-3 bg-[#ffffff] border border-stone-200 rounded-xl text-sm font-black text-stone-500 hover:bg-brand-blue hover:text-white hover:border-brand-blue transition-all shadow-sm"
             >
               <Download size={18} /> 다운로드
             </a>
@@ -127,10 +127,10 @@ function DividendTab() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-[#2a2820]">배당금 내역</h3>
-        <div className="flex items-center gap-2 text-sm text-[#9a9080]">
+        <h3 className="text-lg font-bold text-stone-800">배당금 내역</h3>
+        <div className="flex items-center gap-2 text-sm text-stone-400">
           <span>총 누적 배당금:</span>
-          <span className="text-[#2a2820] font-black">1,250,000원</span>
+          <span className="text-stone-800 font-black">1,250,000원</span>
         </div>
       </div>
 
@@ -140,16 +140,16 @@ function DividendTab() {
           { label: '배당 수익률',    value: '4.2%',      date: '연환산 기준' },
           { label: '다음 배당 예정일', value: '2024.06.15', date: '분기 배당' },
         ].map((item, i) => (
-          <div key={i} className="p-6 bg-[#f7f5f0] rounded-lg border border-[#e0dace]">
-            <p className="text-xs font-bold text-[#9a9080] mb-1">{item.label}</p>
-            <p className="text-xl font-black text-[#2a2820]">{item.value}</p>
-            <p className="text-[10px] text-[#9a9080] mt-2 font-bold">{item.date}</p>
+          <div key={i} className="p-6 bg-stone-100 rounded-lg border border-stone-200">
+            <p className="text-xs font-bold text-stone-400 mb-1">{item.label}</p>
+            <p className="text-xl font-black text-stone-800">{item.value}</p>
+            <p className="text-[10px] text-stone-400 mt-2 font-bold">{item.date}</p>
           </div>
         ))}
       </div>
 
       <table className="w-full text-sm mt-8">
-        <thead className="text-[#9a9080] border-b border-[#e0dace]">
+        <thead className="text-stone-400 border-b border-stone-200">
           <tr>
             <th className="text-left py-4 font-bold">배당기준일</th>
             <th className="text-left py-4 font-bold">지급일</th>
@@ -158,15 +158,15 @@ function DividendTab() {
             <th className="text-right py-4 font-bold">상태</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#e0dace]">
+        <tbody className="divide-y divide-stone-200">
           {DIVIDEND_HISTORY.map((item, i) => (
-            <tr key={i} className="hover:bg-[#f7f5f0] transition-colors">
-              <td className="py-4 text-[#7a7060] font-mono">{item.base}</td>
-              <td className="py-4 text-[#7a7060] font-mono">{item.pay}</td>
-              <td className="py-4 text-right font-mono font-bold text-[#2a2820]">{item.per}</td>
-              <td className="py-4 text-right font-mono font-bold text-[#2a2820]">{item.total}</td>
+            <tr key={i} className="hover:bg-stone-100 transition-colors">
+              <td className="py-4 text-stone-500 font-mono">{item.base}</td>
+              <td className="py-4 text-stone-500 font-mono">{item.pay}</td>
+              <td className="py-4 text-right font-mono font-bold text-stone-800">{item.per}</td>
+              <td className="py-4 text-right font-mono font-bold text-stone-800">{item.total}</td>
               <td className="py-4 text-right">
-                <span className="px-2 py-1 bg-[#b85450]/10 text-[#b85450] rounded text-[10px] font-bold">
+                <span className="px-2 py-1 bg-brand-red/10 text-brand-red rounded text-[10px] font-bold">
                   {item.status}
                 </span>
               </td>
@@ -183,14 +183,14 @@ function NewsTab() {
   return (
     <div className="space-y-4">
       {DISCLOSURES.map((item, i) => (
-        <div key={i} className="p-6 bg-[#ffffff] rounded-lg hover:bg-[#f7f5f0] transition-all cursor-pointer border border-[#e0dace] group">
+        <div key={i} className="p-6 bg-[#ffffff] rounded-lg hover:bg-stone-100 transition-all cursor-pointer border border-stone-200 group">
           <div className="flex justify-between items-start mb-2">
-            <h4 className="font-bold text-[#2a2820] group-hover:text-[#4a72a0] transition-colors">
+            <h4 className="font-bold text-stone-800 group-hover:text-brand-blue transition-colors">
               {item.title}
             </h4>
-            <span className="text-[11px] text-[#9a9080] font-bold shrink-0 ml-4">{item.date}</span>
+            <span className="text-[11px] text-stone-400 font-bold shrink-0 ml-4">{item.date}</span>
           </div>
-          <p className="text-sm text-[#7a7060]">
+          <p className="text-sm text-stone-500">
             당사는 관련 공시 내용을 상기와 같이 안내드립니다. 자세한 내용은 첨부 파일을 확인하시기 바랍니다.
           </p>
         </div>

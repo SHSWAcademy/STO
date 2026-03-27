@@ -24,7 +24,7 @@ function CandlestickShape(props) {
   if (!payload) return null;
   const { open, close, high, low } = payload;
   const isUp = close >= open;
-  const color = isUp ? '#b85450' : '#4a72a0';
+  const color = isUp ? 'var(--color-brand-red)' : 'var(--color-brand-blue)';
   const priceHeight = Math.abs(open - close);
   const ratio = priceHeight === 0 ? 1 : height / priceHeight;
   const wickTop    = y - (high - Math.max(open, close)) * ratio;
@@ -52,12 +52,12 @@ export function ChartPanel({ currentPrice }) {
     <div className="flex-[2] flex flex-col gap-6 overflow-hidden">
 
       {/* ── 차트 섹션 ───────────────────────────────── */}
-      <div className="bg-[#ffffff] rounded-2xl border border-[#e0dace] flex flex-col overflow-hidden shadow-sm">
+      <div className="bg-[#ffffff] rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm">
 
         {/* 차트 헤더 */}
-        <div className="p-4 border-b border-[#e0dace] flex items-center justify-between">
+        <div className="p-4 border-b border-stone-200 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex bg-[#e0dace] p-1 rounded-lg">
+            <div className="flex bg-stone-200 p-1 rounded-lg">
               {CHART_PERIODS.map(p => (
                 <button
                   key={p}
@@ -65,22 +65,22 @@ export function ChartPanel({ currentPrice }) {
                   className={cn(
                     'px-3 py-1 rounded-md text-[11px] font-bold transition-all',
                     chartPeriod === p
-                      ? 'bg-[#ffffff] text-[#2a2820] shadow-sm'
-                      : 'text-[#9a9080] hover:text-[#7a7060]'
+                      ? 'bg-[#ffffff] text-stone-800 shadow-sm'
+                      : 'text-stone-400 hover:text-stone-500'
                   )}
                 >
                   {p}
                 </button>
               ))}
             </div>
-            <div className="flex gap-3 text-[#9a9080]">
-              <ChartLine  size={16} className="cursor-pointer hover:text-[#2a2820]" />
-              <Filter     size={16} className="cursor-pointer hover:text-[#2a2820]" />
-              <Settings   size={16} className="cursor-pointer hover:text-[#2a2820]" />
+            <div className="flex gap-3 text-stone-400">
+              <ChartLine  size={16} className="cursor-pointer hover:text-stone-800" />
+              <Filter     size={16} className="cursor-pointer hover:text-stone-800" />
+              <Settings   size={16} className="cursor-pointer hover:text-stone-800" />
             </div>
           </div>
-          <div className="flex items-center gap-4 text-[11px] font-bold text-[#9a9080]">
-            <button className="flex items-center gap-1 hover:text-[#2a2820] transition-colors">
+          <div className="flex items-center gap-4 text-[11px] font-bold text-stone-400">
+            <button className="flex items-center gap-1 hover:text-stone-800 transition-colors">
               차트 크게보기 <Maximize2 size={14} />
             </button>
           </div>
@@ -93,23 +93,23 @@ export function ChartPanel({ currentPrice }) {
             <div className="flex items-center gap-3">
               {[
                 { label: '시', val: displayData?.open },
-                { label: '고', val: displayData?.high, color: '#b85450' },
-                { label: '저', val: displayData?.low,  color: '#4a72a0' },
+                { label: '고', val: displayData?.high, color: 'var(--color-brand-red)' },
+                { label: '저', val: displayData?.low,  color: 'var(--color-brand-blue)' },
                 { label: '종', val: displayData?.close },
               ].map(({ label, val, color }) => (
                 <div key={label} className="flex items-center gap-1">
-                  <span className="text-[10px] font-bold text-[#9a9080]">{label}</span>
-                  <span className="text-[11px] font-mono font-bold text-[#2a2820]" style={color ? { color } : {}}>
+                  <span className="text-[10px] font-bold text-stone-400">{label}</span>
+                  <span className="text-[11px] font-mono font-bold text-stone-800" style={color ? { color } : {}}>
                     {val?.toLocaleString()}
                   </span>
                 </div>
               ))}
             </div>
-            <p className="text-[10px] font-bold text-[#9a9080]">
-              이동평균선 <span className="text-[#b85450]">5</span>{' '}
-              <span className="text-[#b85450]">20</span>{' '}
-              <span className="text-[#c9a84c]">60</span>{' '}
-              <span className="text-[#2a2820]">120</span>
+            <p className="text-[10px] font-bold text-stone-400">
+              이동평균선 <span className="text-brand-red">5</span>{' '}
+              <span className="text-brand-red">20</span>{' '}
+              <span className="text-brand-gold">60</span>{' '}
+              <span className="text-stone-800">120</span>
             </p>
           </div>
 
@@ -122,19 +122,19 @@ export function ChartPanel({ currentPrice }) {
               }}
               onMouseLeave={() => setHoveredData(null)}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e0dace" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-stone-200)" vertical={false} />
               <XAxis
                 dataKey="time"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 10, fill: '#9a9080' }}
+                tick={{ fontSize: 10, fill: 'var(--color-stone-400)' }}
                 minTickGap={30}
               />
               <YAxis
                 yAxisId="price"
                 domain={['auto', 'auto']}
                 orientation="right"
-                tick={{ fontSize: 10, fill: '#9a9080', fontWeight: 'bold' }}
+                tick={{ fontSize: 10, fill: 'var(--color-stone-400)', fontWeight: 'bold' }}
                 axisLine={false}
                 tickLine={false}
               />
@@ -142,18 +142,18 @@ export function ChartPanel({ currentPrice }) {
                 yAxisId="vol"
                 orientation="left"
                 domain={[0, dataMax => dataMax * 4]}
-                tick={{ fontSize: 9, fill: '#9a9080' }}
+                tick={{ fontSize: 9, fill: 'var(--color-stone-400)' }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={val => `${(val / 10000).toFixed(0)}만`}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#f0ede4',
-                  border: '1px solid #e0dace',
+                  backgroundColor: 'var(--color-stone-100)',
+                  border: '1px solid var(--color-stone-200)',
                   borderRadius: '12px',
                   fontSize: '11px',
-                  color: '#2a2820',
+                  color: 'var(--color-stone-800)',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
                 }}
                 itemStyle={{ fontWeight: 'bold' }}
@@ -167,7 +167,7 @@ export function ChartPanel({ currentPrice }) {
                 yAxisId="vol"
                 dataKey="vol"
                 name="vol"
-                fill="#9a9080"
+                fill="var(--color-stone-400)"
                 opacity={0.1}
                 radius={[2, 2, 0, 0]}
               />
@@ -184,11 +184,11 @@ export function ChartPanel({ currentPrice }) {
       </div>
 
       {/* ── 시세 섹션 ────────────────────────────────── */}
-      <div className="bg-[#ffffff] rounded-2xl border border-[#e0dace] flex flex-col overflow-hidden shadow-sm">
+      <div className="bg-[#ffffff] rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm">
         {/* 시세 헤더 */}
-        <div className="p-4 border-b border-[#e0dace] flex items-center justify-between">
-          <h3 className="text-sm font-bold text-[#2a2820]">시세</h3>
-          <div className="flex bg-[#e0dace] p-1 rounded-lg">
+        <div className="p-4 border-b border-stone-200 flex items-center justify-between">
+          <h3 className="text-sm font-bold text-stone-800">시세</h3>
+          <div className="flex bg-stone-200 p-1 rounded-lg">
             {[
               { id: 'realtime', label: '실시간' },
               { id: 'daily',    label: '일별' },
@@ -199,21 +199,21 @@ export function ChartPanel({ currentPrice }) {
                 className={cn(
                   'px-8 py-1 rounded-md text-[11px] font-bold transition-all',
                   priceHistoryTab === t.id
-                    ? 'bg-[#ffffff] text-[#2a2820] shadow-sm'
-                    : 'text-[#9a9080]'
+                    ? 'bg-[#ffffff] text-stone-800 shadow-sm'
+                    : 'text-stone-400'
                 )}
               >
                 {t.label}
               </button>
             ))}
           </div>
-          <X size={14} className="text-[#9a9080] cursor-pointer" />
+          <X size={14} className="text-stone-400 cursor-pointer" />
         </div>
 
         {/* 시세 테이블 */}
         <div className="flex-1 overflow-y-auto">
           <table className="w-full text-[11px]">
-            <thead className="text-[#9a9080] border-b border-[#e0dace] sticky top-0 bg-[#ffffff]">
+            <thead className="text-stone-400 border-b border-stone-200 sticky top-0 bg-[#ffffff]">
               <tr>
                 <th className="text-left p-4 font-bold">체결가</th>
                 <th className="text-right p-4 font-bold">체결량(주)</th>
@@ -222,7 +222,7 @@ export function ChartPanel({ currentPrice }) {
                 <th className="text-right p-4 font-bold">시간</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e0dace]">
+            <tbody className="divide-y divide-stone-200">
               {PRICE_HISTORY_ROWS.map((row, i) => (
                 <PriceRow key={i} {...row} />
               ))}

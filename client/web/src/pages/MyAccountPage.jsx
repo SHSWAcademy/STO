@@ -12,9 +12,9 @@ import { cn } from '../lib/utils.js';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const ASSET_PIE = [
-  { name: '서울강남빌딩', value: 45, color: '#4a72a0' },
+  { name: '서울강남빌딩', value: 45, color: 'var(--color-brand-blue)' },
   { name: '송도 리조트',  value: 25, color: '#64d2ff' },
-  { name: '아트프라임',   value: 15, color: '#c9a84c' },
+  { name: '아트프라임',   value: 15, color: 'var(--color-brand-gold)' },
   { name: '기타',         value: 15, color: '#636366' },
 ];
 

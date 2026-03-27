@@ -29,6 +29,16 @@
   --color-stone-sell:           #4a72a0;
   --color-stone-sell-bg:        #2c3d4a;
   --color-stone-current-bg:     #424238;
+
+  /* 브랜드 액센트 */
+  --color-brand-blue:           #4a72a0;
+  --color-brand-blue-dk:        #3a62a0;
+  --color-brand-gold:           #c9a84c;
+  --color-brand-red:            #b85450;
+  --color-brand-red-dk:         #b04040;
+  --color-brand-red-light:      #fde8e8;
+  --color-brand-green:          #4a7a60;
+  --color-brand-green-light:    #e0f0e8;
 }
 
 /* ─── 기본 스타일 ─── */

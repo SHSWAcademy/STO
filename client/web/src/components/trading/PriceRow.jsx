@@ -5,18 +5,18 @@ export function PriceRow({ price, qty, changeRate, vol, time }) {
   const isUp = changeRate >= 0;
 
   return (
-    <tr className="hover:bg-[#f7f5f0] transition-colors">
-      <td className="p-4 font-mono font-bold text-[#2a2820]">{price.toLocaleString()}</td>
-      <td className={`p-4 text-right font-mono font-bold ${isUp ? 'text-[#b85450]' : 'text-[#4a72a0]'}`}>
+    <tr className="hover:bg-stone-100 transition-colors">
+      <td className="p-4 font-mono font-bold text-stone-800">{price.toLocaleString()}</td>
+      <td className={`p-4 text-right font-mono font-bold ${isUp ? 'text-brand-red' : 'text-brand-blue'}`}>
         {qty}
       </td>
-      <td className={`p-4 text-right font-mono font-bold ${isUp ? 'text-[#b85450]' : 'text-[#4a72a0]'}`}>
+      <td className={`p-4 text-right font-mono font-bold ${isUp ? 'text-brand-red' : 'text-brand-blue'}`}>
         {changeRate.toFixed(2)}%
       </td>
-      <td className="p-4 text-right font-mono font-bold text-[#7a7060]">
+      <td className="p-4 text-right font-mono font-bold text-stone-500">
         {vol.toLocaleString()}
       </td>
-      <td className="p-4 text-right font-mono font-bold text-[#9a9080]">{time}</td>
+      <td className="p-4 text-right font-mono font-bold text-stone-400">{time}</td>
     </tr>
   );
 }

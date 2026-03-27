@@ -9,14 +9,14 @@ export function SearchInput({ value, onChange, placeholder = '검색...', classN
 
   if (variant === 'light') {
     return (
-      <div className={cn('flex items-center gap-2 bg-white border border-[#e0dace] rounded-lg px-3 py-2 flex-1', className)}>
+      <div className={cn('flex items-center gap-2 bg-white border border-stone-200 rounded-lg px-3 py-2 flex-1', className)}>
         <Search className="w-3.5 h-3.5 text-[#b0a898] shrink-0" />
         <input
           type="text"
           placeholder={placeholder}
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="bg-transparent border-none outline-none text-sm w-full text-[#2a2820] placeholder:text-[#b0a898]"
+          className="bg-transparent border-none outline-none text-sm w-full text-stone-800 placeholder:text-[#b0a898]"
         />
       </div>
     );

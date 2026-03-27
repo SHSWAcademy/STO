@@ -17,7 +17,7 @@ export function AssetAvatar({ symbol, size = 'md', variant = 'dark', className }
     return (
       <div className={cn(
         SIZE_MAP[size],
-        'flex items-center justify-center font-bold border bg-[#f0ede4] border-[#e0dace] text-[#9a9080]',
+        'flex items-center justify-center font-bold border bg-stone-100 border-stone-200 text-stone-400',
         className
       )}>
         {abbr}

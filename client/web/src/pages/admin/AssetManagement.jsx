@@ -85,56 +85,56 @@ export function AssetManagement() {
       <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => setIsViewingAsset(false)} className="p-2 rounded-md bg-white border border-[#e0dace] text-[#9a9080] hover:text-[#2a2820] transition-colors">
+            <button onClick={() => setIsViewingAsset(false)} className="p-2 rounded-md bg-white border border-stone-200 text-stone-400 hover:text-stone-800 transition-colors">
               <ArrowRight className="rotate-180 w-5 h-5" />
             </button>
             <div>
-              <h2 className="text-xl font-semibold text-[#2a2820]">자산 상세 정보</h2>
-              <p className="text-sm text-[#9a9080]">{selectedAsset.name} ({selectedAsset.symbol})</p>
+              <h2 className="text-xl font-semibold text-stone-800">자산 상세 정보</h2>
+              <p className="text-sm text-stone-400">{selectedAsset.name} ({selectedAsset.symbol})</p>
             </div>
           </div>
-          <button onClick={() => openEdit(selectedAsset)} className="px-6 py-2.5 bg-[#4a72a0] text-white text-sm font-medium rounded-md hover:bg-[#3a62a0] transition-colors">
+          <button onClick={() => openEdit(selectedAsset)} className="px-6 py-2.5 bg-brand-blue text-white text-sm font-medium rounded-md hover:bg-brand-blue-dk transition-colors">
             정보 수정하기
           </button>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
-          <div className="bg-white border border-[#e0dace] rounded-lg p-8 space-y-6">
-            <h3 className="text-sm font-semibold text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">기본 정보</h3>
+          <div className="bg-white border border-stone-200 rounded-lg p-8 space-y-6">
+            <h3 className="text-sm font-semibold text-stone-800 uppercase tracking-widest border-b border-stone-200 pb-4">기본 정보</h3>
             <div className="grid grid-cols-2 gap-8">
               {[['자산명', selectedAsset.name], ['심볼', selectedAsset.symbol]].map(([l, v]) => (
                 <div key={l} className="space-y-1">
-                  <p className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">{l}</p>
-                  <p className="text-sm font-bold text-[#2a2820]">{v}</p>
+                  <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">{l}</p>
+                  <p className="text-sm font-bold text-stone-800">{v}</p>
                 </div>
               ))}
               <div className="space-y-1">
-                <p className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">상태</p>
-                <span className="px-2 py-0.5 rounded bg-[#e0f0e8] text-[#4a7a60] text-[10px] font-semibold uppercase inline-block">상장 활성</span>
+                <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">상태</p>
+                <span className="px-2 py-0.5 rounded bg-brand-green-light text-brand-green text-[10px] font-semibold uppercase inline-block">상장 활성</span>
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">자산 설명</p>
-              <p className="text-sm text-[#7a7060] leading-relaxed">{selectedAsset.desc}</p>
+              <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">자산 설명</p>
+              <p className="text-sm text-stone-500 leading-relaxed">{selectedAsset.desc}</p>
             </div>
             {selectedAsset.pdfUrl && (
-              <div className="pt-4 border-t border-[#e0dace]">
-                <p className="text-[10px] font-black text-[#9a9080] uppercase tracking-widest mb-2">세부 정보 보고서</p>
+              <div className="pt-4 border-t border-stone-200">
+                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">세부 정보 보고서</p>
                 <a href={selectedAsset.pdfUrl} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-3 rounded-xl bg-[#f7f5f0] border border-[#e0dace] hover:bg-[#e0dace] transition-all group">
-                  <div className="p-2 bg-[#fde8e8] rounded-lg text-[#b04040]"><FileText size={16} /></div>
+                  className="flex items-center gap-3 p-3 rounded-xl bg-stone-100 border border-stone-200 hover:bg-stone-200 transition-all group">
+                  <div className="p-2 bg-brand-red-light rounded-lg text-brand-red-dk"><FileText size={16} /></div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-[#2a2820] truncate">{selectedAsset.name} 세부사항 보고서.pdf</p>
-                    <p className="text-[10px] text-[#9a9080]">PDF Document</p>
+                    <p className="text-xs font-bold text-stone-800 truncate">{selectedAsset.name} 세부사항 보고서.pdf</p>
+                    <p className="text-[10px] text-stone-400">PDF Document</p>
                   </div>
-                  <Download size={14} className="text-[#9a9080] group-hover:text-[#4a72a0]" />
+                  <Download size={14} className="text-stone-400 group-hover:text-brand-blue" />
                 </a>
               </div>
             )}
           </div>
 
-          <div className="bg-white border border-[#e0dace] rounded-lg p-8 space-y-6">
-            <h3 className="text-sm font-semibold text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">금융 및 발행 정보</h3>
+          <div className="bg-white border border-stone-200 rounded-lg p-8 space-y-6">
+            <h3 className="text-sm font-semibold text-stone-800 uppercase tracking-widest border-b border-stone-200 pb-4">금융 및 발행 정보</h3>
             <div className="grid grid-cols-2 gap-8">
               {[
                 ['건물 가치', `₩${(selectedAsset.price * selectedAsset.issued).toLocaleString()}`],
@@ -143,8 +143,8 @@ export function AssetManagement() {
                 ['연간 수익률', `${selectedAsset.yield}%`],
               ].map(([l, v]) => (
                 <div key={l} className="space-y-1">
-                  <p className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">{l}</p>
-                  <p className="text-lg font-semibold text-[#2a2820]">{v}</p>
+                  <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">{l}</p>
+                  <p className="text-lg font-semibold text-stone-800">{v}</p>
                 </div>
               ))}
             </div>
@@ -159,46 +159,46 @@ export function AssetManagement() {
     return (
       <div className="space-y-8">
         <div className="flex items-center gap-4">
-          <button onClick={() => setIsEditingAsset(false)} className="p-2 rounded-md bg-white border border-[#e0dace] text-[#9a9080] hover:text-[#2a2820] transition-colors">
+          <button onClick={() => setIsEditingAsset(false)} className="p-2 rounded-md bg-white border border-stone-200 text-stone-400 hover:text-stone-800 transition-colors">
             <ArrowRight className="rotate-180 w-5 h-5" />
           </button>
           <div>
-            <h2 className="text-xl font-semibold text-[#2a2820]">자산 정보 수정</h2>
-            <p className="text-sm text-[#9a9080]">{selectedAsset.name}</p>
+            <h2 className="text-xl font-semibold text-stone-800">자산 정보 수정</h2>
+            <p className="text-sm text-stone-400">{selectedAsset.name}</p>
           </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
-          <div className="bg-white border border-[#e0dace] rounded-lg p-8 space-y-6">
-            <h3 className="text-sm font-semibold text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">기본 정보</h3>
+          <div className="bg-white border border-stone-200 rounded-lg p-8 space-y-6">
+            <h3 className="text-sm font-semibold text-stone-800 uppercase tracking-widest border-b border-stone-200 pb-4">기본 정보</h3>
             {[
               { label: '자산명', key: 'name', placeholder: '강남 오피스 빌딩 A' },
               { label: '자산코드', key: 'symbol', placeholder: 'GN_A' },
             ].map(({ label, key, placeholder }) => (
               <div key={key} className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">{label}</label>
+                <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">{label}</label>
                 <input
                   type="text" value={editForm[key]} placeholder={placeholder}
                   onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))}
-                  className="w-full bg-[#f7f5f0] border border-[#e0dace] rounded-md px-4 py-3 text-sm text-[#2a2820] outline-none focus:border-[#4a72a0] transition-colors font-medium"
+                  className="w-full bg-stone-100 border border-stone-200 rounded-md px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue transition-colors font-medium"
                 />
               </div>
             ))}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">세부 정보 PDF URL</label>
+              <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">세부 정보 PDF URL</label>
               <div className="relative">
                 <input type="text" value={editForm.pdfUrl} placeholder="https://example.com/report.pdf"
                   onChange={e => setEditForm(f => ({ ...f, pdfUrl: e.target.value }))}
-                  className="w-full bg-[#f7f5f0] border border-[#e0dace] rounded-xl px-4 py-3 text-sm text-[#2a2820] outline-none focus:border-[#4a72a0] transition-all font-bold pr-10"
+                  className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue transition-all font-bold pr-10"
                 />
-                <FileText className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9a9080]" />
+                <FileText className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
               </div>
             </div>
           </div>
 
           <div className="space-y-8">
-            <div className="bg-white border border-[#e0dace] rounded-lg p-8 space-y-6">
-              <h3 className="text-sm font-semibold text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">금융 정보 (읽기 전용)</h3>
+            <div className="bg-white border border-stone-200 rounded-lg p-8 space-y-6">
+              <h3 className="text-sm font-semibold text-stone-800 uppercase tracking-widest border-b border-stone-200 pb-4">금융 정보 (읽기 전용)</h3>
               <div className="grid grid-cols-2 gap-4">
                 {[
                   ['토큰 가격', `₩${editForm.tokenPrice.toLocaleString()}`],
@@ -207,17 +207,17 @@ export function AssetManagement() {
                   ['배당지급일', `매월 ${editForm.dividendDay}일`],
                 ].map(([l, v]) => (
                   <div key={l} className="space-y-1.5">
-                    <label className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">{l}</label>
-                    <input type="text" value={v} readOnly className="w-full bg-[#e0dace] border border-[#e0dace] rounded-md px-4 py-3 text-sm text-[#9a9080] outline-none font-medium cursor-not-allowed" />
+                    <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">{l}</label>
+                    <input type="text" value={v} readOnly className="w-full bg-stone-200 border border-stone-200 rounded-md px-4 py-3 text-sm text-stone-400 outline-none font-medium cursor-not-allowed" />
                   </div>
                 ))}
               </div>
             </div>
             <div className="flex gap-4">
-              <button onClick={() => setIsEditingAsset(false)} className="flex-1 py-4 rounded-md bg-white text-[#9a9080] text-sm font-medium hover:bg-[#f7f5f0] transition-colors border border-[#e0dace]">
+              <button onClick={() => setIsEditingAsset(false)} className="flex-1 py-4 rounded-md bg-white text-stone-400 text-sm font-medium hover:bg-stone-100 transition-colors border border-stone-200">
                 취소
               </button>
-              <button onClick={handleSave} className="flex-[2] py-4 rounded-md bg-[#4a72a0] text-white text-sm font-medium hover:bg-[#3a62a0] transition-colors">
+              <button onClick={handleSave} className="flex-[2] py-4 rounded-md bg-brand-blue text-white text-sm font-medium hover:bg-brand-blue-dk transition-colors">
                 변경사항 저장
               </button>
             </div>
@@ -232,59 +232,59 @@ export function AssetManagement() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#2a2820]">자산 관리</h1>
-          <p className="text-sm text-[#9a9080]">플랫폼에 등록된 STO 자산을 관리하고 신규 자산을 등록합니다.</p>
+          <h1 className="text-2xl font-semibold text-stone-800">자산 관리</h1>
+          <p className="text-sm text-stone-400">플랫폼에 등록된 STO 자산을 관리하고 신규 자산을 등록합니다.</p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 px-6 py-3 bg-[#4a72a0] text-white text-sm font-medium rounded-md hover:bg-[#3a62a0] transition-colors">
+        <button onClick={openNew} className="flex items-center gap-2 px-6 py-3 bg-brand-blue text-white text-sm font-medium rounded-md hover:bg-brand-blue-dk transition-colors">
           <PlusCircle className="w-5 h-5" /> 신규 자산 등록
         </button>
       </div>
 
-      <div className="bg-white rounded-lg border border-[#e0dace] overflow-hidden">
-        <div className="p-6 border-b border-[#e0dace] flex items-center justify-between bg-[#f7f5f0]">
-          <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-md border border-[#e0dace] focus-within:border-[#4a72a0] transition-colors">
-            <Search className="w-5 h-5 text-[#9a9080]" />
+      <div className="bg-white rounded-lg border border-stone-200 overflow-hidden">
+        <div className="p-6 border-b border-stone-200 flex items-center justify-between bg-stone-100">
+          <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-md border border-stone-200 focus-within:border-brand-blue transition-colors">
+            <Search className="w-5 h-5 text-stone-400" />
             <input type="text" placeholder="자산명 검색..." value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="bg-transparent border-none outline-none text-sm w-64 font-bold text-[#2a2820]"
+              className="bg-transparent border-none outline-none text-sm w-64 font-bold text-stone-800"
             />
           </div>
-          <button className="p-3 bg-white border border-[#e0dace] rounded-md text-[#7a7060] hover:bg-[#f7f5f0] transition-colors">
+          <button className="p-3 bg-white border border-stone-200 rounded-md text-stone-500 hover:bg-stone-100 transition-colors">
             <Filter className="w-5 h-5" />
           </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-[#f7f5f0] border-b border-[#e0dace]">
-                <th className="px-6 py-4 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wide">자산 정보</th>
-                <th className="px-6 py-4 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wide text-right">총 발행량</th>
-                <th className="px-6 py-4 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wide text-right">현재가</th>
-                <th className="px-6 py-4 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wide text-center">상태</th>
+              <tr className="bg-stone-100 border-b border-stone-200">
+                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide">자산 정보</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">총 발행량</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">현재가</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-center">상태</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e0dace]">
+            <tbody className="divide-y divide-stone-200">
               {filteredTokens.map(t => (
-                <tr key={t.id} className="hover:bg-[#f7f5f0] transition-all cursor-pointer group" onClick={() => openView(t)}>
+                <tr key={t.id} className="hover:bg-stone-100 transition-all cursor-pointer group" onClick={() => openView(t)}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-[#f7f5f0] border border-[#e0dace] flex items-center justify-center text-xs font-black text-[#9a9080]">
+                      <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-xs font-black text-stone-400">
                         {t.symbol.slice(0, 2)}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-[#2a2820]">{t.name}</p>
-                        <p className="text-[10px] font-mono font-bold text-[#9a9080]">{t.symbol}</p>
+                        <p className="text-sm font-semibold text-stone-800">{t.name}</p>
+                        <p className="text-[10px] font-mono font-bold text-stone-400">{t.symbol}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right text-sm font-mono font-bold text-[#7a7060]">
+                  <td className="px-6 py-4 text-right text-sm font-mono font-bold text-stone-500">
                     {t.issued.toLocaleString()} ST
                   </td>
-                  <td className="px-6 py-4 text-right text-sm font-black text-[#2a2820]">
+                  <td className="px-6 py-4 text-right text-sm font-black text-stone-800">
                     ₩{t.price.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className="px-2 py-1 rounded-md bg-[#e0f0e8] text-[#4a7a60] text-[10px] font-semibold">상장</span>
+                    <span className="px-2 py-1 rounded-md bg-brand-green-light text-brand-green text-[10px] font-semibold">상장</span>
                   </td>
                 </tr>
               ))}

@@ -20,10 +20,10 @@ const STYLES = {
   muted:   'bg-stone-elevated text-stone-muted',
   gold:    'bg-stone-buy-bg text-stone-gold',
   success: 'bg-[#e8f4ee] text-[#3d7a58]',
-  danger:  'bg-[#fde8e8] text-[#b04040]',
+  danger:  'bg-brand-red-light text-brand-red-dk',
   warning: 'bg-[#fef6dc] text-[#a07828]',
-  neutral: 'bg-[#f0ede4] text-[#7a7060]',
-  blue:    'bg-[#e8f0fa] text-[#3a62a0]',
+  neutral: 'bg-stone-100 text-stone-500',
+  blue:    'bg-[#e8f0fa] text-brand-blue-dk',
 };
 
 export function Badge({ children, variant = 'muted', className }) {
