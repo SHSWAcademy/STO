@@ -37,7 +37,7 @@ export function OrderPanel({ asset, currentPrice }) {
   }
 
   return (
-    <div className="w-[360px] bg-[#ffffff] rounded-2xl border border-[#e0dace] flex flex-col overflow-hidden shadow-sm">
+    <div className="w-[360px] bg-[#ffffff] rounded-lg border border-[#e0dace] flex flex-col overflow-hidden">
 
       {/* ── 탭: 매수 / 매도 / 대기 ────────────────── */}
       <div className="flex border-b border-[#e0dace]">
@@ -94,7 +94,7 @@ export function OrderPanel({ asset, currentPrice }) {
 
             {pendingOrders.length === 0 ? (
               <div className="py-16 flex flex-col items-center gap-3 text-center">
-                <div className="w-12 h-12 bg-[#e0dace] rounded-2xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-[#e0dace] rounded-lg flex items-center justify-center">
                   <MoreHorizontal size={24} className="text-[#9a9080]" />
                 </div>
                 <p className="text-sm font-bold text-[#9a9080]">대기 중인 주문이 없습니다</p>
@@ -154,7 +154,7 @@ export function OrderPanel({ asset, currentPrice }) {
               <label className="text-[10px] font-bold text-[#9a9080]">
                 {isBuy ? '매수' : '매도'} 가격
               </label>
-              <div className="flex items-center gap-2 bg-[#e0dace] border border-[#e0dace] rounded-xl px-4 py-2.5">
+              <div className="flex items-center gap-2 bg-[#e0dace] border border-[#e0dace] rounded-md px-4 py-2.5">
                 <input
                   type="text"
                   value={isMarket ? '' : price}
@@ -173,7 +173,7 @@ export function OrderPanel({ asset, currentPrice }) {
                 <label className="text-[10px] font-bold text-[#9a9080]">
                   {isBuy ? '매수' : '매도'} 수량
                 </label>
-                <div className="flex items-center gap-2 bg-[#e0dace] border border-[#e0dace] rounded-xl px-4 py-2.5">
+                <div className="flex items-center gap-2 bg-[#e0dace] border border-[#e0dace] rounded-md px-4 py-2.5">
                   <input
                     type="text"
                     placeholder="수량 입력"
@@ -189,7 +189,7 @@ export function OrderPanel({ asset, currentPrice }) {
                 <label className="text-[10px] font-bold text-[#9a9080]">
                   {isBuy ? '매수' : '매도'} 금액
                 </label>
-                <div className="flex items-center gap-2 bg-[#e0dace] border border-[#e0dace] rounded-xl px-4 py-2.5">
+                <div className="flex items-center gap-2 bg-[#e0dace] border border-[#e0dace] rounded-md px-4 py-2.5">
                   <input
                     type="text"
                     placeholder="금액 입력"
@@ -245,10 +245,10 @@ export function OrderPanel({ asset, currentPrice }) {
             <button
               onClick={handleSubmit}
               className={cn(
-                'w-full py-3.5 text-white rounded-2xl font-black text-sm transition-all shadow-lg',
+                'w-full py-3.5 text-white rounded-md font-black text-sm transition-colors',
                 isBuy
-                  ? 'bg-[#b85450] hover:bg-[#c92a2a] shadow-[#b85450]/20'
-                  : 'bg-[#4a72a0] hover:bg-[#1971c2] shadow-[#4a72a0]/20'
+                  ? 'bg-[#b85450] hover:bg-[#c92a2a]'
+                  : 'bg-[#4a72a0] hover:bg-[#1971c2]'
               )}
             >
               {isBuy ? '매수하기' : '매도하기'}
@@ -265,7 +265,7 @@ function PendingOrderCard({ order, onCancel }) {
   const isBuy = order.side === 'buy';
 
   return (
-    <div className="p-4 bg-[#f7f5f0] rounded-2xl border border-[#e0dace] space-y-3">
+    <div className="p-4 bg-[#f7f5f0] rounded-lg border border-[#e0dace] space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className={cn(
@@ -301,12 +301,12 @@ function PendingOrderCard({ order, onCancel }) {
       </div>
 
       <div className="flex gap-2 pt-1">
-        <button className="flex-1 py-2 bg-[#ffffff] border border-[#e0dace] rounded-xl text-[11px] font-black text-[#7a7060] hover:bg-[#e0dace] transition-all flex items-center justify-center gap-1">
+        <button className="flex-1 py-2 bg-[#ffffff] border border-[#e0dace] rounded-md text-[11px] font-black text-[#7a7060] hover:bg-[#e0dace] transition-all flex items-center justify-center gap-1">
           <Edit3 size={12} /> 수정
         </button>
         <button
           onClick={() => onCancel(order.id)}
-          className="flex-1 py-2 bg-stone-buy-bg border border-stone-buy-bg rounded-xl text-[11px] font-black text-[#b85450] hover:bg-stone-buy-bg transition-all flex items-center justify-center gap-1"
+          className="flex-1 py-2 bg-stone-buy-bg border border-stone-buy-bg rounded-md text-[11px] font-black text-[#b85450] hover:bg-stone-buy-bg transition-all flex items-center justify-center gap-1"
         >
           <X size={12} /> 취소
         </button>

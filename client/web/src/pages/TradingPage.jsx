@@ -54,7 +54,7 @@ export function TradingPage() {
           </>
         ) : (
           /* 기타 탭: 콘텐츠 패널 */
-          <div className="flex-1 bg-[#ffffff] rounded-2xl border border-[#e0dace] p-8 overflow-y-auto shadow-sm">
+          <div className="flex-1 bg-[#ffffff] rounded-lg border border-[#e0dace] p-8 overflow-y-auto">
             {activeTab === 'info'     && <InfoTab     asset={asset} />}
             {activeTab === 'dividend' && <DividendTab />}
             {activeTab === 'news'     && <NewsTab />}
@@ -97,7 +97,7 @@ function InfoTab({ asset }) {
       {asset.pdfUrl && (
         <section>
           <h3 className="text-lg font-bold mb-4 text-[#2a2820]">투자 설명서</h3>
-          <div className="p-6 bg-[#f7f5f0] rounded-2xl border border-[#e0dace] flex items-center justify-between group hover:border-[#4a72a0] transition-all">
+          <div className="p-6 bg-[#f7f5f0] rounded-lg border border-[#e0dace] flex items-center justify-between group hover:border-[#4a72a0] transition-all">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-stone-buy-bg flex items-center justify-center text-stone-buy">
                 <FileText size={24} />
@@ -140,7 +140,7 @@ function DividendTab() {
           { label: '배당 수익률',    value: '4.2%',      date: '연환산 기준' },
           { label: '다음 배당 예정일', value: '2024.06.15', date: '분기 배당' },
         ].map((item, i) => (
-          <div key={i} className="p-6 bg-[#f7f5f0] rounded-2xl border border-[#e0dace]">
+          <div key={i} className="p-6 bg-[#f7f5f0] rounded-lg border border-[#e0dace]">
             <p className="text-xs font-bold text-[#9a9080] mb-1">{item.label}</p>
             <p className="text-xl font-black text-[#2a2820]">{item.value}</p>
             <p className="text-[10px] text-[#9a9080] mt-2 font-bold">{item.date}</p>
@@ -183,7 +183,7 @@ function NewsTab() {
   return (
     <div className="space-y-4">
       {DISCLOSURES.map((item, i) => (
-        <div key={i} className="p-6 bg-[#ffffff] rounded-2xl hover:bg-[#f7f5f0] transition-all cursor-pointer border border-[#e0dace] group shadow-sm">
+        <div key={i} className="p-6 bg-[#ffffff] rounded-lg hover:bg-[#f7f5f0] transition-all cursor-pointer border border-[#e0dace] group">
           <div className="flex justify-between items-start mb-2">
             <h4 className="font-bold text-[#2a2820] group-hover:text-[#4a72a0] transition-colors">
               {item.title}

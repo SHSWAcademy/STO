@@ -46,10 +46,10 @@ export function SystemLogs() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-[#2a2820]">시스템 로그 관리</h1>
-          <p className="text-sm font-bold text-[#9a9080]">플랫폼 내의 모든 활동 로그를 모니터링합니다.</p>
+          <h1 className="text-2xl font-semibold text-[#2a2820]">시스템 로그 관리</h1>
+          <p className="text-sm text-[#9a9080]">플랫폼 내의 모든 활동 로그를 모니터링합니다.</p>
         </div>
-        <button className="flex items-center gap-2 px-6 py-2.5 bg-white border border-[#e0dace] rounded-xl text-sm font-bold text-[#7a7060] hover:bg-[#f7f5f0] transition-all">
+        <button className="flex items-center gap-2 px-6 py-2.5 bg-white border border-[#e0dace] rounded-md text-sm font-medium text-[#7a7060] hover:bg-[#f7f5f0] transition-colors">
           <Download size={16} /> 로그 내보내기 (CSV)
         </button>
       </div>
@@ -58,7 +58,7 @@ export function SystemLogs() {
       <TabSwitcher variant="light" items={TABS} active={activeTab} onChange={setActiveTab} />
 
       {/* Filter Bar */}
-      <div className="bg-white p-6 rounded-2xl border border-[#e0dace] shadow-sm flex items-center gap-4">
+      <div className="bg-white p-6 rounded-lg border border-[#e0dace] flex items-center gap-4">
         <SearchInput variant="light" value={searchTerm} onChange={setSearchTerm} placeholder="사용자명, 아이디, 상세 내용 검색..." />
         <div className="flex items-center gap-2 bg-[#f7f5f0] border border-[#e0dace] rounded-xl px-4 py-2.5">
           <Calendar className="w-4 h-4 text-[#9a9080]" />
@@ -70,13 +70,13 @@ export function SystemLogs() {
       </div>
 
       {/* Log Table */}
-      <div className="bg-white rounded-2xl border border-[#e0dace] shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg border border-[#e0dace] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[#f7f5f0] border-b border-[#e0dace]">
                 {['로그 ID','타임스탬프','사용자/식별자','수행 작업','상세 정보', ...(showIp ? ['IP 주소'] : []), '결과'].map(h => (
-                  <th key={h} className={`px-6 py-4 text-[10px] font-black text-[#9a9080] uppercase tracking-wider ${h === '결과' ? 'text-center' : ''}`}>{h}</th>
+                  <th key={h} className={`px-6 py-4 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wide ${h === '결과' ? 'text-center' : ''}`}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -106,7 +106,7 @@ export function SystemLogs() {
             <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map(n => (
                 <button key={n} className={cn('w-8 h-8 rounded-lg text-xs font-bold transition-all',
-                  n === 1 ? 'bg-[#4a72a0] text-white shadow-md shadow-[#4a72a0]/20' : 'text-[#9a9080] hover:bg-[#e0dace]'
+                  n === 1 ? 'bg-[#4a72a0] text-white' : 'text-[#9a9080] hover:bg-[#e0dace]'
                 )}>{n}</button>
               ))}
             </div>

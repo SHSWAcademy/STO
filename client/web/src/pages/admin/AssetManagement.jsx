@@ -85,36 +85,36 @@ export function AssetManagement() {
       <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => setIsViewingAsset(false)} className="p-2 rounded-xl bg-white border border-[#e0dace] text-[#9a9080] hover:text-[#2a2820] transition-all">
+            <button onClick={() => setIsViewingAsset(false)} className="p-2 rounded-md bg-white border border-[#e0dace] text-[#9a9080] hover:text-[#2a2820] transition-colors">
               <ArrowRight className="rotate-180 w-5 h-5" />
             </button>
             <div>
-              <h2 className="text-xl font-black text-[#2a2820]">자산 상세 정보</h2>
-              <p className="text-sm font-bold text-[#9a9080]">{selectedAsset.name} ({selectedAsset.symbol})</p>
+              <h2 className="text-xl font-semibold text-[#2a2820]">자산 상세 정보</h2>
+              <p className="text-sm text-[#9a9080]">{selectedAsset.name} ({selectedAsset.symbol})</p>
             </div>
           </div>
-          <button onClick={() => openEdit(selectedAsset)} className="px-6 py-2.5 bg-[#4a72a0] text-white text-sm font-bold rounded-xl hover:opacity-90 transition-all shadow-lg shadow-[#4a72a0]/20">
+          <button onClick={() => openEdit(selectedAsset)} className="px-6 py-2.5 bg-[#4a72a0] text-white text-sm font-medium rounded-md hover:bg-[#3a62a0] transition-colors">
             정보 수정하기
           </button>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
-          <div className="bg-white border border-[#e0dace] rounded-2xl p-8 space-y-6 shadow-sm">
-            <h3 className="text-sm font-black text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">기본 정보</h3>
+          <div className="bg-white border border-[#e0dace] rounded-lg p-8 space-y-6">
+            <h3 className="text-sm font-semibold text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">기본 정보</h3>
             <div className="grid grid-cols-2 gap-8">
               {[['자산명', selectedAsset.name], ['심볼', selectedAsset.symbol]].map(([l, v]) => (
                 <div key={l} className="space-y-1">
-                  <p className="text-[10px] font-black text-[#9a9080] uppercase tracking-widest">{l}</p>
+                  <p className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">{l}</p>
                   <p className="text-sm font-bold text-[#2a2820]">{v}</p>
                 </div>
               ))}
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-[#9a9080] uppercase tracking-widest">상태</p>
-                <span className="px-2 py-0.5 rounded bg-[#e0f0e8] text-[#4a7a60] text-[10px] font-black uppercase inline-block">상장 활성</span>
+                <p className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">상태</p>
+                <span className="px-2 py-0.5 rounded bg-[#e0f0e8] text-[#4a7a60] text-[10px] font-semibold uppercase inline-block">상장 활성</span>
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-black text-[#9a9080] uppercase tracking-widest">자산 설명</p>
+              <p className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">자산 설명</p>
               <p className="text-sm text-[#7a7060] leading-relaxed">{selectedAsset.desc}</p>
             </div>
             {selectedAsset.pdfUrl && (
@@ -122,7 +122,7 @@ export function AssetManagement() {
                 <p className="text-[10px] font-black text-[#9a9080] uppercase tracking-widest mb-2">세부 정보 보고서</p>
                 <a href={selectedAsset.pdfUrl} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-3 p-3 rounded-xl bg-[#f7f5f0] border border-[#e0dace] hover:bg-[#e0dace] transition-all group">
-                  <div className="p-2 bg-[#4a3232] rounded-lg text-[#b85450]"><FileText size={16} /></div>
+                  <div className="p-2 bg-[#fde8e8] rounded-lg text-[#b04040]"><FileText size={16} /></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-[#2a2820] truncate">{selectedAsset.name} 세부사항 보고서.pdf</p>
                     <p className="text-[10px] text-[#9a9080]">PDF Document</p>
@@ -133,8 +133,8 @@ export function AssetManagement() {
             )}
           </div>
 
-          <div className="bg-white border border-[#e0dace] rounded-2xl p-8 space-y-6 shadow-sm">
-            <h3 className="text-sm font-black text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">금융 및 발행 정보</h3>
+          <div className="bg-white border border-[#e0dace] rounded-lg p-8 space-y-6">
+            <h3 className="text-sm font-semibold text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">금융 및 발행 정보</h3>
             <div className="grid grid-cols-2 gap-8">
               {[
                 ['건물 가치', `₩${(selectedAsset.price * selectedAsset.issued).toLocaleString()}`],
@@ -143,8 +143,8 @@ export function AssetManagement() {
                 ['연간 수익률', `${selectedAsset.yield}%`],
               ].map(([l, v]) => (
                 <div key={l} className="space-y-1">
-                  <p className="text-[10px] font-black text-[#9a9080] uppercase tracking-widest">{l}</p>
-                  <p className="text-lg font-black text-[#2a2820]">{v}</p>
+                  <p className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">{l}</p>
+                  <p className="text-lg font-semibold text-[#2a2820]">{v}</p>
                 </div>
               ))}
             </div>
@@ -159,33 +159,33 @@ export function AssetManagement() {
     return (
       <div className="space-y-8">
         <div className="flex items-center gap-4">
-          <button onClick={() => setIsEditingAsset(false)} className="p-2 rounded-xl bg-white border border-[#e0dace] text-[#9a9080] hover:text-[#2a2820] transition-all">
+          <button onClick={() => setIsEditingAsset(false)} className="p-2 rounded-md bg-white border border-[#e0dace] text-[#9a9080] hover:text-[#2a2820] transition-colors">
             <ArrowRight className="rotate-180 w-5 h-5" />
           </button>
           <div>
-            <h2 className="text-xl font-black text-[#2a2820]">자산 정보 수정</h2>
-            <p className="text-sm font-bold text-[#9a9080]">{selectedAsset.name}</p>
+            <h2 className="text-xl font-semibold text-[#2a2820]">자산 정보 수정</h2>
+            <p className="text-sm text-[#9a9080]">{selectedAsset.name}</p>
           </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
-          <div className="bg-white border border-[#e0dace] rounded-2xl p-8 space-y-6 shadow-sm">
-            <h3 className="text-sm font-black text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">기본 정보</h3>
+          <div className="bg-white border border-[#e0dace] rounded-lg p-8 space-y-6">
+            <h3 className="text-sm font-semibold text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">기본 정보</h3>
             {[
               { label: '자산명', key: 'name', placeholder: '강남 오피스 빌딩 A' },
               { label: '자산코드', key: 'symbol', placeholder: 'GN_A' },
             ].map(({ label, key, placeholder }) => (
               <div key={key} className="space-y-1.5">
-                <label className="text-[10px] font-black text-[#9a9080] uppercase tracking-widest">{label}</label>
+                <label className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">{label}</label>
                 <input
                   type="text" value={editForm[key]} placeholder={placeholder}
                   onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))}
-                  className="w-full bg-[#f7f5f0] border border-[#e0dace] rounded-xl px-4 py-3 text-sm text-[#2a2820] outline-none focus:border-[#4a72a0] transition-all font-bold"
+                  className="w-full bg-[#f7f5f0] border border-[#e0dace] rounded-md px-4 py-3 text-sm text-[#2a2820] outline-none focus:border-[#4a72a0] transition-colors font-medium"
                 />
               </div>
             ))}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-[#9a9080] uppercase tracking-widest">세부 정보 PDF URL</label>
+              <label className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">세부 정보 PDF URL</label>
               <div className="relative">
                 <input type="text" value={editForm.pdfUrl} placeholder="https://example.com/report.pdf"
                   onChange={e => setEditForm(f => ({ ...f, pdfUrl: e.target.value }))}
@@ -197,8 +197,8 @@ export function AssetManagement() {
           </div>
 
           <div className="space-y-8">
-            <div className="bg-white border border-[#e0dace] rounded-2xl p-8 space-y-6 shadow-sm">
-              <h3 className="text-sm font-black text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">금융 정보 (읽기 전용)</h3>
+            <div className="bg-white border border-[#e0dace] rounded-lg p-8 space-y-6">
+              <h3 className="text-sm font-semibold text-[#2a2820] uppercase tracking-widest border-b border-[#e0dace] pb-4">금융 정보 (읽기 전용)</h3>
               <div className="grid grid-cols-2 gap-4">
                 {[
                   ['토큰 가격', `₩${editForm.tokenPrice.toLocaleString()}`],
@@ -207,17 +207,17 @@ export function AssetManagement() {
                   ['배당지급일', `매월 ${editForm.dividendDay}일`],
                 ].map(([l, v]) => (
                   <div key={l} className="space-y-1.5">
-                    <label className="text-[10px] font-black text-[#9a9080] uppercase tracking-widest">{l}</label>
-                    <input type="text" value={v} readOnly className="w-full bg-[#e0dace] border border-[#e0dace] rounded-xl px-4 py-3 text-sm text-[#9a9080] outline-none font-bold cursor-not-allowed" />
+                    <label className="text-[10px] font-semibold text-[#9a9080] uppercase tracking-widest">{l}</label>
+                    <input type="text" value={v} readOnly className="w-full bg-[#e0dace] border border-[#e0dace] rounded-md px-4 py-3 text-sm text-[#9a9080] outline-none font-medium cursor-not-allowed" />
                   </div>
                 ))}
               </div>
             </div>
             <div className="flex gap-4">
-              <button onClick={() => setIsEditingAsset(false)} className="flex-1 py-4 rounded-2xl bg-white text-[#9a9080] text-sm font-bold hover:bg-[#f7f5f0] transition-all border border-[#e0dace]">
+              <button onClick={() => setIsEditingAsset(false)} className="flex-1 py-4 rounded-md bg-white text-[#9a9080] text-sm font-medium hover:bg-[#f7f5f0] transition-colors border border-[#e0dace]">
                 취소
               </button>
-              <button onClick={handleSave} className="flex-[2] py-4 rounded-2xl bg-[#4a72a0] text-white text-sm font-bold hover:opacity-90 shadow-lg shadow-[#4a72a0]/20 transition-all">
+              <button onClick={handleSave} className="flex-[2] py-4 rounded-md bg-[#4a72a0] text-white text-sm font-medium hover:bg-[#3a62a0] transition-colors">
                 변경사항 저장
               </button>
             </div>
@@ -232,24 +232,24 @@ export function AssetManagement() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-[#2a2820]">자산 관리</h1>
-          <p className="text-sm font-bold text-[#9a9080]">플랫폼에 등록된 STO 자산을 관리하고 신규 자산을 등록합니다.</p>
+          <h1 className="text-2xl font-semibold text-[#2a2820]">자산 관리</h1>
+          <p className="text-sm text-[#9a9080]">플랫폼에 등록된 STO 자산을 관리하고 신규 자산을 등록합니다.</p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 px-6 py-3 bg-[#4a72a0] text-white text-sm font-bold rounded-xl hover:opacity-90 transition-all shadow-lg shadow-[#4a72a0]/20">
+        <button onClick={openNew} className="flex items-center gap-2 px-6 py-3 bg-[#4a72a0] text-white text-sm font-medium rounded-md hover:bg-[#3a62a0] transition-colors">
           <PlusCircle className="w-5 h-5" /> 신규 자산 등록
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#e0dace] shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg border border-[#e0dace] overflow-hidden">
         <div className="p-6 border-b border-[#e0dace] flex items-center justify-between bg-[#f7f5f0]">
-          <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-[#e0dace] shadow-sm focus-within:border-[#4a72a0] transition-all">
+          <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-md border border-[#e0dace] focus-within:border-[#4a72a0] transition-colors">
             <Search className="w-5 h-5 text-[#9a9080]" />
             <input type="text" placeholder="자산명 검색..." value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="bg-transparent border-none outline-none text-sm w-64 font-bold text-[#2a2820]"
             />
           </div>
-          <button className="p-3 bg-white border border-[#e0dace] rounded-xl text-[#7a7060] hover:bg-[#f7f5f0] shadow-sm transition-all">
+          <button className="p-3 bg-white border border-[#e0dace] rounded-md text-[#7a7060] hover:bg-[#f7f5f0] transition-colors">
             <Filter className="w-5 h-5" />
           </button>
         </div>
@@ -257,10 +257,10 @@ export function AssetManagement() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[#f7f5f0] border-b border-[#e0dace]">
-                <th className="px-6 py-4 text-[10px] font-black text-[#9a9080] uppercase tracking-wider">자산 정보</th>
-                <th className="px-6 py-4 text-[10px] font-black text-[#9a9080] uppercase tracking-wider text-right">총 발행량</th>
-                <th className="px-6 py-4 text-[10px] font-black text-[#9a9080] uppercase tracking-wider text-right">현재가</th>
-                <th className="px-6 py-4 text-[10px] font-black text-[#9a9080] uppercase tracking-wider text-center">상태</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wide">자산 정보</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wide text-right">총 발행량</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wide text-right">현재가</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wide text-center">상태</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e0dace]">
@@ -272,7 +272,7 @@ export function AssetManagement() {
                         {t.symbol.slice(0, 2)}
                       </div>
                       <div>
-                        <p className="text-sm font-black text-[#2a2820]">{t.name}</p>
+                        <p className="text-sm font-semibold text-[#2a2820]">{t.name}</p>
                         <p className="text-[10px] font-mono font-bold text-[#9a9080]">{t.symbol}</p>
                       </div>
                     </div>
@@ -284,7 +284,7 @@ export function AssetManagement() {
                     ₩{t.price.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <span className="px-2 py-1 rounded-md bg-[#e0f0e8] text-[#4a7a60] text-[10px] font-black">상장</span>
+                    <span className="px-2 py-1 rounded-md bg-[#e0f0e8] text-[#4a7a60] text-[10px] font-semibold">상장</span>
                   </td>
                 </tr>
               ))}

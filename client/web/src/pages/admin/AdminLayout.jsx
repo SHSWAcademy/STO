@@ -50,9 +50,9 @@ export function AdminLayout() {
               key={item.path}
               to={item.path}
               className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all',
+                'flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors',
                 isActive(item.path)
-                  ? 'bg-[#4a72a0] text-white shadow-lg shadow-[#4a72a0]/20'
+                  ? 'bg-[#4a72a0] text-white'
                   : 'text-white/60 hover:text-white hover:bg-white/5',
               )}
             >

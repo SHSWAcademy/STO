@@ -41,7 +41,7 @@ export function DashboardPage() {
 
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-stone-muted text-[11px] font-bold uppercase tracking-wider border-b border-stone-surface">
+                <tr className="text-stone-muted text-[11px] font-medium uppercase tracking-wide border-b border-stone-surface">
                   <th className="text-left py-4 font-medium">순위 · {timeRange} 기준</th>
                   <th className="text-right py-4 font-medium">현재가</th>
                   <th className="text-right py-4 font-medium">등락률</th>
@@ -95,7 +95,7 @@ export function DashboardPage() {
 
         {/* 우: 종목 프리뷰 */}
         <div className="w-full lg:w-[380px] space-y-6">
-          <div className="bg-stone-surface rounded-2xl border border-stone-border p-8 shadow-sm sticky top-24">
+          <div className="bg-stone-surface rounded-xl border border-stone-border p-8 sticky top-24">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
                 <AssetAvatar symbol={selectedToken.symbol} size="md" />
@@ -112,7 +112,7 @@ export function DashboardPage() {
               <button
                 onClick={() => toggleWatchlist(selectedToken.id)}
                 className={cn(
-                  'p-3 rounded-2xl transition-all duration-300 border',
+                  'p-3 rounded-lg transition-colors border',
                   watchlist.includes(selectedToken.id)
                     ? 'bg-stone-buy-bg text-stone-buy border-stone-buy-bg'
                     : 'bg-stone-bg text-stone-muted border-stone-surface hover:text-stone-buy'
@@ -143,7 +143,7 @@ export function DashboardPage() {
 
             <button
               onClick={() => navigate('/trading')}
-              className="w-full py-4 rounded-2xl bg-stone-gold text-[#1c1c1e] font-black uppercase tracking-widest hover:bg-stone-gold-light transition-all shadow-xl shadow-stone-gold/20"
+              className="w-full py-4 rounded-lg bg-stone-gold text-[#1c1c1e] font-black uppercase tracking-widest hover:bg-stone-gold-light transition-colors"
             >
               거래하기
             </button>

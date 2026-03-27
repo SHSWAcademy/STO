@@ -23,7 +23,7 @@ export function UserManagement() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-[#2a2820]">사용자 관리</h1>
+          <h1 className="text-2xl font-semibold text-[#2a2820]">사용자 관리</h1>
           <p className="text-sm font-bold text-[#9a9080]">플랫폼 가입자 현황 및 권한을 관리합니다.</p>
         </div>
         <div className="flex items-center gap-3">
@@ -38,30 +38,30 @@ export function UserManagement() {
       <div className="grid grid-cols-4 gap-6">
         {[
           { label: '전체 사용자',     value: '12,482', icon: UsersIcon,  color: 'text-[#c9a84c]', bg: 'bg-[#ffe65a]/30' },
-          { label: '신규 가입 (오늘)', value: '124',    icon: UserCheck,  color: 'text-[#b85450]', bg: 'bg-[#4a3232]' },
-          { label: '정지된 계정',     value: '42',     icon: UserMinus,  color: 'text-[#b85450]', bg: 'bg-[#4a3232]' },
+          { label: '신규 가입 (오늘)', value: '124',    icon: UserCheck,  color: 'text-[#b85450]', bg: 'bg-[#fde8e8]' },
+          { label: '정지된 계정',     value: '42',     icon: UserMinus,  color: 'text-[#b85450]', bg: 'bg-[#fde8e8]' },
           { label: '관리자 계정',     value: '8',      icon: Shield,     color: 'text-[#9a9080]', bg: 'bg-[#e0dace]' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-2xl border border-[#e0dace] shadow-sm">
+          <div key={i} className="bg-white p-6 rounded-lg border border-[#e0dace]">
             <div className="flex items-center justify-between mb-4">
               <div className={cn('p-3 rounded-xl', stat.bg)}>
                 <stat.icon className={cn('w-6 h-6', stat.color)} />
               </div>
             </div>
             <p className="text-xs font-bold text-[#9a9080] mb-1">{stat.label}</p>
-            <h3 className="text-2xl font-black text-[#2a2820]">{stat.value}</h3>
+            <h3 className="text-2xl font-semibold text-[#2a2820]">{stat.value}</h3>
           </div>
         ))}
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-[#e0dace] shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg border border-[#e0dace] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[#f7f5f0] border-b border-[#e0dace]">
                 {['사용자 정보','가입일','총 투자액','권한','상태'].map(h => (
-                  <th key={h} className="px-6 py-4 text-[10px] font-black text-[#9a9080] uppercase tracking-wider">{h}</th>
+                  <th key={h} className="px-6 py-4 text-[10px] font-semibold text-[#9a9080] uppercase tracking-wide">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -100,7 +100,7 @@ export function UserManagement() {
                         'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border-none outline-none cursor-pointer transition-all',
                         user.role === 'super-admin' ? 'bg-[#e0dace] text-[#7a7060]'
                           : user.role === 'admin' ? 'bg-[#ffe65a]/30 text-[#c9a84c]'
-                          : user.role === 'ban' ? 'bg-[#4a3232] text-[#b85450]'
+                          : user.role === 'ban' ? 'bg-[#fde8e8] text-[#b04040]'
                           : 'bg-[#f7f5f0] text-[#7a7060]'
                       )}
                     >

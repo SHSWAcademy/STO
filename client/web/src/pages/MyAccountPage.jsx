@@ -76,9 +76,9 @@ export function MyAccountPage() {
                 key={item.id}
                 onClick={() => setActiveSubTab(item.id)}
                 className={cn(
-                  'w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all text-left',
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors text-left',
                   activeSubTab === item.id
-                    ? 'bg-stone-surface text-stone-text-primary border border-stone-border shadow-sm'
+                    ? 'bg-stone-surface text-stone-text-primary border border-stone-border'
                     : 'text-stone-text-secondary hover:bg-stone-surface hover:text-stone-text-primary'
                 )}
               >
