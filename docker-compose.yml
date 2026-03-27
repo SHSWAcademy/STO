@@ -102,15 +102,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sto
       SPRING_DATASOURCE_USERNAME: sto
       SPRING_DATASOURCE_PASSWORD: sto1234
-      BLOCKCHAIN_GANACHE_URL: http://ganache:8545
       JAVA_OPTS: "-Xms256m -Xmx512m"
     depends_on:
       postgres:
         condition: service_healthy
-      ganache:
-        condition: service_started
       general:
-        condition: service_healthy  
+        condition: service_healthy
     restart: always
 
   # ── Nginx 
