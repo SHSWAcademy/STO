@@ -38,8 +38,8 @@ services:
   # ── General API 컨테이너 (모든 API 처리)
   general:
     build:
-      context: ./server
-      dockerfile: main/Dockerfile
+      context: ./server/main
+      dockerfile: Dockerfile
     container_name: sto-general
     ports:
       - "8080:8080"
@@ -69,8 +69,8 @@ services:
   # ── 스프링 매치 (주문 체결)
   match:
     build:
-      context: ./server
-      dockerfile: match/Dockerfile
+      context: ./server/match
+      dockerfile: Dockerfile
     container_name: sto-match
     ports:
       - "8081:8081"
@@ -95,8 +95,8 @@ services:
   # ── Batch
   batch:
     build:
-      context: ./server
-      dockerfile: batch/Dockerfile
+      context: ./server/batch
+      dockerfile: Dockerfile
     container_name: sto-batch
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sto
