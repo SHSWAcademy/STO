@@ -39,7 +39,7 @@ services:
   general:
     build:
       context: ./server
-      dockerfile: module-general/Dockerfile
+      dockerfile: main/Dockerfile
     container_name: sto-general
     ports:
       - "8080:8080"
@@ -70,7 +70,7 @@ services:
   match:
     build:
       context: ./server
-      dockerfile: module-match/Dockerfile
+      dockerfile: match/Dockerfile
     container_name: sto-match
     ports:
       - "8081:8081"
@@ -96,7 +96,7 @@ services:
   batch:
     build:
       context: ./server
-      dockerfile: module-batch/Dockerfile
+      dockerfile: batch/Dockerfile
     container_name: sto-batch
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sto
