@@ -44,14 +44,7 @@ services:
     ports:
       - "8082:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sto
-      SPRING_DATASOURCE_USERNAME: sto
-      SPRING_DATASOURCE_PASSWORD: sto1234
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_H2_CONSOLE_ENABLED: "false"
+      SPRING_PROFILES_ACTIVE: docker
       MATCH_URL: http://match:8081
       JWT_SECRET: sto-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm-ok
       JAVA_OPTS: "-Xms256m -Xmx512m"
@@ -71,13 +64,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sto
-      SPRING_DATASOURCE_USERNAME: sto
-      SPRING_DATASOURCE_PASSWORD: sto1234
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_H2_CONSOLE_ENABLED: "false"
+      SPRING_PROFILES_ACTIVE: docker
       JAVA_OPTS: "-Xms512m -Xmx1g"
     depends_on:
       postgres:
@@ -97,11 +84,7 @@ services:
       dockerfile: Dockerfile
     container_name: sto-batch
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sto
-      SPRING_DATASOURCE_USERNAME: sto
-      SPRING_DATASOURCE_PASSWORD: sto1234
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-      SPRING_H2_CONSOLE_ENABLED: "false"
+      SPRING_PROFILES_ACTIVE: docker
       JAVA_OPTS: "-Xms256m -Xmx512m"
     depends_on:
       postgres:
