@@ -42,7 +42,7 @@ services:
       dockerfile: Dockerfile
     container_name: sto-general
     ports:
-      - "8080:8080"
+      - "8082:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/sto
       SPRING_DATASOURCE_USERNAME: sto
