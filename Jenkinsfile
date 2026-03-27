@@ -1,21 +1,22 @@
 pipeline {
     agent any
 
-    environment {
-        DEPLOY_DIR = '/srv/sto'
-    }
-
     stages {
-        stage('Pull') {
+        stage('Checkout') {
             steps {
-                sh 'cd $DEPLOY_DIR && git pull'
+                checkout scm
             }
         }
 
-        stage('Build & Deploy') {
+        stage('Build') {
             steps {
-                sh 'cd $DEPLOY_DIR && docker compose build --no-cache'
-                sh 'cd $DEPLOY_DIR && docker compose up -d'
+                sh 'docker compose build --no-cache'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh 'docker compose up -d'
             }
         }
     }
