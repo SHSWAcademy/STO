@@ -4,6 +4,7 @@ import { cn } from '../lib/utils.js';
 import { TabSwitcher } from '../components/ui/TabSwitcher.jsx';
 import { SearchInput } from '../components/ui/SearchInput.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
+import { EmptyState } from '../components/ui/EmptyState.jsx';
 
 const NOTICES = [
   { id: 1, title: '3월 21일 서비스 점검 및 시스템 고도화 안내',   date: '2026.03.20', category: '시스템', important: true,  desc: '안정적인 서비스 제공을 위해 시스템 점검이 진행될 예정입니다.' },
@@ -150,9 +151,7 @@ export function NoticePage() {
               </div>
             ))
           ) : (
-            <div className="p-20 text-center">
-              <p className="text-stone-400 font-bold">검색 결과가 없습니다.</p>
-            </div>
+            <EmptyState message="검색 결과가 없습니다." className="m-4" />
           )}
         </div>
       </div>

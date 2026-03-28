@@ -4,9 +4,9 @@ import { Heart, ArrowUp, ArrowDown, LayoutGrid, List, ChevronRight } from 'lucid
 import { TOKENS, MINI_CHART_DATA } from '../data/mock.js';
 import { useApp } from '../context/AppContext.jsx';
 import { cn } from '../lib/utils.js';
-import { ResponsiveContainer, LineChart, Line, YAxis } from 'recharts';
 import { SearchInput } from '../components/ui/SearchInput.jsx';
 import { AssetAvatar } from '../components/ui/AssetAvatar.jsx';
+import { MiniChart } from '../components/ui/MiniChart.jsx';
 
 export function WatchlistPage() {
   const navigate = useNavigate();
@@ -111,14 +111,7 @@ export function WatchlistPage() {
                       <p className="text-xs font-bold text-stone-500">{(token.vol / 100000000).toFixed(1)}억</p>
                     </td>
                     <td className="px-4 py-6">
-                      <div className="h-8 w-24">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={getMiniChart(token.id)}>
-                            <YAxis hide domain={['auto', 'auto']} />
-                            <Line type="monotone" dataKey="v" stroke={isUp ? 'var(--color-brand-red)' : 'var(--color-brand-blue)'} strokeWidth={2} dot={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
+                      <MiniChart data={getMiniChart(token.id)} isUp={isUp} className="h-8 w-24" />
                     </td>
                     <td className="px-8 py-6 text-right">
                       <ChevronRight size={18} className="text-stone-300 group-hover:text-stone-600 transition-colors" />
@@ -162,14 +155,7 @@ export function WatchlistPage() {
                   </div>
                 </div>
 
-                <div className="h-16 w-full mb-4">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={getMiniChart(token.id)}>
-                      <YAxis hide domain={['auto', 'auto']} />
-                      <Line type="monotone" dataKey="v" stroke={isUp ? 'var(--color-brand-red)' : 'var(--color-brand-blue)'} strokeWidth={2} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                <MiniChart data={getMiniChart(token.id)} isUp={isUp} className="h-16 w-full mb-4" />
 
                 <div className="flex items-center justify-between pt-4 border-t border-stone-100">
                   <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{token.category}</span>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   History, Wallet, ArrowUpRight, HandCoins, TrendingUp,
-  Settings as SettingsIcon, Coins, AlertCircle, User, Landmark,
+  Settings as SettingsIcon, Coins, User, Landmark,
   ChevronDown
 } from 'lucide-react';
 import {
@@ -10,6 +10,7 @@ import {
 } from '../data/mock.js';
 import { cn } from '../lib/utils.js';
 import { Modal } from '../components/ui/Modal.jsx';
+import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const ASSET_PIE = [
@@ -306,10 +307,7 @@ function HistoryTab({ filter, onFilter, items }) {
               </div>
             ))
           ) : (
-            <div className="p-20 flex flex-col items-center justify-center text-center space-y-4">
-              <AlertCircle size={40} className="text-stone-300" />
-              <p className="text-stone-400 font-bold">거래 내역이 없습니다.</p>
-            </div>
+            <EmptyState message="거래 내역이 없습니다." className="m-6" />
           )}
         </div>
       </div>
@@ -403,10 +401,7 @@ function OrdersTab({ orderTab, onOrderTab, openOrders, onCancel }) {
               </div>
             ))
           ) : (
-            <div className="p-20 flex flex-col items-center justify-center text-center space-y-4">
-              <AlertCircle size={40} className="text-stone-300" />
-              <p className="text-stone-400 font-bold">주문 내역이 없습니다.</p>
-            </div>
+            <EmptyState message="주문 내역이 없습니다." className="m-6" />
           )}
         </div>
       </div>
