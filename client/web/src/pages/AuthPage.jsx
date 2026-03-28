@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext.jsx';
 import { Eye, EyeOff, CheckCircle, Wallet, Landmark, Play } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 import { StoneLogo } from '../components/ui/StoneLogo.jsx';
+import { Modal } from '../components/ui/Modal.jsx';
 
 // AuthPage — 로그인 / 회원가입 (탭 전환)
 // mock 인증: 이메일·비밀번호 모두 ADMIN → 관리자, 그 외 아무 값 → 일반 유저
@@ -183,47 +184,45 @@ export function AuthPage() {
       </div>
 
       {/* 가입 완료 모달 */}
-      {showComplete && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-sm border border-stone-200 shadow-2xl space-y-6">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-brand-green-light rounded-full flex items-center justify-center mx-auto mb-4 border border-stone-200">
-                <CheckCircle className="text-brand-green w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-black text-stone-800 uppercase tracking-tight">가입 완료!</h3>
-              <p className="text-xs text-stone-500 font-bold mt-2">STONE 회원이 되신 것을 환영합니다</p>
+      <Modal isOpen={showComplete} onClose={() => setShowComplete(false)}>
+        <div className="p-8 space-y-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-brand-green-light rounded-full flex items-center justify-center mx-auto mb-4 border border-stone-200">
+              <CheckCircle className="text-brand-green w-8 h-8" />
             </div>
-
-            <div className="space-y-3">
-              {[
-                { icon: Wallet,   bg: 'bg-stone-100', color: 'text-stone-600', label: '블록체인 지갑',  value: '0x742d...1F3A' },
-                { icon: Landmark, bg: 'bg-stone-100',  color: 'text-brand-red',  label: '은행 계좌 연결', value: '국민은행 **** 4521' },
-              ].map((item, i) => {
-                const Icon = item.icon;
-                return (
-                  <div key={i} className="flex items-center gap-4 p-4 bg-stone-100 rounded-2xl border border-stone-200">
-                    <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center`}>
-                      <Icon className={`${item.color} w-5 h-5`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{item.label}</p>
-                      <p className="text-xs font-bold text-stone-800">{item.value}</p>
-                    </div>
-                    <CheckCircle className="text-brand-green w-4 h-4" />
-                  </div>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={handleSignupComplete}
-              className="w-full bg-stone-800 hover:bg-stone-700 text-white py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg"
-            >
-              거래 시작하기 <Play size={14} />
-            </button>
+            <h3 className="text-xl font-black text-stone-800 uppercase tracking-tight">가입 완료!</h3>
+            <p className="text-xs text-stone-500 font-bold mt-2">STONE 회원이 되신 것을 환영합니다</p>
           </div>
+
+          <div className="space-y-3">
+            {[
+              { icon: Wallet,   bg: 'bg-stone-100', color: 'text-stone-600', label: '블록체인 지갑',  value: '0x742d...1F3A' },
+              { icon: Landmark, bg: 'bg-stone-100',  color: 'text-brand-red',  label: '은행 계좌 연결', value: '국민은행 **** 4521' },
+            ].map((item, i) => {
+              const Icon = item.icon;
+              return (
+                <div key={i} className="flex items-center gap-4 p-4 bg-stone-100 rounded-2xl border border-stone-200">
+                  <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center`}>
+                    <Icon className={`${item.color} w-5 h-5`} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">{item.label}</p>
+                    <p className="text-xs font-bold text-stone-800">{item.value}</p>
+                  </div>
+                  <CheckCircle className="text-brand-green w-4 h-4" />
+                </div>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={handleSignupComplete}
+            className="w-full bg-stone-800 hover:bg-stone-700 text-white py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg"
+          >
+            거래 시작하기 <Play size={14} />
+          </button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

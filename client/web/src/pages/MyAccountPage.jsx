@@ -2,13 +2,14 @@ import { useState } from 'react';
 import {
   History, Wallet, ArrowUpRight, HandCoins, TrendingUp,
   Settings as SettingsIcon, Coins, AlertCircle, User, Landmark,
-  ChevronDown, X
+  ChevronDown
 } from 'lucide-react';
 import {
   MOCK_USER, PORTFOLIO_ASSETS, ACCOUNT_DIVIDENDS,
   PROFIT_ANALYSIS_DATA, OPEN_ORDERS, FILLED_ORDERS,
 } from '../data/mock.js';
 import { cn } from '../lib/utils.js';
+import { Modal } from '../components/ui/Modal.jsx';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const ASSET_PIE = [
@@ -101,8 +102,8 @@ export function MyAccountPage() {
       </div>
 
       {/* 충전 모달 */}
-      {isFillModalOpen && (
-        <SimpleModal title="충전" onClose={() => { setIsFillModalOpen(false); setAmount(''); }}>
+      <Modal isOpen={isFillModalOpen} onClose={() => { setIsFillModalOpen(false); setAmount(''); }} title="충전">
+        <div className="p-8 space-y-4">
           <input
             type="number"
             placeholder="금액 입력"
@@ -113,12 +114,12 @@ export function MyAccountPage() {
           <button onClick={handleFill} className="w-full py-3 bg-stone-800 text-white rounded-xl font-black hover:bg-stone-700 transition-all">
             충전하기
           </button>
-        </SimpleModal>
-      )}
+        </div>
+      </Modal>
 
       {/* 송금 모달 */}
-      {isSendModalOpen && (
-        <SimpleModal title="송금" onClose={() => { setIsSendModalOpen(false); setAmount(''); }}>
+      <Modal isOpen={isSendModalOpen} onClose={() => { setIsSendModalOpen(false); setAmount(''); }} title="송금">
+        <div className="p-8 space-y-4">
           <input
             type="number"
             placeholder="금액 입력"
@@ -129,28 +130,12 @@ export function MyAccountPage() {
           <button onClick={handleSend} className="w-full py-3 bg-stone-100 border border-stone-200 text-stone-500 rounded-xl font-black hover:bg-stone-200 transition-all">
             송금하기
           </button>
-        </SimpleModal>
-      )}
+        </div>
+      </Modal>
     </div>
   );
 }
 
-// ── 모달 공통 래퍼 ────────────────────────────────────────────
-function SimpleModal({ title, onClose, children }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl border border-stone-200 p-8 w-full max-w-sm shadow-2xl space-y-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-black text-stone-800">{title}</h3>
-          <button onClick={onClose} className="text-stone-400 hover:text-stone-800 transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
 
 // ── 자산 탭 ────────────────────────────────────────────────────
 function AssetsTab({ onFill, onSend }) {

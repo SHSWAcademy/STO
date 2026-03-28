@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { FileText, PlusCircle, Filter, CheckCircle2, XCircle, AlertCircle, DollarSign, Edit3, Trash2, X } from 'lucide-react';
+import { FileText, PlusCircle, Filter, CheckCircle2, XCircle, AlertCircle, DollarSign, Edit3, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext.jsx';
 import { cn } from '../../lib/utils.js';
 import { TabSwitcher } from '../../components/ui/TabSwitcher.jsx';
 import { SearchInput } from '../../components/ui/SearchInput.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
+import { Modal } from '../../components/ui/Modal.jsx';
 
 export function ContentManagement() {
   const { disclosures, setDisclosures, tokens, notices, setNotices } = useApp();
@@ -222,152 +223,126 @@ export function ContentManagement() {
       )}
 
       {/* Edit Disclosure Modal */}
-      {editingDisclosure && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-stone-200 flex items-center justify-between bg-stone-100">
-              <h3 className="text-lg font-semibold text-stone-800">공시 정보 수정</h3>
-              <button onClick={() => setEditingDisclosure(null)} className="p-2 hover:bg-stone-200 rounded-xl transition-all">
-                <X className="w-5 h-5 text-stone-400" />
-              </button>
+      <Modal isOpen={!!editingDisclosure} onClose={() => setEditingDisclosure(null)} title="공시 정보 수정" maxWidth="max-w-lg">
+        <div className="p-8 space-y-6">
+          {[
+            { label: '공시 대상 자산', key: 'asset', readOnly: true },
+            { label: '공시 제목', key: 'title', readOnly: false },
+            { label: '첨부 파일 (PDF URL)', key: 'file', readOnly: false },
+          ].map(({ label, key, readOnly }) => (
+            <div key={key} className="space-y-1.5">
+              <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">{label}</label>
+              <input type="text" value={editForm[key]} readOnly={readOnly}
+                onChange={readOnly ? undefined : e => setEditForm({ ...editForm, [key]: e.target.value })}
+                className={cn('w-full border border-stone-200 rounded-xl px-4 py-3 text-sm outline-none font-bold transition-all',
+                  readOnly ? 'bg-stone-100 text-stone-400' : 'bg-stone-100 text-stone-800 focus:border-brand-blue'
+                )}
+              />
             </div>
-            <div className="p-8 space-y-6">
-              {[
-                { label: '공시 대상 자산', key: 'asset', readOnly: true },
-                { label: '공시 제목', key: 'title', readOnly: false },
-                { label: '첨부 파일 (PDF URL)', key: 'file', readOnly: false },
-              ].map(({ label, key, readOnly }) => (
-                <div key={key} className="space-y-1.5">
-                  <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">{label}</label>
-                  <input type="text" value={editForm[key]} readOnly={readOnly}
-                    onChange={readOnly ? undefined : e => setEditForm({ ...editForm, [key]: e.target.value })}
-                    className={cn('w-full border border-stone-200 rounded-xl px-4 py-3 text-sm outline-none font-bold transition-all',
-                      readOnly ? 'bg-stone-100 text-stone-400' : 'bg-stone-100 text-stone-800 focus:border-brand-blue'
-                    )}
-                  />
-                </div>
-              ))}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">상태</label>
-                <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}
-                  className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold appearance-none">
-                  <option value="승인완료">승인완료</option>
-                  <option value="검토대기">검토대기</option>
-                  <option value="반려">반려</option>
-                </select>
-              </div>
-            </div>
-            <div className="p-6 bg-stone-100 border-t border-stone-200 flex gap-3">
-              <button onClick={() => setEditingDisclosure(null)} className="flex-1 py-3 rounded-md bg-white border border-stone-200 text-stone-400 text-sm font-medium hover:bg-stone-200 transition-colors">취소</button>
-              <button onClick={handleSaveDisclosure} className="flex-[2] py-3 rounded-md bg-brand-blue text-white text-sm font-medium hover:bg-brand-blue-dk transition-colors">저장하기</button>
-            </div>
+          ))}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">상태</label>
+            <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+              className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold appearance-none">
+              <option value="승인완료">승인완료</option>
+              <option value="검토대기">검토대기</option>
+              <option value="반려">반려</option>
+            </select>
           </div>
         </div>
-      )}
+        <div className="p-6 bg-stone-100 border-t border-stone-200 flex gap-3">
+          <button onClick={() => setEditingDisclosure(null)} className="flex-1 py-3 rounded-md bg-white border border-stone-200 text-stone-400 text-sm font-medium hover:bg-stone-200 transition-colors">취소</button>
+          <button onClick={handleSaveDisclosure} className="flex-[2] py-3 rounded-md bg-brand-blue text-white text-sm font-medium hover:bg-brand-blue-dk transition-colors">저장하기</button>
+        </div>
+      </Modal>
 
       {/* Add Notice Modal */}
-      {isAddingNotice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-stone-200 flex items-center justify-between bg-stone-100">
-              <h3 className="text-lg font-semibold text-stone-800">신규 공지사항 등록</h3>
-              <button onClick={() => setIsAddingNotice(false)} className="p-2 hover:bg-stone-200 rounded-xl transition-all"><X className="w-5 h-5 text-stone-400" /></button>
-            </div>
-            <div className="p-8 space-y-6">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공지 제목</label>
-                <input type="text" value={noticeForm.title} onChange={e => setNoticeForm({ ...noticeForm, title: e.target.value })}
-                  placeholder="공지사항 제목을 입력하세요"
-                  className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">카테고리</label>
-                <div className="flex gap-2 p-1 bg-stone-200 rounded-xl">
-                  {['일반','시스템'].map(cat => (
-                    <button key={cat} type="button" onClick={() => setNoticeForm({ ...noticeForm, category: cat })}
-                      className={cn('flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors',
-                        noticeForm.category === cat ? 'bg-white text-brand-blue shadow-sm' : 'text-stone-400 hover:text-stone-500'
-                      )}>
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">중요 공지 여부</label>
-                <div className="flex items-center gap-3 h-12 px-4 bg-stone-100 border border-stone-200 rounded-xl">
-                  <input type="checkbox" checked={noticeForm.important} onChange={e => setNoticeForm({ ...noticeForm, important: e.target.checked })} className="w-4 h-4 rounded" />
-                  <span className="text-xs font-bold text-stone-500">상단 고정</span>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공지 내용</label>
-                <textarea rows={6} value={noticeForm.content} onChange={e => setNoticeForm({ ...noticeForm, content: e.target.value })}
-                  placeholder="공지사항 내용을 입력하세요"
-                  className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold resize-none" />
-              </div>
-            </div>
-            <div className="p-6 bg-stone-100 border-t border-stone-200 flex gap-3">
-              <button onClick={() => setIsAddingNotice(false)} className="flex-1 py-3 rounded-md bg-white border border-stone-200 text-stone-400 text-sm font-medium hover:bg-stone-200 transition-colors">취소</button>
-              <button onClick={handleAddNotice} className="flex-[2] py-3 rounded-md bg-brand-blue text-white text-sm font-medium hover:bg-brand-blue-dk transition-colors">등록하기</button>
+      <Modal isOpen={isAddingNotice} onClose={() => setIsAddingNotice(false)} title="신규 공지사항 등록" maxWidth="max-w-lg">
+        <div className="p-8 space-y-6">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공지 제목</label>
+            <input type="text" value={noticeForm.title} onChange={e => setNoticeForm({ ...noticeForm, title: e.target.value })}
+              placeholder="공지사항 제목을 입력하세요"
+              className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">카테고리</label>
+            <div className="flex gap-2 p-1 bg-stone-200 rounded-xl">
+              {['일반','시스템'].map(cat => (
+                <button key={cat} type="button" onClick={() => setNoticeForm({ ...noticeForm, category: cat })}
+                  className={cn('flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors',
+                    noticeForm.category === cat ? 'bg-white text-brand-blue shadow-sm' : 'text-stone-400 hover:text-stone-500'
+                  )}>
+                  {cat}
+                </button>
+              ))}
             </div>
           </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">중요 공지 여부</label>
+            <div className="flex items-center gap-3 h-12 px-4 bg-stone-100 border border-stone-200 rounded-xl">
+              <input type="checkbox" checked={noticeForm.important} onChange={e => setNoticeForm({ ...noticeForm, important: e.target.checked })} className="w-4 h-4 rounded" />
+              <span className="text-xs font-bold text-stone-500">상단 고정</span>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공지 내용</label>
+            <textarea rows={6} value={noticeForm.content} onChange={e => setNoticeForm({ ...noticeForm, content: e.target.value })}
+              placeholder="공지사항 내용을 입력하세요"
+              className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold resize-none" />
+          </div>
         </div>
-      )}
+        <div className="p-6 bg-stone-100 border-t border-stone-200 flex gap-3">
+          <button onClick={() => setIsAddingNotice(false)} className="flex-1 py-3 rounded-md bg-white border border-stone-200 text-stone-400 text-sm font-medium hover:bg-stone-200 transition-colors">취소</button>
+          <button onClick={handleAddNotice} className="flex-[2] py-3 rounded-md bg-brand-blue text-white text-sm font-medium hover:bg-brand-blue-dk transition-colors">등록하기</button>
+        </div>
+      </Modal>
 
       {/* Add Disclosure Modal */}
-      {isAddingDisclosure && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-stone-200 flex items-center justify-between bg-stone-100">
-              <h3 className="text-lg font-semibold text-stone-800">신규 공시 등록</h3>
-              <button onClick={() => setIsAddingDisclosure(false)} className="p-2 hover:bg-stone-200 rounded-xl transition-all"><X className="w-5 h-5 text-stone-400" /></button>
+      <Modal isOpen={isAddingDisclosure} onClose={() => setIsAddingDisclosure(false)} title="신규 공시 등록" maxWidth="max-w-lg">
+        <div className="p-8 space-y-6">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공시 대상 자산</label>
+            <select value={editForm.asset} onChange={e => setEditForm({ ...editForm, asset: e.target.value })}
+              className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold appearance-none">
+              <option value="">자산을 선택하세요</option>
+              {tokens.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공시 유형</label>
+            <div className="flex gap-2 p-1 bg-stone-200 rounded-xl">
+              {['배당','일반'].map(type => (
+                <button key={type} type="button" onClick={() => setEditForm({ ...editForm, type })}
+                  className={cn('flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors',
+                    editForm.type === type ? (type === '배당' ? 'bg-white text-brand-red shadow-sm' : 'bg-white text-brand-blue shadow-sm') : 'text-stone-400 hover:text-stone-500'
+                  )}>
+                  {type}
+                </button>
+              ))}
             </div>
-            <div className="p-8 space-y-6">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공시 대상 자산</label>
-                <select value={editForm.asset} onChange={e => setEditForm({ ...editForm, asset: e.target.value })}
-                  className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold appearance-none">
-                  <option value="">자산을 선택하세요</option>
-                  {tokens.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공시 유형</label>
-                <div className="flex gap-2 p-1 bg-stone-200 rounded-xl">
-                  {['배당','일반'].map(type => (
-                    <button key={type} type="button" onClick={() => setEditForm({ ...editForm, type })}
-                      className={cn('flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors',
-                        editForm.type === type ? (type === '배당' ? 'bg-white text-brand-red shadow-sm' : 'bg-white text-brand-blue shadow-sm') : 'text-stone-400 hover:text-stone-500'
-                      )}>
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공시 제목</label>
-                <input type="text" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })}
-                  placeholder="공시 제목을 입력하세요"
-                  className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">첨부 파일 (PDF URL)</label>
-                <div className="relative">
-                  <input type="text" value={editForm.file} onChange={e => setEditForm({ ...editForm, file: e.target.value })}
-                    placeholder="https://example.com/report.pdf"
-                    className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold pr-10" />
-                  <FileText className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-                </div>
-              </div>
-            </div>
-            <div className="p-6 bg-stone-100 border-t border-stone-200 flex gap-3">
-              <button onClick={() => setIsAddingDisclosure(false)} className="flex-1 py-3 rounded-md bg-white border border-stone-200 text-stone-400 text-sm font-medium hover:bg-stone-200 transition-colors">취소</button>
-              <button onClick={handleAddDisclosure} className="flex-[2] py-3 rounded-md bg-brand-blue text-white text-sm font-medium hover:bg-brand-blue-dk transition-colors">등록하기</button>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공시 제목</label>
+            <input type="text" value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })}
+              placeholder="공시 제목을 입력하세요"
+              className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">첨부 파일 (PDF URL)</label>
+            <div className="relative">
+              <input type="text" value={editForm.file} onChange={e => setEditForm({ ...editForm, file: e.target.value })}
+                placeholder="https://example.com/report.pdf"
+                className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold pr-10" />
+              <FileText className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
             </div>
           </div>
         </div>
-      )}
+        <div className="p-6 bg-stone-100 border-t border-stone-200 flex gap-3">
+          <button onClick={() => setIsAddingDisclosure(false)} className="flex-1 py-3 rounded-md bg-white border border-stone-200 text-stone-400 text-sm font-medium hover:bg-stone-200 transition-colors">취소</button>
+          <button onClick={handleAddDisclosure} className="flex-[2] py-3 rounded-md bg-brand-blue text-white text-sm font-medium hover:bg-brand-blue-dk transition-colors">등록하기</button>
+        </div>
+      </Modal>
     </div>
   );
 }
