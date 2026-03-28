@@ -39,7 +39,7 @@ export function PlatformRevenue() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-6">
         {[
-          { label: '누적 수수료 수익',      value: `₩${totalRevenue.toLocaleString()}`,         icon: DollarSign, color: 'text-brand-gold', bg: 'bg-stone-gold-light/30', trend: '+12.5%' },
+          { label: '누적 수수료 수익',      value: `₩${totalRevenue.toLocaleString()}`,         icon: DollarSign, color: 'text-stone-600', bg: 'bg-stone-200', trend: '+12.5%' },
           { label: '플랫폼 보유 자산 가치',  value: `₩${totalPlatformValue.toLocaleString()}`,    icon: Wallet,     color: 'text-brand-red', bg: 'bg-brand-red-light',    trend: '+5.2%' },
           { label: '평균 보유 지분율',       value: '10.0%',                                       icon: PieChart,   color: 'text-brand-red', bg: 'bg-brand-red-light',    trend: '0.0%' },
         ].map((stat, i) => (
@@ -144,7 +144,7 @@ export function PlatformRevenue() {
                   </td>
                   <td className="px-6 py-4 text-right text-sm font-mono font-bold text-stone-500">{h.platformTokens.toLocaleString()} ST</td>
                   <td className="px-6 py-4 text-right">
-                    <span className="px-2 py-1 rounded-md bg-stone-gold-light/30 text-brand-gold text-[10px] font-semibold">{h.platformPercent}%</span>
+                    <span className="px-2 py-1 rounded-md bg-stone-200 text-stone-600 text-[10px] font-semibold">{h.platformPercent}%</span>
                   </td>
                   <td className="px-6 py-4 text-right text-sm font-black text-stone-800">₩{h.value.toLocaleString()}</td>
                   <td className="px-6 py-4 text-right text-sm font-bold text-brand-red">

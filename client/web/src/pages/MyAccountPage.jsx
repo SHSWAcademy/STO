@@ -108,9 +108,9 @@ export function MyAccountPage() {
             placeholder="금액 입력"
             value={amount}
             onChange={e => setAmount(e.target.value)}
-            className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-stone-800 outline-none focus:border-brand-gold text-sm font-bold"
+            className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-stone-800 outline-none focus:border-stone-800 text-sm font-bold"
           />
-          <button onClick={handleFill} className="w-full py-3 bg-stone-gold text-[#1c1c1e] rounded-xl font-black hover:bg-stone-gold-light transition-all">
+          <button onClick={handleFill} className="w-full py-3 bg-stone-800 text-white rounded-xl font-black hover:bg-stone-700 transition-all">
             충전하기
           </button>
         </SimpleModal>
@@ -124,7 +124,7 @@ export function MyAccountPage() {
             placeholder="금액 입력"
             value={amount}
             onChange={e => setAmount(e.target.value)}
-            className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-stone-800 outline-none focus:border-brand-gold text-sm font-bold"
+            className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-stone-800 outline-none focus:border-stone-800 text-sm font-bold"
           />
           <button onClick={handleSend} className="w-full py-3 bg-stone-100 border border-stone-200 text-stone-500 rounded-xl font-black hover:bg-stone-200 transition-all">
             송금하기
@@ -161,7 +161,7 @@ function AssetsTab({ onFill, onSend }) {
           <p className="text-stone-400 text-sm font-medium">계좌번호 123-456-789012</p>
           <h2 className="text-4xl font-black text-stone-800 tracking-tight">총 자산 25,390,000원</h2>
           <div className="flex gap-3 pt-2">
-            <button onClick={onFill} className="px-8 py-2.5 rounded-full bg-stone-gold text-[#1c1c1e] text-sm font-bold hover:bg-stone-gold-light transition-all shadow-lg shadow-stone-gold/10">
+            <button onClick={onFill} className="px-8 py-2.5 rounded-full bg-stone-800 text-white text-sm font-bold hover:bg-stone-700 transition-all shadow-lg">
               채우기
             </button>
             <button onClick={onSend} className="px-8 py-2.5 rounded-full bg-stone-100 text-stone-500 text-sm font-bold hover:bg-stone-200 transition-all border border-stone-200">
@@ -223,7 +223,7 @@ function AssetsTab({ onFill, onSend }) {
           </div>
           <div className="text-right">
             <p className="text-2xl font-black text-stone-800">총 평가금액 24,150,000원</p>
-            <p className="text-sm font-bold text-brand-gold">+1,240,000원 (+5.42%)</p>
+            <p className="text-sm font-bold text-brand-red">+1,240,000원 (+5.42%)</p>
           </div>
         </div>
 
@@ -485,7 +485,7 @@ function DividendsTab() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-black text-brand-gold">+{item.net.toLocaleString()}원</p>
+                  <p className="text-sm font-black text-stone-600">+{item.net.toLocaleString()}원</p>
                   <p className="text-[10px] text-stone-400 font-bold">세전 {item.gross.toLocaleString()}원</p>
                 </div>
               </div>
@@ -573,7 +573,7 @@ function SettingsTab() {
 
         <div className="space-y-4">
           {[
-            { icon: Wallet,   color: 'text-brand-gold', label: '연결된 지갑',  value: '0x742d35Cc...1F3A' },
+            { icon: Wallet,   color: 'text-stone-600', label: '연결된 지갑',  value: '0x742d35Cc...1F3A' },
             { icon: Landmark, color: 'text-brand-red',  label: '출금 계좌',    value: '국민은행 ****4521' },
           ].map((item, i) => {
             const Icon = item.icon;
@@ -588,7 +588,7 @@ function SettingsTab() {
                     <p className="text-sm font-bold text-stone-800 font-mono">{item.value}</p>
                   </div>
                 </div>
-                <button className="text-[10px] font-black text-brand-gold uppercase tracking-widest hover:underline">변경하기</button>
+                <button className="text-[10px] font-black text-stone-600 uppercase tracking-widest hover:underline">변경하기</button>
               </div>
             );
           })}

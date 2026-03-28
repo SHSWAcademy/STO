@@ -68,13 +68,13 @@ export function OrderPanel({ asset, currentPrice }) {
           className={cn(
             'flex-1 py-4 text-sm font-black transition-all relative',
             orderSide === 'pending'
-              ? 'text-brand-gold border-b-2 border-brand-gold bg-[#fef6dc]/60'
+              ? 'text-stone-800 border-b-2 border-stone-800 bg-stone-100/60'
               : 'text-stone-400 hover:text-stone-500'
           )}
         >
           대기
           {pendingCount > 0 && (
-            <span className="absolute top-3 right-4 w-4 h-4 bg-brand-gold text-white text-[8px] font-black rounded-full flex items-center justify-center">
+            <span className="absolute top-3 right-4 w-4 h-4 bg-stone-800 text-white text-[8px] font-black rounded-full flex items-center justify-center">
               {pendingCount}
             </span>
           )}
@@ -88,7 +88,7 @@ export function OrderPanel({ asset, currentPrice }) {
         {isPending ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-black text-brand-gold">미체결 주문</h3>
+              <h3 className="text-sm font-black text-stone-800">미체결 주문</h3>
               <span className="text-[10px] font-bold text-stone-400">{pendingOrders.length}건</span>
             </div>
 

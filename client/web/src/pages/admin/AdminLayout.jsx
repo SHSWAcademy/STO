@@ -1,10 +1,11 @@
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, Settings, LogOut,
-  Search, TrendingUp, ShieldCheck, DollarSign, BarChart3, Database,
+  Search, TrendingUp, DollarSign, BarChart3, Database,
 } from 'lucide-react';
 import { cn } from '../../lib/utils.js';
 import { useApp } from '../../context/AppContext.jsx';
+import { StoneLogo } from '../../components/ui/StoneLogo.jsx';
 
 const MENU_ITEMS = [
   { icon: LayoutDashboard, label: '대시보드',        path: '/admin' },
@@ -38,9 +39,7 @@ export function AdminLayout() {
       {/* Sidebar */}
       <aside className="w-64 bg-stone-800 text-white flex flex-col shrink-0">
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
-          <div className="w-8 h-8 bg-brand-blue rounded-lg flex items-center justify-center">
-            <ShieldCheck className="w-5 h-5 text-white" />
-          </div>
+          <StoneLogo size={28} />
           <span className="font-black text-lg tracking-tight">STO ADMIN</span>
         </div>
 

@@ -34,7 +34,7 @@ export function WatchlistPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h2 className="text-3xl font-black text-stone-800 tracking-tight mb-2 uppercase">
-            관심 <span className="text-stone-gold">종목</span>
+            관심 종목
           </h2>
           <p className="text-stone-500 text-sm font-bold">내가 찜한 STO의 실시간 시세를 한눈에 확인하세요.</p>
         </div>
@@ -93,7 +93,7 @@ export function WatchlistPage() {
                       <div className="flex items-center gap-4">
                         <AssetAvatar symbol={token.symbol} size="md" />
                         <div>
-                          <p className="text-sm font-black text-stone-800 group-hover:text-brand-gold transition-colors">{token.name}</p>
+                          <p className="text-sm font-black text-stone-800 group-hover:text-stone-600 transition-colors">{token.name}</p>
                           <p className="text-[10px] text-stone-400 font-black uppercase tracking-widest">{token.symbol}</p>
                         </div>
                       </div>
@@ -121,7 +121,7 @@ export function WatchlistPage() {
                       </div>
                     </td>
                     <td className="px-8 py-6 text-right">
-                      <ChevronRight size={18} className="text-stone-300 group-hover:text-brand-gold transition-colors" />
+                      <ChevronRight size={18} className="text-stone-300 group-hover:text-stone-600 transition-colors" />
                     </td>
                   </tr>
                 );
@@ -149,7 +149,7 @@ export function WatchlistPage() {
                 <div className="flex items-center gap-4 mb-6">
                   <AssetAvatar symbol={token.symbol} size="lg" />
                   <div>
-                    <h3 className="text-sm font-black text-stone-800 group-hover:text-brand-gold transition-colors">{token.name}</h3>
+                    <h3 className="text-sm font-black text-stone-800 group-hover:text-stone-600 transition-colors">{token.name}</h3>
                     <p className="text-[10px] text-stone-400 font-black uppercase tracking-widest">{token.symbol}</p>
                   </div>
                 </div>
@@ -194,7 +194,7 @@ export function WatchlistPage() {
           </div>
           <button
             onClick={() => navigate('/')}
-            className="px-8 py-3 bg-stone-gold text-[#1c1c1e] rounded-2xl text-sm font-black hover:bg-stone-gold-light transition-all shadow-lg shadow-stone-gold/20"
+            className="px-8 py-3 bg-stone-800 text-white rounded-2xl text-sm font-black hover:bg-stone-700 transition-all shadow-lg"
           >
             종목 보러가기
           </button>

@@ -32,7 +32,7 @@ export function DisclosurePage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-3xl font-black text-stone-800 tracking-tight uppercase">
-            정기<span className="text-stone-gold">공시</span>
+            정기공시
           </h2>
           <p className="text-sm text-stone-500 font-bold mt-2">
             자산 운용 및 배당에 관한 공식 보고서를 확인하세요.
@@ -51,7 +51,7 @@ export function DisclosurePage() {
       <div className="grid gap-4">
         {filtered.length > 0 ? (
           filtered.map(item => (
-            <div key={item.id} className="group bg-white rounded-2xl border border-stone-200 p-6 hover:border-brand-gold/30 hover:shadow-xl transition-all cursor-pointer">
+            <div key={item.id} className="group bg-white rounded-2xl border border-stone-200 p-6 hover:border-stone-300 hover:shadow-xl transition-all cursor-pointer">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-start gap-6">
                   <div className="w-20 h-20 rounded-2xl bg-stone-100 border border-stone-200 flex items-center justify-center shrink-0">
@@ -65,11 +65,11 @@ export function DisclosurePage() {
                       <span className="text-[10px] font-bold text-stone-400 flex items-center gap-1">
                         <Calendar size={12} /> {item.date}
                       </span>
-                      <span className="text-[10px] font-black text-brand-gold bg-[#fef6dc] px-2 py-0.5 rounded-md">
+                      <span className="text-[10px] font-black text-stone-600 bg-stone-100 px-2 py-0.5 rounded-md">
                         {item.asset}
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold text-stone-800 group-hover:text-brand-gold transition-colors mb-2">{item.title}</h3>
+                    <h3 className="text-lg font-bold text-stone-800 group-hover:text-stone-600 transition-colors mb-2">{item.title}</h3>
                     <p className="text-sm text-stone-500 line-clamp-2 leading-relaxed">{item.desc}</p>
                   </div>
                 </div>

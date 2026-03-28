@@ -33,7 +33,7 @@ export function SearchInput({ value, onChange, placeholder = '검색...', classN
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="bg-stone-100 border border-stone-200 rounded-lg py-2 pl-9 pr-4 text-sm text-stone-800 placeholder:text-stone-400 outline-none focus:border-brand-gold transition-colors w-56"
+        className="bg-stone-100 border border-stone-200 rounded-lg py-2 pl-9 pr-4 text-sm text-stone-800 placeholder:text-stone-400 outline-none focus:border-stone-800 transition-colors w-56"
       />
     </div>
   );

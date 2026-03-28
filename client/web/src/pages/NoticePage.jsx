@@ -97,7 +97,7 @@ export function NoticePage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-3xl font-black text-stone-800 tracking-tight uppercase">
-            공지<span className="text-stone-gold">사항</span>
+            공지사항
           </h2>
           <p className="text-sm text-stone-500 font-bold mt-2">
             STONE 플랫폼의 새로운 소식을 전해드립니다.
@@ -139,13 +139,13 @@ export function NoticePage() {
                         </Badge>
                         <span className="text-[10px] font-bold text-stone-400 font-mono">{notice.date}</span>
                       </div>
-                      <h3 className="text-base font-bold text-stone-800 group-hover:text-brand-gold transition-colors mb-2">
+                      <h3 className="text-base font-bold text-stone-800 group-hover:text-stone-600 transition-colors mb-2">
                         {notice.title}
                       </h3>
                       <p className="text-sm text-stone-500 line-clamp-1">{notice.desc}</p>
                     </div>
                   </div>
-                  <ChevronRight className="text-stone-400 group-hover:text-brand-gold transition-colors mt-1" size={20} />
+                  <ChevronRight className="text-stone-400 group-hover:text-stone-600 transition-colors mt-1" size={20} />
                 </div>
               </div>
             ))

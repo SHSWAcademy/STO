@@ -4,6 +4,7 @@ import { Search, Bell } from 'lucide-react';
 import { TOKENS } from '../data/mock.js';
 import { useApp } from '../context/AppContext.jsx';
 import { cn } from '../lib/utils.js';
+import { StoneLogo } from './ui/StoneLogo.jsx';
 
 // 원본 MainLayout의 navItems와 동일한 경로
 const NAV_ITEMS = [
@@ -38,21 +39,7 @@ export function AppHeader() {
       {/* 로고 + 네비 */}
       <div className="flex items-center gap-8">
         <Link to="/" className="flex items-center gap-2.5 group">
-          {/* A안: 미니멀 사각 분할 — 다이아몬드를 수평선으로 분할, STO 조각화 의미 */}
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="group-hover:scale-105 transition-transform shrink-0">
-            <path d="M16 2 L30 16 L16 30 L2 16 Z" stroke="#c9a84c" strokeWidth="2" fill="none"/>
-            <path d="M16 2 L30 16 L2 16 Z" fill="#c9a84c" fillOpacity="0.25"/>
-            <line x1="2" y1="16" x2="30" y2="16" stroke="#c9a84c" strokeWidth="1.5"/>
-          </svg>
-
-          {/* B안: 키스톤 — 주석 해제로 교체 가능
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" className="group-hover:scale-105 transition-transform shrink-0">
-            <path d="M6 26 L11 8 L21 8 L26 26 Z" stroke="#c9a84c" strokeWidth="2" fill="none" strokeLinejoin="round"/>
-            <path d="M6 26 L11 8 L21 8 L26 26 Z" fill="#c9a84c" fillOpacity="0.2" strokeLinejoin="round"/>
-            <line x1="9" y1="17" x2="23" y2="17" stroke="#c9a84c" strokeWidth="1.5"/>
-          </svg>
-          */}
-
+          <StoneLogo size={32} className="group-hover:scale-105 transition-transform shrink-0" />
           <h1 className="text-lg font-black text-stone-800 tracking-tighter">STONE</h1>
         </Link>
 
@@ -63,7 +50,7 @@ export function AppHeader() {
               to={item.path}
               end={item.end}
               className={({ isActive }) => cn(
-                'text-sm font-bold transition-colors hover:text-brand-gold',
+                'text-sm font-bold transition-colors hover:text-stone-800',
                 isActive ? 'text-stone-800' : 'text-stone-500'
               )}
             >
@@ -77,7 +64,7 @@ export function AppHeader() {
       <div className="flex items-center gap-4 flex-1 max-w-md mx-8">
         <div className="relative w-full group">
           <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-brand-gold transition-colors z-10"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 group-focus-within:text-stone-800 transition-colors z-10"
             size={16}
           />
           <input
@@ -87,7 +74,7 @@ export function AppHeader() {
             onFocus={() => setShowDropdown(true)}
             onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
             placeholder="종목명 검색..."
-            className="w-full bg-stone-100 border border-stone-200 rounded-xl py-2 pl-10 pr-4 text-xs text-stone-800 outline-none focus:border-brand-gold transition-all"
+            className="w-full bg-stone-100 border border-stone-200 rounded-xl py-2 pl-10 pr-4 text-xs text-stone-800 outline-none focus:border-stone-800 transition-all"
           />
           {showDropdown && searchResults.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-xl overflow-hidden z-50">
@@ -120,13 +107,13 @@ export function AppHeader() {
 
       {/* 우측: 알림 + 유저 */}
       <div className="flex items-center gap-3">
-        <button className="p-2 text-stone-400 hover:text-brand-gold transition-colors relative">
+        <button className="p-2 text-stone-400 hover:text-stone-800 transition-colors relative">
           <Bell size={20} />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand-red rounded-full border-2 border-white" />
         </button>
         <Link
           to="/portfolio"
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black bg-stone-gold hover:scale-105 transition-transform"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black bg-stone-800 hover:scale-105 transition-transform"
         >
           {user?.name?.[0] ?? '?'}
         </Link>

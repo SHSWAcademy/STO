@@ -108,7 +108,7 @@ export function ChartPanel({ currentPrice }) {
             <p className="text-[10px] font-bold text-stone-400">
               이동평균선 <span className="text-brand-red">5</span>{' '}
               <span className="text-brand-red">20</span>{' '}
-              <span className="text-brand-gold">60</span>{' '}
+              <span className="text-stone-600">60</span>{' '}
               <span className="text-stone-800">120</span>
             </p>
           </div>

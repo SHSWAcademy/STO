@@ -37,7 +37,7 @@ export function UserManagement() {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-6">
         {[
-          { label: '전체 사용자',     value: '12,482', icon: UsersIcon,  color: 'text-brand-gold', bg: 'bg-stone-gold-light/30' },
+          { label: '전체 사용자',     value: '12,482', icon: UsersIcon,  color: 'text-stone-600', bg: 'bg-stone-200' },
           { label: '신규 가입 (오늘)', value: '124',    icon: UserCheck,  color: 'text-brand-red', bg: 'bg-brand-red-light' },
           { label: '정지된 계정',     value: '42',     icon: UserMinus,  color: 'text-brand-red', bg: 'bg-brand-red-light' },
           { label: '관리자 계정',     value: '8',      icon: Shield,     color: 'text-stone-400', bg: 'bg-stone-200' },
@@ -99,7 +99,7 @@ export function UserManagement() {
                       className={cn(
                         'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border-none outline-none cursor-pointer transition-all',
                         user.role === 'super-admin' ? 'bg-stone-200 text-stone-500'
-                          : user.role === 'admin' ? 'bg-stone-gold-light/30 text-brand-gold'
+                          : user.role === 'admin' ? 'bg-stone-200 text-stone-600'
                           : user.role === 'ban' ? 'bg-brand-red-light text-brand-red-dk'
                           : 'bg-stone-100 text-stone-500'
                       )}

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
-import { Coins, Eye, EyeOff, CheckCircle, Wallet, Landmark, Play } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, Wallet, Landmark, Play } from 'lucide-react';
 import { cn } from '../lib/utils.js';
+import { StoneLogo } from '../components/ui/StoneLogo.jsx';
 
 // AuthPage — 로그인 / 회원가입 (탭 전환)
 // mock 인증: 이메일·비밀번호 모두 ADMIN → 관리자, 그 외 아무 값 → 일반 유저
@@ -39,9 +40,7 @@ export function AuthPage() {
       {/* 로고 */}
       <div className="mb-8 text-center">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="w-10 h-10 bg-stone-gold rounded-xl flex items-center justify-center shadow-lg shadow-stone-gold/20">
-            <Coins className="text-white w-6 h-6" />
-          </div>
+          <StoneLogo size={40} />
           <span className="text-2xl font-black text-stone-800 tracking-tight">STONE</span>
         </div>
         <p className="text-stone-500 text-sm font-bold">증권형 토큰 거래 플랫폼</p>
@@ -112,7 +111,7 @@ export function AuthPage() {
                 <input type="checkbox" defaultChecked className="w-4 h-4 rounded border-stone-300" />
                 로그인 상태 유지
               </label>
-              <button className="text-brand-gold hover:underline">비밀번호 찾기</button>
+              <button className="text-stone-600 hover:underline">비밀번호 찾기</button>
             </div>
 
             <button
@@ -151,11 +150,11 @@ export function AuthPage() {
             ))}
 
             <div className="p-4 bg-stone-100 rounded-xl border border-stone-200">
-              <p className="text-[10px] font-black text-brand-gold mb-2 flex items-center gap-1.5 uppercase tracking-widest">
+              <p className="text-[10px] font-black text-stone-600 mb-2 flex items-center gap-1.5 uppercase tracking-widest">
                 <Wallet size={12} /> 가입 후 자동 연결 서비스
               </p>
               <div className="flex flex-wrap gap-2">
-                <span className="px-2 py-0.5 rounded-md bg-white text-brand-gold text-[9px] font-black uppercase border border-stone-200">블록체인 지갑</span>
+                <span className="px-2 py-0.5 rounded-md bg-white text-stone-600 text-[9px] font-black uppercase border border-stone-200">블록체인 지갑</span>
                 <span className="px-2 py-0.5 rounded-md bg-white text-brand-red text-[9px] font-black uppercase border border-stone-200">은행 계좌</span>
               </div>
             </div>
@@ -197,7 +196,7 @@ export function AuthPage() {
 
             <div className="space-y-3">
               {[
-                { icon: Wallet,   bg: 'bg-stone-100', color: 'text-brand-gold', label: '블록체인 지갑',  value: '0x742d...1F3A' },
+                { icon: Wallet,   bg: 'bg-stone-100', color: 'text-stone-600', label: '블록체인 지갑',  value: '0x742d...1F3A' },
                 { icon: Landmark, bg: 'bg-stone-100',  color: 'text-brand-red',  label: '은행 계좌 연결', value: '국민은행 **** 4521' },
               ].map((item, i) => {
                 const Icon = item.icon;
@@ -218,7 +217,7 @@ export function AuthPage() {
 
             <button
               onClick={handleSignupComplete}
-              className="w-full bg-stone-gold hover:bg-stone-gold-light text-[#1c1c1e] py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg shadow-stone-gold/20"
+              className="w-full bg-stone-800 hover:bg-stone-700 text-white py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-lg"
             >
               거래 시작하기 <Play size={14} />
             </button>

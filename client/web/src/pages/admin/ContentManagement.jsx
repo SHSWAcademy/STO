@@ -129,7 +129,7 @@ export function ContentManagement() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                        <button className="p-2 text-brand-blue hover:bg-stone-gold-light/20 rounded-lg transition-all"><Edit3 className="w-4 h-4" /></button>
+                        <button className="p-2 text-brand-blue hover:bg-stone-100 rounded-lg transition-all"><Edit3 className="w-4 h-4" /></button>
                         <button className="p-2 text-brand-red hover:bg-brand-red-light rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </td>
@@ -145,7 +145,7 @@ export function ContentManagement() {
           <div className="flex items-center gap-4 p-2 bg-stone-100 border border-stone-200 rounded-lg w-fit">
             {[
               { id: 'all',      label: '총 공시 건수',    value: disclosures.length,                             icon: FileText,    color: 'text-stone-500', bg: 'bg-stone-200' },
-              { id: 'dividend', label: '이번 달 배당 공시', value: disclosures.filter(d => d.type === '배당').length, icon: DollarSign,  color: 'text-brand-gold', bg: 'bg-stone-gold-light/30' },
+              { id: 'dividend', label: '이번 달 배당 공시', value: disclosures.filter(d => d.type === '배당').length, icon: DollarSign,  color: 'text-stone-600', bg: 'bg-stone-200' },
               { id: 'pending',  label: '검토 대기',        value: disclosures.filter(d => d.status === '검토대기').length, icon: AlertCircle, color: 'text-brand-red', bg: 'bg-brand-red-light' },
             ].map(stat => (
               <button key={stat.id} onClick={() => setDisclosureFilter(stat.id)}
@@ -208,7 +208,7 @@ export function ContentManagement() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                          <button onClick={() => handleEditDisclosure(item)} className="p-2 text-brand-blue hover:bg-stone-gold-light/20 rounded-lg transition-all"><Edit3 className="w-4 h-4" /></button>
+                          <button onClick={() => handleEditDisclosure(item)} className="p-2 text-brand-blue hover:bg-stone-100 rounded-lg transition-all"><Edit3 className="w-4 h-4" /></button>
                           <button className="p-2 text-brand-red hover:bg-brand-red-light rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </td>

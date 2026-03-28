@@ -71,7 +71,7 @@ export function DashboardPage() {
                         </button>
                         <span className="text-stone-400 font-mono w-4">{i + 1}</span>
                         <AssetAvatar symbol={t.symbol} size="sm" />
-                        <p className="font-bold text-stone-800 group-hover:text-brand-gold transition-colors">{t.name}</p>
+                        <p className="font-bold text-stone-800 group-hover:text-stone-600 transition-colors">{t.name}</p>
                       </div>
                     </td>
                     <td className="py-4 text-right font-mono font-bold text-stone-800">
@@ -143,7 +143,7 @@ export function DashboardPage() {
 
             <button
               onClick={() => navigate('/trading')}
-              className="w-full py-4 rounded-lg bg-stone-gold text-[#1c1c1e] font-black uppercase tracking-widest hover:bg-stone-gold-light transition-colors"
+              className="w-full py-4 rounded-lg bg-stone-800 text-white font-black uppercase tracking-widest hover:bg-stone-700 transition-colors"
             >
               거래하기
             </button>

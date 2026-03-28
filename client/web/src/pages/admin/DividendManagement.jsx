@@ -114,7 +114,7 @@ export function DividendManagement() {
               <h3 className="text-sm font-semibold text-stone-800 uppercase tracking-widest">배당 지급 및 스케줄 이력</h3>
               <div className="flex gap-2">
                 <span className="px-2 py-0.5 rounded bg-brand-green-light text-brand-green text-[9px] font-semibold uppercase">지급완료</span>
-                <span className="px-2 py-0.5 rounded bg-stone-gold-light/30 text-brand-gold text-[9px] font-semibold uppercase">예정</span>
+                <span className="px-2 py-0.5 rounded bg-stone-200 text-stone-500 text-[9px] font-semibold uppercase">예정</span>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -181,7 +181,7 @@ export function DividendManagement() {
       {/* Filter tabs */}
       <div className="flex items-center gap-4 p-2 bg-stone-100 border border-stone-200 rounded-lg w-fit">
         {[
-          { id: 'all',          label: '전체 자산',     value: TOKENS.length,                      icon: PieChart,    color: 'text-brand-gold', bg: 'bg-stone-gold-light/30' },
+          { id: 'all',          label: '전체 자산',     value: TOKENS.length,                      icon: PieChart,    color: 'text-stone-600', bg: 'bg-stone-200' },
           { id: 'registered',   label: '당월 등록 완료', value: registeredAssets.size,               icon: CheckCircle2, color: 'text-brand-green', bg: 'bg-brand-green-light' },
           { id: 'unregistered', label: '당월 미등록',    value: TOKENS.length - registeredAssets.size, icon: AlertCircle,  color: 'text-brand-red', bg: 'bg-brand-red-light' },
         ].map(stat => (
