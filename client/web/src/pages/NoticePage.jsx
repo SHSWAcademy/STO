@@ -32,28 +32,28 @@ export function NoticePage() {
       <div className="max-w-[800px] mx-auto space-y-8">
         <button
           onClick={() => setSelectedNotice(null)}
-          className="flex items-center gap-2 text-stone-muted hover:text-stone-text-primary transition-colors font-bold text-sm"
+          className="flex items-center gap-2 text-stone-400 hover:text-stone-800 transition-colors font-bold text-sm"
         >
           <ChevronRight className="rotate-180" size={18} /> 목록으로 돌아가기
         </button>
 
-        <div className="bg-stone-surface rounded-2xl border border-stone-border overflow-hidden shadow-sm">
-          <div className="p-8 border-b border-stone-elevated">
+        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
+          <div className="p-8 border-b border-stone-200">
             <div className="flex items-center gap-3 mb-4">
               <Badge variant={selectedNotice.category !== '시스템' && selectedNotice.important ? 'gold' : 'muted'}>
                 {selectedNotice.category}
               </Badge>
-              <span className="text-[10px] font-bold text-stone-muted font-mono">
+              <span className="text-[10px] font-bold text-stone-400 font-mono">
                 {selectedNotice.date}
               </span>
             </div>
-            <h2 className="text-2xl font-black text-stone-text-primary leading-tight">
+            <h2 className="text-2xl font-black text-stone-800 leading-tight">
               {selectedNotice.title}
             </h2>
           </div>
 
           <div className="p-8 space-y-6">
-            <div className="text-stone-text-secondary leading-relaxed font-medium">
+            <div className="text-stone-500 leading-relaxed font-medium">
               {selectedNotice.desc}
               <br /><br />
               안녕하세요, STONE입니다.<br /><br />
@@ -69,18 +69,18 @@ export function NoticePage() {
               감사합니다.
             </div>
 
-            <div className="pt-8 border-t border-stone-elevated flex items-center justify-between">
+            <div className="pt-8 border-t border-stone-200 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-bg text-stone-text-secondary text-xs font-bold hover:bg-stone-elevated transition-all">
+                <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-100 text-stone-500 text-xs font-bold hover:bg-stone-200 transition-all">
                   <FileText size={14} /> 첨부파일.pdf
                 </button>
-                <button className="p-2 rounded-xl bg-stone-bg text-stone-muted hover:text-stone-text-secondary transition-all">
+                <button className="p-2 rounded-xl bg-stone-100 text-stone-400 hover:text-stone-600 transition-all">
                   <Download size={18} />
                 </button>
               </div>
               <button
                 onClick={() => setSelectedNotice(null)}
-                className="px-6 py-2 rounded-xl bg-stone-text-primary text-stone-bg text-xs font-black uppercase tracking-widest shadow-lg hover:bg-stone-gold transition-all"
+                className="px-6 py-2 rounded-xl bg-stone-800 text-white text-xs font-black uppercase tracking-widest shadow-lg hover:bg-black transition-all"
               >
                 확인 완료
               </button>
@@ -96,16 +96,16 @@ export function NoticePage() {
     <div className="max-w-[1000px] mx-auto space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-black text-stone-text-primary tracking-tight uppercase">
+          <h2 className="text-3xl font-black text-stone-800 tracking-tight uppercase">
             공지<span className="text-stone-gold">사항</span>
           </h2>
-          <p className="text-sm text-stone-text-secondary font-bold mt-2">
+          <p className="text-sm text-stone-500 font-bold mt-2">
             STONE 플랫폼의 새로운 소식을 전해드립니다.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="제목 검색..." />
-          <button className="p-2.5 rounded-2xl bg-stone-bg border border-stone-border text-stone-muted hover:text-stone-text-primary transition-all">
+          <button className="p-2.5 rounded-2xl bg-stone-100 border border-stone-200 text-stone-400 hover:text-stone-800 transition-all">
             <Filter size={20} />
           </button>
         </div>
@@ -113,22 +113,22 @@ export function NoticePage() {
 
       <TabSwitcher variant="pill" items={tabs} active={activeTab} onChange={setActiveTab} />
 
-      <div className="bg-stone-surface rounded-2xl border border-stone-border overflow-hidden shadow-sm">
-        <div className="divide-y divide-stone-elevated">
+      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
+        <div className="divide-y divide-stone-100">
           {filtered.length > 0 ? (
             filtered.map(notice => (
               <div
                 key={notice.id}
                 onClick={() => setSelectedNotice(notice)}
-                className="group p-6 hover:bg-stone-bg transition-all cursor-pointer"
+                className="group p-6 hover:bg-stone-50 transition-all cursor-pointer"
               >
                 <div className="flex items-start justify-between gap-6">
                   <div className="flex items-start gap-6">
                     <div className={cn(
                       'w-12 h-12 rounded-2xl flex items-center justify-center transition-all shrink-0',
                       notice.important
-                        ? 'bg-stone-text-primary text-stone-bg shadow-lg'
-                        : 'bg-stone-elevated text-stone-muted group-hover:bg-stone-border'
+                        ? 'bg-stone-800 text-white shadow-lg'
+                        : 'bg-stone-100 text-stone-400 group-hover:bg-stone-200'
                     )}>
                       {notice.category === '배당' ? <TrendingUp size={20} /> : <Bell size={20} />}
                     </div>
@@ -137,21 +137,21 @@ export function NoticePage() {
                         <Badge variant={notice.category !== '시스템' && notice.important ? 'gold' : 'muted'}>
                           {notice.category}
                         </Badge>
-                        <span className="text-[10px] font-bold text-stone-muted font-mono">{notice.date}</span>
+                        <span className="text-[10px] font-bold text-stone-400 font-mono">{notice.date}</span>
                       </div>
-                      <h3 className="text-base font-bold text-stone-text-primary group-hover:text-stone-gold transition-colors mb-2">
+                      <h3 className="text-base font-bold text-stone-800 group-hover:text-brand-gold transition-colors mb-2">
                         {notice.title}
                       </h3>
-                      <p className="text-sm text-stone-text-secondary line-clamp-1">{notice.desc}</p>
+                      <p className="text-sm text-stone-500 line-clamp-1">{notice.desc}</p>
                     </div>
                   </div>
-                  <ChevronRight className="text-stone-muted group-hover:text-stone-gold transition-colors mt-1" size={20} />
+                  <ChevronRight className="text-stone-400 group-hover:text-brand-gold transition-colors mt-1" size={20} />
                 </div>
               </div>
             ))
           ) : (
             <div className="p-20 text-center">
-              <p className="text-stone-muted font-bold">검색 결과가 없습니다.</p>
+              <p className="text-stone-400 font-bold">검색 결과가 없습니다.</p>
             </div>
           )}
         </div>
@@ -164,8 +164,8 @@ export function NoticePage() {
             className={cn(
               'w-10 h-10 rounded-xl font-bold text-xs transition-all',
               p === 1
-                ? 'bg-stone-text-primary text-stone-bg shadow-lg'
-                : 'bg-stone-surface border border-stone-border text-stone-muted hover:text-stone-text-primary hover:bg-stone-elevated'
+                ? 'bg-stone-800 text-white shadow-lg'
+                : 'bg-white border border-stone-200 text-stone-400 hover:text-stone-800 hover:bg-stone-100'
             )}
           >
             {p}

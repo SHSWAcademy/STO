@@ -25,7 +25,7 @@ export function SearchInput({ value, onChange, placeholder = '검색...', classN
   return (
     <div className={cn('relative', className)}>
       <Search
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-muted pointer-events-none"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none"
         size={15}
       />
       <input
@@ -33,7 +33,7 @@ export function SearchInput({ value, onChange, placeholder = '검색...', classN
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="bg-stone-bg border border-stone-border rounded-lg py-2 pl-9 pr-4 text-sm text-stone-text-primary placeholder:text-stone-muted outline-none focus:border-stone-gold transition-colors w-56"
+        className="bg-stone-100 border border-stone-200 rounded-lg py-2 pl-9 pr-4 text-sm text-stone-800 placeholder:text-stone-400 outline-none focus:border-brand-gold transition-colors w-56"
       />
     </div>
   );

@@ -15,10 +15,10 @@ import { cn } from '../../lib/utils.js';
  *   "blue"    — 정보 / 관리자
  */
 const STYLES = {
-  buy:     'bg-stone-buy-bg text-stone-buy',
-  sell:    'bg-stone-elevated text-stone-sell',
-  muted:   'bg-stone-elevated text-stone-muted',
-  gold:    'bg-stone-buy-bg text-stone-gold',
+  buy:     'bg-brand-red-light text-brand-red',
+  sell:    'bg-brand-blue-light text-brand-blue',
+  muted:   'bg-stone-100 text-stone-400',
+  gold:    'bg-[#fef6dc] text-[#a07828]',
   success: 'bg-[#e8f4ee] text-[#3d7a58]',
   danger:  'bg-brand-red-light text-brand-red-dk',
   warning: 'bg-[#fef6dc] text-[#a07828]',

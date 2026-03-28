@@ -46,7 +46,7 @@ export function OrderPanel({ asset, currentPrice }) {
           className={cn(
             'flex-1 py-4 text-sm font-black transition-all',
             orderSide === 'buy'
-              ? 'text-brand-red border-b-2 border-brand-red bg-stone-buy-bg/30'
+              ? 'text-brand-red border-b-2 border-brand-red bg-brand-red-light/40'
               : 'text-stone-400 hover:text-stone-500'
           )}
         >
@@ -57,7 +57,7 @@ export function OrderPanel({ asset, currentPrice }) {
           className={cn(
             'flex-1 py-4 text-sm font-black transition-all',
             orderSide === 'sell'
-              ? 'text-brand-blue border-b-2 border-brand-blue bg-stone-sell-bg/30'
+              ? 'text-brand-blue border-b-2 border-brand-blue bg-brand-blue-light/60'
               : 'text-stone-400 hover:text-stone-500'
           )}
         >
@@ -68,7 +68,7 @@ export function OrderPanel({ asset, currentPrice }) {
           className={cn(
             'flex-1 py-4 text-sm font-black transition-all relative',
             orderSide === 'pending'
-              ? 'text-brand-gold border-b-2 border-brand-gold bg-stone-buy-bg/30'
+              ? 'text-brand-gold border-b-2 border-brand-gold bg-[#fef6dc]/60'
               : 'text-stone-400 hover:text-stone-500'
           )}
         >
@@ -234,7 +234,7 @@ export function OrderPanel({ asset, currentPrice }) {
                 <span className="text-stone-800">{numAmount.toLocaleString()}원</span>
               </div>
               {orderType === 'limit' && (
-                <div className="flex items-center gap-1.5 text-[10px] text-brand-gold font-bold bg-stone-buy-bg px-3 py-2 rounded-lg">
+                <div className="flex items-center gap-1.5 text-[10px] text-[#a07828] font-bold bg-[#fef6dc] px-3 py-2 rounded-lg">
                   <MoreHorizontal size={12} />
                   지정가 주문은 체결 전까지 대기 상태로 유지됩니다
                 </div>
@@ -270,11 +270,11 @@ function PendingOrderCard({ order, onCancel }) {
         <div className="flex items-center gap-2">
           <span className={cn(
             'text-[10px] font-black px-2 py-0.5 rounded-md',
-            isBuy ? 'bg-stone-buy-bg text-brand-red' : 'bg-stone-sell-bg text-brand-blue'
+            isBuy ? 'bg-brand-red-light text-brand-red' : 'bg-brand-blue-light text-brand-blue'
           )}>
             {isBuy ? '매수' : '매도'}
           </span>
-          <span className="text-[10px] font-black bg-stone-buy-bg text-brand-gold px-2 py-0.5 rounded-md">
+          <span className="text-[10px] font-black bg-[#fef6dc] text-[#a07828] px-2 py-0.5 rounded-md">
             대기
           </span>
         </div>
@@ -306,7 +306,7 @@ function PendingOrderCard({ order, onCancel }) {
         </button>
         <button
           onClick={() => onCancel(order.id)}
-          className="flex-1 py-2 bg-stone-buy-bg border border-stone-buy-bg rounded-md text-[11px] font-black text-brand-red hover:bg-stone-buy-bg transition-all flex items-center justify-center gap-1"
+          className="flex-1 py-2 bg-brand-red-light border border-brand-red-light rounded-md text-[11px] font-black text-brand-red hover:bg-[#fccfcf] transition-all flex items-center justify-center gap-1"
         >
           <X size={12} /> 취소
         </button>

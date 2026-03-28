@@ -31,16 +31,16 @@ export function DisclosurePage() {
     <div className="max-w-[1000px] mx-auto space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-black text-stone-text-primary tracking-tight uppercase">
+          <h2 className="text-3xl font-black text-stone-800 tracking-tight uppercase">
             정기<span className="text-stone-gold">공시</span>
           </h2>
-          <p className="text-sm text-stone-text-secondary font-bold mt-2">
+          <p className="text-sm text-stone-500 font-bold mt-2">
             자산 운용 및 배당에 관한 공식 보고서를 확인하세요.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="종목명 또는 제목 검색..." />
-          <button className="p-2.5 rounded-2xl bg-stone-bg border border-stone-border text-stone-muted hover:text-stone-text-primary transition-all">
+          <button className="p-2.5 rounded-2xl bg-stone-100 border border-stone-200 text-stone-400 hover:text-stone-800 transition-all">
             <Filter size={20} />
           </button>
         </div>
@@ -51,33 +51,33 @@ export function DisclosurePage() {
       <div className="grid gap-4">
         {filtered.length > 0 ? (
           filtered.map(item => (
-            <div key={item.id} className="group bg-stone-surface rounded-2xl border border-stone-border p-6 hover:border-stone-gold/30 hover:shadow-xl transition-all cursor-pointer">
+            <div key={item.id} className="group bg-white rounded-2xl border border-stone-200 p-6 hover:border-brand-gold/30 hover:shadow-xl transition-all cursor-pointer">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-start gap-6">
-                  <div className="w-20 h-20 rounded-2xl bg-stone-elevated border border-stone-border flex items-center justify-center shrink-0">
-                    <FileText size={28} className="text-stone-muted" />
+                  <div className="w-20 h-20 rounded-2xl bg-stone-100 border border-stone-200 flex items-center justify-center shrink-0">
+                    <FileText size={28} className="text-stone-400" />
                   </div>
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <Badge variant={item.category === '배당' ? 'buy' : 'muted'}>
                         {item.category} 공시
                       </Badge>
-                      <span className="text-[10px] font-bold text-stone-muted flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-stone-400 flex items-center gap-1">
                         <Calendar size={12} /> {item.date}
                       </span>
-                      <span className="text-[10px] font-black text-stone-gold bg-stone-buy-bg px-2 py-0.5 rounded-md">
+                      <span className="text-[10px] font-black text-brand-gold bg-[#fef6dc] px-2 py-0.5 rounded-md">
                         {item.asset}
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold text-stone-text-primary group-hover:text-stone-gold transition-colors mb-2">{item.title}</h3>
-                    <p className="text-sm text-stone-text-secondary line-clamp-2 leading-relaxed">{item.desc}</p>
+                    <h3 className="text-lg font-bold text-stone-800 group-hover:text-brand-gold transition-colors mb-2">{item.title}</h3>
+                    <p className="text-sm text-stone-500 line-clamp-2 leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 self-end md:self-center">
-                  <div className="hidden md:block h-12 w-px bg-stone-surface mx-2" />
-                  <button className="flex items-center gap-2 px-5 py-3 bg-stone-bg border border-stone-border rounded-2xl text-xs font-black text-stone-text-secondary hover:bg-stone-text-primary hover:text-stone-bg hover:border-stone-gold transition-all">
-                    <FileText size={16} className="text-stone-buy" />
+                  <div className="hidden md:block h-12 w-px bg-stone-200 mx-2" />
+                  <button className="flex items-center gap-2 px-5 py-3 bg-stone-100 border border-stone-200 rounded-2xl text-xs font-black text-stone-500 hover:bg-stone-800 hover:text-white hover:border-stone-800 transition-all">
+                    <FileText size={16} className="text-brand-red" />
                     보고서 보기
                     <Download size={14} className="ml-1" />
                   </button>
@@ -97,8 +97,8 @@ export function DisclosurePage() {
             className={cn(
               'w-10 h-10 rounded-xl font-bold text-xs transition-all',
               p === 1
-                ? 'bg-stone-text-primary text-stone-bg shadow-lg'
-                : 'bg-stone-surface border border-stone-border text-stone-muted hover:text-stone-text-primary hover:bg-stone-elevated'
+                ? 'bg-stone-800 text-white shadow-lg'
+                : 'bg-white border border-stone-200 text-stone-400 hover:text-stone-800 hover:bg-stone-100'
             )}
           >
             {p}

@@ -17,8 +17,8 @@ export function TabSwitcher({ items, active, onChange, variant = 'dark', classNa
             className={cn(
               'px-4 py-2 rounded-md text-xs font-semibold transition-colors whitespace-nowrap',
               active === item
-                ? 'bg-stone-text-primary text-stone-bg'
-                : 'text-stone-muted hover:text-stone-text-primary hover:bg-stone-surface'
+                ? 'bg-stone-800 text-white'
+                : 'text-stone-400 hover:text-stone-800 hover:bg-stone-100'
             )}
           >
             {item}
@@ -61,9 +61,9 @@ export function TabSwitcher({ items, active, onChange, variant = 'dark', classNa
     );
   }
 
-  // default: dark
+  // default
   return (
-    <div className={cn('flex gap-0.5 bg-stone-bg p-0.5 rounded-lg border border-stone-surface', className)}>
+    <div className={cn('flex gap-0.5 bg-stone-100 p-0.5 rounded-lg border border-stone-200', className)}>
       {items.map(item => (
         <button
           key={item}
@@ -71,8 +71,8 @@ export function TabSwitcher({ items, active, onChange, variant = 'dark', classNa
           className={cn(
             'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap',
             active === item
-              ? 'bg-stone-surface text-stone-text-primary border border-stone-border'
-              : 'text-stone-muted hover:text-stone-text-secondary'
+              ? 'bg-white text-stone-800 border border-stone-200'
+              : 'text-stone-400 hover:text-stone-600'
           )}
         >
           {item}

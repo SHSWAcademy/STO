@@ -37,6 +37,7 @@
   --color-brand-red:            #b85450;
   --color-brand-red-dk:         #b04040;
   --color-brand-red-light:      #fde8e8;
+  --color-brand-blue-light:     #e8f0f8;
   --color-brand-green:          #4a7a60;
   --color-brand-green-light:    #e0f0e8;
 }
@@ -44,7 +45,7 @@
 /* ─── 기본 스타일 ─── */
 @layer base {
   body {
-    @apply bg-stone-bg text-stone-text-primary antialiased;
+    @apply bg-stone-100 text-stone-800 antialiased;
     font-family: "Noto Sans KR", "Inter", sans-serif;
   }
 

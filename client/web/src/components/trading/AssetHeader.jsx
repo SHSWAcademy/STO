@@ -81,7 +81,7 @@ export function AssetHeader({ asset, currentPrice, activeTab, onTabChange, inWat
             className={cn(
               'p-2 rounded-lg transition-colors',
               inWatchlist
-                ? 'bg-stone-buy-bg text-stone-buy'
+                ? 'bg-brand-red-light text-brand-red'
                 : 'bg-stone-200 hover:bg-stone-200 text-stone-500'
             )}
           >

@@ -99,7 +99,7 @@ function InfoTab({ asset }) {
           <h3 className="text-lg font-bold mb-4 text-stone-800">투자 설명서</h3>
           <div className="p-6 bg-stone-100 rounded-lg border border-stone-200 flex items-center justify-between group hover:border-brand-blue transition-all">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-stone-buy-bg flex items-center justify-center text-stone-buy">
+              <div className="w-12 h-12 rounded-xl bg-brand-red-light flex items-center justify-center text-brand-red">
                 <FileText size={24} />
               </div>
               <div>

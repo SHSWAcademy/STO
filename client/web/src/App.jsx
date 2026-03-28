@@ -32,7 +32,7 @@ function PageWrapper({ children }) {
 // 일반 유저 레이아웃 (AppHeader + Outlet)
 function MainLayout() {
   return (
-    <div className="min-h-screen bg-stone-bg text-stone-text-primary">
+    <div className="min-h-screen bg-stone-100 text-stone-800">
       <AppHeader />
       <main>
         <Outlet />
