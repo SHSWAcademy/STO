@@ -88,7 +88,7 @@ public ResponseEntity<Void> hello() {
 
 
 <예시>
-
+```java
 return ResponseEntity.status(HttpStatus.OK).build() : 아무 데이터 없이 200 상태 코드만 반환
 
 return ResponseEntity.ok(memberDto) : 200 상태 코드 + memberDto를 json으로 전달
@@ -100,7 +100,7 @@ return ResponseEntity.status(HttpStatus.FOUND).header("Location", "/new-url").bu
 
 
 400에러, 500 에러 (실패 응답) : 전역 에러로 처리하기 (@RestControllerAdvice)
-
+```
 ```java
 // @RestControllerAdvice : 프로젝트 내 컨트롤러에서 발생하는 오류는 이 클래스에서 처리
 @RestControllerAdvice 
