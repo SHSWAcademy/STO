@@ -1,7 +1,7 @@
 package server.main.global.error.exception;
 
 import lombok.Getter;
-import sto.general.global.error.ErrorCode;
+import server.main.global.error.ErrorCode;
 
 @Getter
 public class BusinessException extends RuntimeException {
