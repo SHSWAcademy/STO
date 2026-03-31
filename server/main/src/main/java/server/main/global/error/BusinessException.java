@@ -1,7 +1,6 @@
-package server.main.global.error.exception;
+package server.main.global.error;
 
 import lombok.Getter;
-import server.main.global.error.ErrorCode;
 
 @Getter
 public class BusinessException extends RuntimeException {

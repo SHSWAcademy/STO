@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+/* ══════════════════════════════════════════
+   STONE 디자인 토큰 — 원본 그대로 유지
+   다크 앱 셸 + 라이트 거래 페이지
+══════════════════════════════════════════ */
+@theme {
+  --font-sans: "Noto Sans KR", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* 앱 셸 (다크) */
+  --color-stone-bg:             #2c2c2e;
+  --color-stone-surface:        #3a3a3c;
+  --color-stone-elevated:       #48484a;
+  --color-stone-border:         #636366;
+  --color-stone-border-strong:  #8e8e93;
+  --color-stone-text-primary:   #ffffff;
+  --color-stone-text-secondary: #ebebf5;
+  --color-stone-muted:          #aeaeb2;
+
+  /* 브랜드 */
+  --color-stone-gold:           #c9a84c;
+  --color-stone-gold-light:     #e2cc8a;
+  --color-stone-primary:        #2c2c2e;
+
+  /* 거래 컬러 (TradingPage 내 사용) */
+  --color-stone-buy:            #b85450;
+  --color-stone-buy-bg:         #4a3232;
+  --color-stone-sell:           #4a72a0;
+  --color-stone-sell-bg:        #2c3d4a;
+  --color-stone-current-bg:     #424238;
+
+  /* 브랜드 액센트 */
+  --color-brand-blue:           #4a72a0;
+  --color-brand-blue-dk:        #3a62a0;
+  --color-brand-gold:           #c9a84c;
+  --color-brand-red:            #b85450;
+  --color-brand-red-dk:         #b04040;
+  --color-brand-red-light:      #fde8e8;
+  --color-brand-blue-light:     #e8f0f8;
+  --color-brand-green:          #4a7a60;
+  --color-brand-green-light:    #e0f0e8;
+}
+
+/* ─── 기본 스타일 ─── */
+@layer base {
+  body {
+    @apply bg-stone-100 text-stone-800 antialiased;
+    font-family: "Noto Sans KR", "Inter", sans-serif;
+  }
+
+  ::selection {
+    background-color: #c9a84c;
+    color: #1c1c1e;
+  }
+}
+
+/* ─── 컴포넌트 ─── */
+@layer components {
+  .btn-stone {
+    @apply bg-stone-800 text-white font-bold tracking-wide rounded-full px-6 py-3 text-sm hover:bg-stone-700 active:scale-95 transition-all duration-200;
+  }
+
+  .input-stone {
+    @apply w-full bg-[#1c1c1c] border border-stone-border rounded-lg px-4 py-3 text-sm text-stone-text-primary placeholder-stone-muted focus:border-stone-800 focus:ring-1 focus:ring-stone-800 outline-none transition-all duration-200;
+  }
+}
+
+/* ─── 스크롤바 ─── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #636366; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #aeaeb2; }
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
