@@ -22,7 +22,7 @@ public class AssetController {
         // 웹소켓 열기 로직 필요
 
         AssetDetailDto dto = assetService.getAssetDetail(assetId);
-
+        log.info(String.valueOf(dto));
         return ResponseEntity.ok(dto);
     }
 }
