@@ -24,4 +24,7 @@ public class TokenDTO {
     private Long initPrice;             // 토큰 초기 가격
     private Long currentPrice;          // 토큰 현재 가격
     private LocalDateTime issuedAt;     // 실제 거래 가능한 상태포 게시된 시간
+
+    @Enumerated(value = EnumType.STRING)
+    private TokenStatus tokenStatus;    // 거래 가능 상태
 }

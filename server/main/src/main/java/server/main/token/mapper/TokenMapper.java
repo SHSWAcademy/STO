@@ -5,6 +5,8 @@ import org.mapstruct.Mapping;
 import server.main.token.dto.TokenDTO;
 import server.main.token.dto.TokenDetailDto;
 import server.main.token.entity.Token;
+import org.mapstruct.Mapper;
+import server.main.token.dto.TokenDTO;
 
 @Mapper(componentModel = "spring")
 public interface TokenMapper {
