@@ -1,4 +1,4 @@
-package server.main.domain.member;
+package server.main.member.entity;
 
 
 import jakarta.persistence.*;

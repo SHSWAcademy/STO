@@ -1,10 +1,10 @@
-package server.main.domain.member;
+package server.main.member.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import server.main.domain.BaseEntity;
+import server.main.global.util.BaseEntity;
 
 @Entity
 @Getter
