@@ -9,12 +9,11 @@ import server.main.global.util.BaseEntity;
 @Entity
 @Getter
 @Table(name = "MEMBERS")
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class Member extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "member_id")
-    private Long id;
+    private Long memberId;
 
     private String email;
 

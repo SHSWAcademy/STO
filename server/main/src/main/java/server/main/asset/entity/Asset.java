@@ -9,12 +9,11 @@ import server.main.global.util.BaseEntity;
 @Entity
 @Getter
 @Table(name = "ASSETS")
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 public class Asset extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "asset_id")
-    private Long id;
+    private Long assetId;
 
     private Long initPrice;
 
