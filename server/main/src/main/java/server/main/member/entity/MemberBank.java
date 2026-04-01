@@ -1,8 +1,6 @@
 package server.main.member.entity;
 
-
 import jakarta.persistence.*;
-import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,31 +9,37 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
-
 @Entity
 @Getter
 @Table(name = "BANKINGS")
 @NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 public class MemberBank {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "banking_id")
     private Long bankingId;
 
+    @Column(name = "banking_amount")
     private Long bankingAmount;
 
+    @Column(name = "balance_snapshot")
     private Long balanceSnapshot;
 
     @Enumerated(value = EnumType.STRING)
+    @Column(name = "tx_type")
     private TxType txType;
 
     @Enumerated(value = EnumType.STRING)
+    @Column(name = "tx_status")
     private TxStatus txStatus;
 
     @CreatedDate
-    @Column(updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_id")
     private Account account;
 
     @Builder
