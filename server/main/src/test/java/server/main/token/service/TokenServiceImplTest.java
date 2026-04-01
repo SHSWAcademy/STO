@@ -71,6 +71,4 @@ class TokenServiceImplTest {
         assertThrows(EntityNotFoundException.class,
                 () -> tokenService.getTokenDetail(tokenId));
     }
-
-
 }

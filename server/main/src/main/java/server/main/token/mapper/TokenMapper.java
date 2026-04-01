@@ -2,16 +2,12 @@ package server.main.token.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import server.main.token.dto.TokenDTO;
+import org.mapstruct.ReportingPolicy;
 import server.main.token.dto.TokenDetailDto;
 import server.main.token.entity.Token;
-import org.mapstruct.Mapper;
-import server.main.token.dto.TokenDTO;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface TokenMapper {
-    TokenDTO toDto(Token token);
-    Token toEntity(TokenDTO tokenDTO);
 
     // asset 필드에서 가져오는 데이터
     @Mapping(source = "asset.assetName",    target = "assetName")
