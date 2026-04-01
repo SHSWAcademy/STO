@@ -70,12 +70,10 @@ CREATE TABLE COMMONS (
 CREATE TABLE ASSETS (
                         asset_id      BIGINT       NOT NULL,
                         total_value   BIGINT       NOT NULL,
-                        init_price    BIGINT       NOT NULL,
                         asset_address VARCHAR(255) NOT NULL,
                         img_url       VARCHAR(255) NULL,
                         created_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
                         updated_at    TIMESTAMP    NOT NULL DEFAULT NOW(),
-                        total_supply  BIGINT       NOT NULL,
                         asset_name    VARCHAR(255) NOT NULL,
                         is_allocated  BOOLEAN      NOT NULL DEFAULT FALSE,
                         CONSTRAINT PK_ASSETS PRIMARY KEY (asset_id)
@@ -106,9 +104,8 @@ CREATE TABLE TOKENS (
                         total_supply       BIGINT            NOT NULL,
                         circulating_supply BIGINT            NOT NULL,
                         token_name         VARCHAR(255)      NOT NULL,
-                        token_symbol       VARCHAR(255)      NOT NULL,
                         contract_address   VARCHAR(255)      NULL,
-                        token_decimals     VARCHAR(255)      NULL,
+                        token_decimals     BIGINT            NULL,
                         init_price         BIGINT            NOT NULL,
                         current_price      DECIMAL(20,4)     NOT NULL,
                         token_status       token_status_enum NOT NULL,
@@ -128,8 +125,8 @@ CREATE TABLE ACCOUNTS (
                           member_id         BIGINT       NOT NULL,
                           account_password  VARCHAR(255) NOT NULL,
                           account_number    VARCHAR(255) NOT NULL,
-                          available_balance BIGINT       NULL DEFAULT 0,
-                          locked_balance    BIGINT       NULL DEFAULT 0,
+                          available_balance BIGINT       NOT NULL DEFAULT 0,
+                          locked_balance    BIGINT       NOT NULL DEFAULT 0,
                           created_at        TIMESTAMP    NOT NULL DEFAULT NOW(),
                           updated_at        TIMESTAMP    NOT NULL DEFAULT NOW(),
                           CONSTRAINT PK_ACCOUNTS PRIMARY KEY (account_id),
@@ -190,7 +187,7 @@ CREATE TABLE PLATFORMACCOUNTS (
                                   platform_account_id      BIGINT    NOT NULL,
                                   platform_account_balance BIGINT    NOT NULL DEFAULT 0,
                                   total_earned             BIGINT    NOT NULL DEFAULT 0,
-                                  total_withdran           BIGINT    NOT NULL DEFAULT 0,
+                                  total_withdrawn          BIGINT    NOT NULL DEFAULT 0,
                                   updated_at               TIMESTAMP NOT NULL DEFAULT NOW(),
                                   CONSTRAINT PK_PLATFORMACCOUNTS PRIMARY KEY (platform_account_id)
 );
@@ -221,8 +218,8 @@ CREATE TABLE ORDERS (
                         member_id          BIGINT            NOT NULL,
                         token_id           BIGINT            NOT NULL,
                         order_price        BIGINT            NOT NULL,
-                        order_quantity     BIGINT            NOT NULL DEFAULT 0,
-                        filled_quantity    BIGINT            NULL     DEFAULT 0,
+                        order_quantity     BIGINT            NOT NULL,
+                        filled_quantity    BIGINT            NOT NULL DEFAULT 0,
                         remaining_quantity BIGINT            NOT NULL DEFAULT 0,
                         created_at         TIMESTAMP         NOT NULL DEFAULT NOW(),
                         updated_at         TIMESTAMP         NOT NULL DEFAULT NOW(),
@@ -248,7 +245,6 @@ CREATE TABLE TRADES (
                         token_id          BIGINT                 NOT NULL,
                         trade_price       BIGINT                 NOT NULL,
                         trade_quantity    BIGINT                 NOT NULL,
-                        total_trade_price BIGINT                 NOT NULL,
                         settlement_status settlement_status_enum NOT NULL,
                         executed_at       TIMESTAMP              NOT NULL,
                         fee_amount        BIGINT                 NOT NULL DEFAULT 0,
@@ -267,20 +263,7 @@ CREATE TABLE TRADES (
 );
 
 -- =====================================================
--- 15. TRADELOGS
--- =====================================================
-CREATE TABLE TRADELOGS (
-                           trade_log_id BIGINT    NOT NULL,
-                           trade_id     BIGINT    NOT NULL,
-                           raw_data     JSON      NOT NULL,
-                           created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
-                           CONSTRAINT PK_TRADELOGS PRIMARY KEY (trade_log_id),
-                           CONSTRAINT FK_TRADES_TO_TRADELOGS
-                               FOREIGN KEY (trade_id) REFERENCES TRADES (trade_id)
-);
-
--- =====================================================
--- 16. BLOCKCHAINOUTBOXQ
+-- 15. BLOCKCHAINOUTBOXQ
 -- =====================================================
 CREATE TABLE BLOCKCHAINOUTBOXQ (
                                    queue_id                  BIGINT            NOT NULL,
@@ -336,21 +319,18 @@ CREATE TABLE BLOCKCHAINTX (
 -- 18. TOKENHOLDINGS
 -- =====================================================
 CREATE TABLE TOKENHOLDINGS (
-                               token_hoding_id  BIGINT        NOT NULL,
+                               token_holding_id BIGINT        NOT NULL,
                                member_id        BIGINT        NOT NULL,
                                token_id         BIGINT        NOT NULL,
-                               wallet_id        BIGINT        NOT NULL,
                                updated_at       TIMESTAMP     NOT NULL DEFAULT NOW(),
                                current_quantity BIGINT        NOT NULL DEFAULT 0,
                                locked_quantity  BIGINT        NOT NULL DEFAULT 0,
                                avg_buy_price    DECIMAL(20,4) NOT NULL DEFAULT 0,
-                               CONSTRAINT PK_TOKENHOLDINGS PRIMARY KEY (token_hoding_id),
+                               CONSTRAINT PK_TOKENHOLDINGS PRIMARY KEY (token_holding_id),
                                CONSTRAINT FK_MEMBERS_TO_TOKENHOLDINGS
                                    FOREIGN KEY (member_id) REFERENCES MEMBERS (member_id),
                                CONSTRAINT FK_TOKENS_TO_TOKENHOLDINGS
                                    FOREIGN KEY (token_id) REFERENCES TOKENS (token_id),
-                               CONSTRAINT FK_WALLETS_TO_TOKENHOLDINGS
-                                   FOREIGN KEY (wallet_id) REFERENCES WALLETS (wallet_id),
                                CONSTRAINT UQ_TOKENHOLDINGS UNIQUE (member_id, token_id)
 );
 
@@ -419,14 +399,14 @@ CREATE TABLE PLATFORMBANKING (
 -- 22. DISCLOSURE
 -- =====================================================
 CREATE TABLE DISCLOSURE (
-                            disclousure_id      BIGINT              NOT NULL,
+                            disclosure_id      BIGINT              NOT NULL,
                             asset_id            BIGINT              NOT NULL,
                             created_at          TIMESTAMP           NOT NULL DEFAULT NOW(),
                             updated_at          TIMESTAMP           NOT NULL DEFAULT NOW(),
                             disclosure_title    VARCHAR(255)        NOT NULL,
                             disclosure_content  VARCHAR(255)        NOT NULL,
                             disclosure_category disclosure_cat_enum NOT NULL,
-                            CONSTRAINT PK_DISCLOSURE PRIMARY KEY (disclousure_id),
+                            CONSTRAINT PK_DISCLOSURE PRIMARY KEY (disclosure_id),
                             CONSTRAINT FK_ASSETS_TO_DISCLOSURE
                                 FOREIGN KEY (asset_id) REFERENCES ASSETS (asset_id)
 );
@@ -436,7 +416,7 @@ CREATE TABLE DISCLOSURE (
 -- =====================================================
 CREATE TABLE FILES (
                        file_id        BIGINT       NOT NULL,
-                       disclousure_id BIGINT       NOT NULL,
+                       disclosure_id BIGINT       NOT NULL,
                        created_at     TIMESTAMP    NOT NULL DEFAULT NOW(),
                        updated_at     TIMESTAMP    NOT NULL DEFAULT NOW(),
                        origin_name    VARCHAR(255) NOT NULL,
@@ -445,7 +425,7 @@ CREATE TABLE FILES (
                        path           VARCHAR(500) NOT NULL,
                        CONSTRAINT PK_FILES PRIMARY KEY (file_id),
                        CONSTRAINT FK_DISCLOSURE_TO_FILES
-                           FOREIGN KEY (disclousure_id) REFERENCES DISCLOSURE (disclousure_id)
+                           FOREIGN KEY (disclosure_id) REFERENCES DISCLOSURE (disclosure_id)
 );
 
 -- =====================================================
@@ -513,13 +493,16 @@ CREATE TABLE LOGINLOG (
 -- =====================================================
 CREATE TABLE APILOG (
                         api_log_id       BIGINT       NOT NULL,
+                        member_id        BIGINT       NULL,
                         request_id       VARCHAR(100) NOT NULL,
                         endpoint         VARCHAR(255) NOT NULL,
                         method           VARCHAR(10)  NOT NULL,
                         status_code      INT          NOT NULL,
                         response_time_ms INT          NOT NULL,
                         created_at       TIMESTAMP    NOT NULL DEFAULT NOW(),
-                        CONSTRAINT PK_APILOG PRIMARY KEY (api_log_id)
+                        CONSTRAINT PK_APILOG PRIMARY KEY (api_log_id),
+                        CONSTRAINT FK_MEMBERS_TO_APILOG
+                            FOREIGN KEY (member_id) REFERENCES MEMBERS (member_id)
 );
 
 -- =====================================================
@@ -537,7 +520,8 @@ CREATE TABLE CANDLEMINUTES (
                                trade_count INT           NOT NULL DEFAULT 0,
                                CONSTRAINT PK_CANDLEMINUTES PRIMARY KEY (candle_id),
                                CONSTRAINT FK_TOKENS_TO_CANDLEMINUTES
-                                   FOREIGN KEY (token_id) REFERENCES TOKENS (token_id)
+                                   FOREIGN KEY (token_id) REFERENCES TOKENS (token_id),
+                               CONSTRAINT UQ_CANDLEMINUTES_TOKEN_TIME UNIQUE (token_id, candle_time)
 );
 
 -- =====================================================
@@ -555,7 +539,8 @@ CREATE TABLE CANDLEHOURS (
                              trade_count INT           NOT NULL DEFAULT 0,
                              CONSTRAINT PK_CANDLEHOURS PRIMARY KEY (candle_id),
                              CONSTRAINT FK_TOKENS_TO_CANDLEHOURS
-                                 FOREIGN KEY (token_id) REFERENCES TOKENS (token_id)
+                                 FOREIGN KEY (token_id) REFERENCES TOKENS (token_id),
+                             CONSTRAINT UQ_CANDLEHOURS_TOKEN_TIME UNIQUE (token_id, candle_time)
 );
 
 -- =====================================================
@@ -573,7 +558,8 @@ CREATE TABLE CANDLEDAYS (
                             trade_count INT           NOT NULL DEFAULT 0,
                             CONSTRAINT PK_CANDLEDAYS PRIMARY KEY (candle_id),
                             CONSTRAINT FK_TOKENS_TO_CANDLEDAYS
-                                FOREIGN KEY (token_id) REFERENCES TOKENS (token_id)
+                                FOREIGN KEY (token_id) REFERENCES TOKENS (token_id),
+                            CONSTRAINT UQ_CANDLEDAYS_TOKEN_TIME UNIQUE (token_id, candle_time)
 );
 
 -- =====================================================
@@ -591,7 +577,8 @@ CREATE TABLE CANDLEMONTHS (
                               trade_count INT           NOT NULL DEFAULT 0,
                               CONSTRAINT PK_CANDLEMONTHS PRIMARY KEY (candle_id),
                               CONSTRAINT FK_TOKENS_TO_CANDLEMONTHS
-                                  FOREIGN KEY (token_id) REFERENCES TOKENS (token_id)
+                                  FOREIGN KEY (token_id) REFERENCES TOKENS (token_id),
+                              CONSTRAINT UQ_CANDLEMONTHS_TOKEN_TIME UNIQUE (token_id, candle_time)
 );
 
 -- =====================================================
@@ -609,7 +596,8 @@ CREATE TABLE CANDLEYEARS (
                              trade_count INT           NOT NULL DEFAULT 0,
                              CONSTRAINT PK_CANDLEYEARS PRIMARY KEY (candle_id),
                              CONSTRAINT FK_TOKENS_TO_CANDLEYEARS
-                                 FOREIGN KEY (token_id) REFERENCES TOKENS (token_id)
+                                 FOREIGN KEY (token_id) REFERENCES TOKENS (token_id),
+                             CONSTRAINT UQ_CANDLEYEARS_TOKEN_TIME UNIQUE (token_id, candle_time)
 );
 
 
