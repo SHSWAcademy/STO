@@ -2,6 +2,7 @@ package server.main.token.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import server.main.asset.entity.Asset;
 import server.main.global.util.BaseEntity;
 
 import java.time.LocalDateTime;
@@ -10,7 +11,7 @@ import java.time.LocalDateTime;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 @ToString
 @Table(name = "TOKENS")
 public class Token extends BaseEntity {
@@ -18,7 +19,11 @@ public class Token extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long tokenId;               // 토큰ID
-    private Long assetId;               // 부동산ID (FK)
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "asset_id")
+    private Asset asset;               // 부동산ID (FK)
+
     private Long totalSupply;           // 토큰 발행 총 개수
     private Long circulatingSupply;     // 토큰 발행 실제 개수
     private String tokenName;           // 토큰 이름
