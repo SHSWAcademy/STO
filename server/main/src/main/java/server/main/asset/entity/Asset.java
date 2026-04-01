@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import server.main.global.util.BaseEntity;
 
+
 @Entity
 @Getter
 @Table(name = "ASSETS")
