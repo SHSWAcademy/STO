@@ -1,4 +1,4 @@
-package server.main.domain.member;
+package server.main.member.entity;
 
 public enum TxType {
     DEPOSIT, WITHDRAWAL, ORDER_LOCK, ORDER_UNLOCK, TRADE_SETTLEMENT, DIVIDEND_DEPOSIT

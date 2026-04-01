@@ -1,4 +1,4 @@
-package server.match.api.health;
+package server.main.global.health;
 
 import lombok.*;
 

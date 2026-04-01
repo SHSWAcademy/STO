@@ -1,4 +1,4 @@
-package server.main.domain;
+package server.main.global.util;
 
 import lombok.Getter;
 import jakarta.persistence.Column;

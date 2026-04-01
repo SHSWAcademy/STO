@@ -1,4 +1,4 @@
-package server.match.api.health;
+package server.main.global.health;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Arrays;
 
 @RestController
-@RequestMapping("/match/api")
+@RequestMapping("/main/api")
 @RequiredArgsConstructor
 public class HealthController {
 
