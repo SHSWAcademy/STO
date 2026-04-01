@@ -10,14 +10,24 @@ import server.main.global.util.BaseEntity;
 @Table(name = "ACCOUNTS")
 @NoArgsConstructor
 public class Account extends BaseEntity {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "account_id")
     private Long accountId;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id")
+    private Member member;
+
+    @Column(name = "account_number")
     private String accountNumber;
 
-    private String accountPassword; //bcrypt 변경 메서드 - global 패키지 util에 생성 필요
+    @Column(name = "account_password")
+    private String accountPassword;
 
+    @Column(name = "available_balance")
     private Long availableBalance;
 
+    @Column(name = "locked_balance")
     private Long lockedBalance;
 }

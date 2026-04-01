@@ -12,22 +12,30 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder(toBuilder = true)
 @ToString
-@Table(name = "platformtokenholdings")
+@Table(name = "PLATFORM_TOKEN_HOLDINGS")
 public class PlatformTokenHolding {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long platFormTokenHoldingId;    // 지분ID
+    @Column(name = "platform_token_holding_id")
+    private Long platformTokenHoldingId;
 
-    @OneToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "admin_id")
+    private Admin admin;
+
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "token_id")
-    private Token token;                   // 토큰
+    private Token token;
 
-    private Long holdingSupply;            // 플랫폼 보유 토큰 수량
-    private Long initPrice;                // 토큰 초기 가격
-    private LocalDateTime createdAt;       // 생성일자
+    @Column(name = "holding_supply")
+    private Long holdingSupply;
 
-    // baseEntity 상속 안받을때 PrePersist쓰면 now()자동으로 된대요
-    // DB 저장 직전에 자동 실행
+    @Column(name = "init_price")
+    private Long initPrice;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
