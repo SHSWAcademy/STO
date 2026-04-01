@@ -15,12 +15,11 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Table(name = "BANKINGS")
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 public class MemberBank {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "banking_id")
-    private Long id;
+    private Long bankingId;
 
     private Long bankingAmount;
 
