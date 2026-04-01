@@ -1,8 +1,9 @@
 package server.main.token.service;
 
+import org.springframework.stereotype.Service;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.stereotype.Service;
 import server.main.token.repository.TokenRepository;
 
 @Service
