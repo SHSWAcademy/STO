@@ -1,6 +1,11 @@
 package server.main.member.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import server.main.global.util.BaseEntity;
@@ -26,4 +31,13 @@ public class Member extends BaseEntity {
 
     @Column(name = "is_active")
     private Boolean isActive;
+
+    public static Member create(String email, String encodedPassword, String name) {
+        Member member = new Member();
+        member.email = email;
+        member.memberPassword = encodedPassword;
+        member.memberName = name;
+        member.isActive = true;
+        return member;
+    }
 }
