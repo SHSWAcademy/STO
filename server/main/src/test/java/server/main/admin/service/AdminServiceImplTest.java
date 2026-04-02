@@ -16,7 +16,10 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "jwt.secret=dGVzdHNlY3JldGtleWZvcnRlc3RpbmdwdXJwb3Nlc29ubHkzMmJ5dGVz",
+        "jwt.access-token-expiration=3600000"
+})
 class AdminServiceImplTest {
 
     @Autowired

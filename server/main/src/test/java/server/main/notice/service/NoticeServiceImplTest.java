@@ -8,7 +8,10 @@ import server.main.notice.entity.Notice;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "jwt.secret=dGVzdHNlY3JldGtleWZvcnRlc3RpbmdwdXJwb3Nlc29ubHkzMmJ5dGVz",
+        "jwt.access-token-expiration=3600000"
+})
 class NoticeServiceImplTest {
 
     @Autowired
