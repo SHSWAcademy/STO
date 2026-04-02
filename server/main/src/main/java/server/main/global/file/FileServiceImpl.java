@@ -33,7 +33,7 @@ public class FileServiceImpl implements FileService{
             log.info("파일 저장내역 확인 : {}", file);
             fileRepository.save(file);
         } catch (IOException e) {
-            throw new RuntimeException("PDF 파일 저장 실패"+pdfFile.getOriginalFilename(), e);
+            throw new RuntimeException("PDF 파일 저장 실패: " + pdfFile.getOriginalFilename(), e);
         }
     }
 }

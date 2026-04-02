@@ -6,7 +6,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "jwt.secret=test-jwt-secret-key-for-disclosure-service-test",
+        "jwt.access-token-expiration=3600000"
+})
 class DisclosureServiceImplTest {
 
     @Autowired

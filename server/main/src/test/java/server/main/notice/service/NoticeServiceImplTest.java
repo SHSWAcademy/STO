@@ -25,7 +25,7 @@ class NoticeServiceImplTest {
                 .imgUrl("/")
                 .tokenSymbol("s")
                 .totalSupply(1000L)
-                .assetName("서울빙딩")
+                .assetName("서울빌딩")
                 .initPrice(500L)
                 .totalValue(500000000L)
                 .isAllocated(true)
