@@ -1,15 +1,20 @@
 package server.main.global.security;
 
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Base64;
+import java.util.Date;
+
+import javax.crypto.SecretKey;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.util.Base64;
-import java.util.Date;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
@@ -25,7 +30,23 @@ public class JwtTokenProvider {
 
     @PostConstruct
     public void init() {
-        byte[] keyBytes = Base64.getDecoder().decode(secret);
+        if (!org.springframework.util.StringUtils.hasText(secret)) {
+            throw new IllegalStateException(
+                "JWT secret이 설정되지 않았습니다. " +
+                "JWT_SECRET 환경변수 또는 application-local.properties를 확인하세요."
+            );
+        }
+        byte[] keyBytes;
+        try {
+            keyBytes = Base64.getDecoder().decode(secret);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("JWT secret이 유요한 Base64 형식이 아닙니다.", e);
+        }
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException(
+                "JWT secret이 너무 짧습니다. 최소 32 bytes 이상이어야 합니다. (현재: " + keyBytes.length + " bytes)"
+            );
+        }
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
