@@ -104,6 +104,7 @@ CREATE TABLE TOKENS (
     total_supply       BIGINT            NOT NULL,
     circulating_supply BIGINT            NOT NULL,
     token_name         VARCHAR(255)      NOT NULL,
+    token_symbol       VARCHAR(50)       NOT NULL,
     contract_address   VARCHAR(255)      NULL,
     token_decimals     BIGINT            NULL,
     init_price         BIGINT            NOT NULL,
