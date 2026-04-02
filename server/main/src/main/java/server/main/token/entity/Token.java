@@ -3,6 +3,7 @@ package server.main.token.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import server.main.admin.entity.PlatformTokenHolding;
 import server.main.asset.entity.Asset;
 import server.main.global.util.BaseEntity;
 
@@ -36,5 +37,11 @@ public class Token extends BaseEntity {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "asset_id")
     private Asset asset;
+
+    // DB 저장 직전에 자동 실행
+    @PrePersist
+    public void prePersist() {
+        this.issuedAt = LocalDateTime.now();
+    }
 
 }
