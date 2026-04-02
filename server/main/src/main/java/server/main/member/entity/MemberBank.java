@@ -20,22 +20,17 @@ public class MemberBank {
     @Column(name = "banking_id")
     private Long bankingId;
 
-    @Column(name = "banking_amount")
     private Long bankingAmount;
 
-    @Column(name = "balance_snapshot")
     private Long balanceSnapshot;
 
     @Enumerated(value = EnumType.STRING)
-    @Column(name = "tx_type")
     private TxType txType;
 
     @Enumerated(value = EnumType.STRING)
-    @Column(name = "tx_status")
     private TxStatus txStatus;
 
     @CreatedDate
-    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @ManyToOne(fetch = FetchType.LAZY)

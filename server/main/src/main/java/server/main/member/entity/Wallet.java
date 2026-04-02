@@ -7,23 +7,22 @@ import server.main.global.util.BaseEntity;
 
 @Entity
 @Getter
-@Table(name = "ACCOUNTS")
+@Table(name = "WALLETS")
 @NoArgsConstructor
-public class Account extends BaseEntity {
+public class Wallet extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "account_id")
-    private Long accountId;
+    @Column(name = "wallet_id")
+    private Long wallet_id;
+
+    private String walletAddress;
+
+    @Enumerated(EnumType.STRING)
+    private WalletType walletType;
+    @Enumerated(EnumType.STRING)
+    private WalletStatus walletStatus;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id")
     private Member member;
-
-    private String accountNumber;
-
-    private String accountPassword;
-
-    private Long availableBalance;
-
-    private Long lockedBalance;
 }

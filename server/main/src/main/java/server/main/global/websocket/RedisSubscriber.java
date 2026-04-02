@@ -1,4 +1,4 @@
-package server.main.global.util;
+package server.main.global.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
