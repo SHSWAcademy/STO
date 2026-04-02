@@ -38,3 +38,4 @@ out/
 
 ### Local secrets - do not commit ###
 src/main/resources/application-local.properties
+todolist.md
