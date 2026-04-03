@@ -10,12 +10,14 @@ public class MemberSignupRequest {
     
     @Email
     @NotBlank
+    @Size(max = 100)
     private String email;
-    
+
     @NotBlank
-    @Size(min = 8) //최소 8자 강제
+    @Size(min = 8, max = 100) //최소 8자 강제
     private String password;
 
     @NotBlank
+    @Size(max = 50)
     private String name;
 }
