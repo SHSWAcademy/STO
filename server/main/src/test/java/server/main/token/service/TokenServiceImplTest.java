@@ -41,7 +41,7 @@ class TokenServiceImplTest {
                 .tokenId(1L)
                 .tokenName("서울 빌딩")
                 .tokenSymbol("hello")
-                .currentPrice(1230L)
+                //.currentPrice(1230L)
                 .build();
 
         // 상황 가정

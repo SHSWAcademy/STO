@@ -26,4 +26,7 @@ public class Member extends BaseEntity {
 
     @Column(name = "is_active")
     private Boolean isActive;
+
+    @OneToOne(mappedBy = "member", fetch = FetchType.LAZY) // cascade 설정 : member 삭제 시 account도 삭제되어야 한다면 cascade = CascadeType.REMOVE 추가 설정 필요
+    private Account account;
 }

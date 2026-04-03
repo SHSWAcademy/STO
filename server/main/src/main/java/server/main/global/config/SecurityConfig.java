@@ -45,7 +45,8 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/tokens/**",
                                 "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+                                "/ws/trading/**"
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()

@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import server.main.token.entity.TokenStatus;
 
 @Getter
 @NoArgsConstructor
@@ -25,4 +26,5 @@ public class AssetRegisterRequestDTO {
 
     // PlatformTokenHoldings 필드
     private Long holdingSupply;     // 플랫폼 토큰 보유 수량
+
 }
