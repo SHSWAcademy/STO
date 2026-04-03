@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import server.main.global.util.BaseEntity;
 
+
 @Entity
 @Getter
 @Table(name = "ASSETS")
@@ -16,19 +17,11 @@ public class Asset extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "asset_id")
     private Long assetId;
-
-    @Column(name = "total_value")
+    private Long initPrice;
     private Long totalValue;
-
-    @Column(name = "asset_address")
     private String assetAddress;
-
-    @Column(name = "img_url")
     private String imgUrl;
-
-    @Column(name = "asset_name")
+    private Long totalSupply;
     private String assetName;
-
-    @Column(name = "is_allocated")
     private Boolean isAllocated;
 }

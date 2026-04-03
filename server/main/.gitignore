@@ -36,4 +36,5 @@ out/
 ### VS Code ###
 .vscode/
 
+### Local secrets - do not commit ###
 src/main/resources/application-local.properties
