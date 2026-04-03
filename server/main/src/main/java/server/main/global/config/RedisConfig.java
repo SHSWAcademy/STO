@@ -8,7 +8,7 @@ import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-import server.main.global.util.RedisSubscriber;
+import server.main.global.websocket.RedisSubscriber;
 
 @Configuration
 public class RedisConfig {
