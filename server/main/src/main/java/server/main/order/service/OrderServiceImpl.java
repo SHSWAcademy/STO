@@ -15,12 +15,15 @@ import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.MatchOrderRequestDto;
 import server.main.order.dto.OrderRequestDto;
+import server.main.order.dto.PendingOrderResponseDto;
+import server.main.order.dto.UpdateOrderRequestDto;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderType;
 import server.main.order.repository.OrderRepository;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static server.main.global.error.ErrorCode.*;
@@ -62,19 +65,21 @@ public class OrderServiceImpl implements OrderService {
                 throw new BusinessException(INSUFFICIENT_TOKEN_BALANCE);
         }
 
+        // 주문 생성 (매도, 매수)
         Order createOrder = Order.builder()
                 .orderPrice(dto.getOrderPrice())
                 .orderQuantity(dto.getOrderQuantity())
-                .orderType(dto.getOrderType())
+                .orderType(dto.getOrderType()) // 매도, 매수 판단
                 .token(findToken)
                 .member(findMember)
                 .build();
 
         log.info(String.valueOf(createOrder));
 
+        // 주문 저장
         orderRepository.save(createOrder);
 
-        // 매치 서버로 전달
+        // 주문을 매치 서버로 전달
         MatchOrderRequestDto matchDto = MatchOrderRequestDto.builder()
                 .tokenId(tokenId)
                 .memberId(memberId)
@@ -86,13 +91,27 @@ public class OrderServiceImpl implements OrderService {
         matchClient.sendOrder(matchDto); // sendOrder 실패 시 모두 롤백
     }
 
+    // 상세 화면의 '대기' : 소켓 필요
     @Override
-    public List<?> getPendingOrders(Long tokenId) {
+    public List<PendingOrderResponseDto> getPendingOrders(Long tokenId) {
+//        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+//        Long memberId = principal.getId();
+//        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new EntityNotFoundException("cannot find entity"));
+//        Token findToken = tokenRepository.findById(tokenId).orElseThrow(() -> new EntityNotFoundException("cannot find entity"));
+//
+//        List<Order> pendingOrders = orderRepository.findPendingOrderByMemberAndToken(findMember.getMemberId(), findToken.getTokenId());
         return List.of();
     }
 
+    @Transactional
     @Override
     public void cancelOrder(Long orderId) {
+
+    }
+
+    @Transactional
+    @Override
+    public void updateOrder(Long orderId, UpdateOrderRequestDto dto) {
 
     }
 }

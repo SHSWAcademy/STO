@@ -6,13 +6,10 @@ import org.springframework.data.repository.query.Param;
 import server.main.candle.entity.CandleMinute;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface CandleMinuteRepository extends JpaRepository<CandleMinute, Long> {
-
-    // 특정 토큰의 기간 내 1분봉 최고가/최저가 집계
-    @Query("SELECT MAX(c.highPrice) FROM CandleMinute c WHERE c.token.tokenId = :tokenId AND c.candleTime >= :from")
-    Double findMinuteHighPrice(@Param("tokenId") Long tokenId, @Param("from") LocalDateTime from);
-
-    @Query("SELECT MIN(c.lowPrice) FROM CandleMinute c WHERE c.token.tokenId = :tokenId AND c.candleTime >= :from")
-    Double findMinuteLowPrice(@Param("tokenId") Long tokenId, @Param("from") LocalDateTime from);
+    // candleTime 인덱스 생성해두기
+    @Query("SELECT c FROM CandleMinute c WHERE c.token.tokenId = :tokenId AND c.candleTime < :before ORDER BY c.candleTime DESC LIMIT 35")
+    List<CandleMinute> findTop35Before(@Param("tokenId") Long tokenId, @Param("before") LocalDateTime before);
 }
