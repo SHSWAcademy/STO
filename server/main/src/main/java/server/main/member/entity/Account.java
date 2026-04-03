@@ -19,15 +19,11 @@ public class Account extends BaseEntity {
     @JoinColumn(name = "member_id")
     private Member member;
 
-    @Column(name = "account_number")
     private String accountNumber;
 
-    @Column(name = "account_password")
     private String accountPassword;
 
-    @Column(name = "available_balance")
     private Long availableBalance;
 
-    @Column(name = "locked_balance")
     private Long lockedBalance;
 }

@@ -1,4 +1,4 @@
-package server.main.global.util;
+package server.main.global.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -28,11 +28,9 @@ public class RedisSubscriber implements MessageListener {
 
         // send to subscriber
         if ("orderBook".equals(type)) {
-            messagingTemplate.convertAndSend("/topic/orderBook/" + tokenId,
-                    body);
+            messagingTemplate.convertAndSend("/topic/orderBook/" + tokenId, body);
         } else if ("trades".equals(type)) {
-            messagingTemplate.convertAndSend("/topic/trades/" + tokenId,
-                    body);
+            messagingTemplate.convertAndSend("/topic/trades/" + tokenId, body);
         }
     }
 }

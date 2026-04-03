@@ -45,8 +45,7 @@ public class AuthService {
     }
 
     public LoginResponse memberLogin(MemberLoginRequest request) {
-        Member member = memberRepository.findByEmailAndIsActiveTrue(request.getEmail())
-                .orElse(null);
+        Member member = memberRepository.findByEmailAndIsActiveTrue(request.getEmail()).orElse(null);
 
         if (member == null) {
             passwordEncoder.matches(request.getPassword(), DUMMY_HASH); // timing 완화

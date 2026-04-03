@@ -27,11 +27,11 @@ public class AdminMapper {
     }
 
     // 자산 첫 등록 시 dto -> entity 변환
-    public Asset toAsset(AssetRegisterRequestDTO dto) {
+    public Asset toAsset(AssetRegisterRequestDTO dto, String imgUrl) {
         return Asset.builder()
                 .initPrice(dto.getInitPrice())
                 .assetAddress(dto.getAssetAddress())
-                .imgUrl(dto.getImgUrl())
+                .imgUrl(imgUrl)
                 .totalSupply(dto.getTotalSupply())
                 .assetName(dto.getAssetName())
                 .isAllocated(dto.getIsAllocated())

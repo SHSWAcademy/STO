@@ -1,10 +1,8 @@
-package server.main.global.util;
+package server.main.global.file;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.*;
+import server.main.global.util.BaseEntity;
 
 @Entity
 @Getter
@@ -12,10 +10,12 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 @ToString
-public class File extends BaseEntity{
+@Table(name = "files")
+public class File extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long fileId;        // 파일ID
+    private Long disclosureId;  // 공시ID (FK)
     private String origin_name; // 파일 원본명
     private String stored_name; // 파일 저장명
     private Long size;          // 파일 용량
