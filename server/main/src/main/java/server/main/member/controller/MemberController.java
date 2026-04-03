@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import lombok.RequiredArgsConstructor;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.member.dto.MemberMeResponse;
+import server.main.member.entity.Member;
 import server.main.member.service.MemberService;
 
 @RestController
@@ -18,12 +19,17 @@ public class MemberController {
     private final MemberService memberService;
     
     @GetMapping("/me")
-    public ResponseEntity<MemberMeResponse> getMyInfo (
-        @AuthenticationPrincipal CustomUserPrincipal principal){
-        MemberMeResponse response = memberService.getMyInfo(principal.getId(), principal.getRole());
+    public ResponseEntity<MemberMeResponse> getMyInfo(
+            @AuthenticationPrincipal CustomUserPrincipal principal) {
+        Member member = memberService.getMyInfo(principal.getId());
+        MemberMeResponse response = new MemberMeResponse(
+                member.getMemberId(),
+                member.getEmail(),
+                member.getMemberName(),
+                principal.getRole()
+        );
         return ResponseEntity.ok(response);
-        
-        }
+    }
     
 
 }

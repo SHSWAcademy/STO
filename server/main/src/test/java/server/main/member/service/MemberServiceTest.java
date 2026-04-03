@@ -15,7 +15,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
-import server.main.member.dto.MemberMeResponse;
 import server.main.member.entity.Member;
 import server.main.member.repository.MemberRepository;
 
@@ -29,20 +28,19 @@ class MemberServiceTest {
     private MemberRepository memberRepository;
 
     @Test
-    @DisplayName("정상적인 memberId로 조회 시 회원 정보를 반환한다")
+    @DisplayName("정상적인 memberId로 조회 시 Member를 반환한다")
     void getMyInfo_success() {
         // given
         Member member = createMember(1L, "user@test.com", "홍길동");
         given(memberRepository.findById(1L)).willReturn(Optional.of(member));
 
         // when
-        MemberMeResponse response = memberService.getMyInfo(1L, "ROLE_USER");
+        Member result = memberService.getMyInfo(1L);
 
         // then
-        assertThat(response.getMemberId()).isEqualTo(1L);
-        assertThat(response.getEmail()).isEqualTo("user@test.com");
-        assertThat(response.getName()).isEqualTo("홍길동");
-        assertThat(response.getRole()).isEqualTo("ROLE_USER");
+        assertThat(result.getMemberId()).isEqualTo(1L);
+        assertThat(result.getEmail()).isEqualTo("user@test.com");
+        assertThat(result.getMemberName()).isEqualTo("홍길동");
     }
 
     @Test
@@ -52,7 +50,7 @@ class MemberServiceTest {
         given(memberRepository.findById(99L)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> memberService.getMyInfo(99L, "ROLE_USER"))
+        assertThatThrownBy(() -> memberService.getMyInfo(99L))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
     }

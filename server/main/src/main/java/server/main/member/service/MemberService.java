@@ -1,7 +1,7 @@
 package server.main.member.service;
 
-import server.main.member.dto.MemberMeResponse;
+import server.main.member.entity.Member;
 
 public interface MemberService {
-    MemberMeResponse getMyInfo(Long memberId, String role);
+    Member getMyInfo(Long memberId);
 }
