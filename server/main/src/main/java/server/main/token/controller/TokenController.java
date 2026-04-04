@@ -15,5 +15,14 @@ import server.main.token.service.TokenService;
 @Slf4j
 public class TokenController {
 
+    private final TokenService tokenService;
 
+    // 토큰 (자산) 상세 조회
+    @GetMapping("/{tokenId}")
+    public ResponseEntity<TokenDetailDto> tokenDetails(@PathVariable Long tokenId) {
+
+        TokenDetailDto dto = tokenService.getTokenDetail(tokenId);
+        log.info(String.valueOf(dto));
+        return ResponseEntity.ok(dto);
+    }
 }

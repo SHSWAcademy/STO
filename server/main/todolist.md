@@ -130,8 +130,14 @@
 
 - [x] `POST /api/token/{tokenId}/order` — 매수/매도 주문 접수 구현
 - [x] `OrderServiceImpl.createOrder()` — JWT 사용자 추출, 잔고 검증, DB 저장, match 전달
-- [x] `PendingOrderResponseDto.java` 생성
+- [x] `PendingOrderResponseDto.java` 생성 — 필드: orderId, orderType, orderStatus, orderPrice, orderQuantity, filledQuantity, remainingQuantity, createdAt, updatedAt
 - [x] `OrderServiceImpl` SELL 검증 — tokenHolding 없을 때 `EntityNotFoundException` → `INSUFFICIENT_TOKEN_BALANCE`로 수정
+- [x] `OrderServiceImpl.createOrder()` — `orderStatus(OrderStatus.OPEN)` 세팅 추가
+- [x] `OrderMapper` — `toPendingDto()`, `toPendingDtoList()` 추가
+- [x] `OrderRepository` — `findPendingOrderByMemberAndToken()` 쿼리 추가 (member_id, token_id, orderStatus IN OPEN/PENDING/PARTIAL)
+- [x] `OrderServiceImpl.getPendingOrders()` 구현 — JWT memberId 추출 → DB 조회 → DTO 변환
+- [x] `OrderController` — `GET /api/token/{tokenId}/order/pending` 엔드포인트 추가
+- [x] `TokenController` — `GET /api/token/{tokenId}` 엔드포인트 추가 (`@RequestMapping("/api/token")` 포함)
 
 #### [8-TODO] match 서버 완성 → 구현 순서
 
@@ -151,14 +157,10 @@
 - [ ] `MatchClient`에 `updateOrder(orderId, dto)` 메서드 추가
 - [ ] `OrderController`에 `PATCH /api/orders/{orderId}` 엔드포인트 추가
 
-**3단계 — 대기탭 WebSocket (`getPendingOrders`)** ← 다음 작업
+**3단계 — 대기탭 WebSocket (`getPendingOrders`)** ← match 서버 완성 후
 - [ ] match 서버와 채널명 합의 (`pendingOrders:{tokenId}:{memberId}` 권장)
 - [ ] `RedisSubscriber`에 `pendingOrders` 케이스 추가
-- [ ] `OrderRepository`에 `findPendingOrderByMemberAndToken()` 쿼리 추가
-  - 조건: `member_id = :memberId AND token_id = :tokenId AND orderStatus IN (OPEN, PENDING, PARTIAL)`
 - [ ] `PendingOrderSubscribeHandler` 생성 — 구독 시 JWT로 memberId 추출 후 DB snapshot 즉시 전송
-- [ ] `getPendingOrders()` 서비스 로직 주석 해제 및 구현
-- [ ] `PendingOrderResponseDto` 필드 추가 (orderId, orderType, orderPrice, orderQuantity, remainingQuantity, orderStatus, createdAt)
 
 > **주의**: 구독 주소 `/topic/pendingOrders/{tokenId}/{memberId}` — WebSocket 헤더에서 JWT 파싱 필요
 > match 서버가 체결/취소/수정 시 `pendingOrders:{tokenId}:{memberId}` publish 해야 실시간 갱신됨
