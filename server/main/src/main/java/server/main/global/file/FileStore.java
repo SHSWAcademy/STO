@@ -15,6 +15,7 @@ public class FileStore {
     @Value("${file.path}")
     private String filePath;
 
+
     // 파일저장
     public String saveFile(MultipartFile file) throws IOException {
         // 원본 파일명
