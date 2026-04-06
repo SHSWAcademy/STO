@@ -5,12 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.allocation.entity.AllocationEvent;
-import server.main.allocation.entity.AllocationPayout;
 import server.main.allocation.repository.AllocationEventRepository;
-import server.main.allocation.repository.AllocationPayoutRepository;
 import server.main.asset.entity.Asset;
-import server.main.asset.mapper.AssetMapper;
-import server.main.asset.repository.AssetRepository;
 import server.main.diclosure.entity.Disclosure;
 import server.main.diclosure.repository.DisclosureRepository;
 import server.main.global.error.BusinessException;
@@ -40,7 +36,6 @@ public class TokenServiceImpl implements TokenService{
     private final FileRepository fileRepository;
     private final TokenRepository tokenRepository;
     private final AllocationEventRepository allocationEventRepository;
-    private final AllocationPayoutRepository allocationPayoutRepository;
     private final TokenMapper tokenMapper;
 
 
@@ -61,7 +56,7 @@ public class TokenServiceImpl implements TokenService{
     @Override
     public TokenAssetInfoResponseDto getTokenAssetInfo(Long tokenId) {
         // token, asset 조회
-        Token token = tokenRepository.findById(tokenId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        Token token = tokenRepository.findByIdWithAsset(tokenId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
         Asset asset = token.getAsset();
 
         String originName = disclosureRepository
@@ -82,25 +77,24 @@ public class TokenServiceImpl implements TokenService{
 
     @Override
     public List<TokenAllocationInfoResponseDto> getAllocationInfo(Long tokenId) {
-        //    // 상세 페이지 -> 배당금 내역
-        //    // 필요 테이블 : ALLOCATION_EVENTS, ALLOCATION_PAYOUTS, TOKENS
-        //    private LocalDateTime settledAt;    // 배당 지급일 (ALLOCATION_EVENTS 테이블)
-        //    private int allocationPerToken;     // 주당 배당금 (토큰 a의 배당 월 수익 / 토큰 전체 수) -> ALLOCATION_EVENT, TOKENS 테이블, 별도 컬럼 필요 ?, int로 해도 되겠죠 ..?
-        //    private Long monthlyDividendIncome; // 총 배당금 (ALLOCATION_EVENTS 테이블)
-        //    private AllocationPayoutStatus status; // 지급 상태 (대기, 성공, 실패) -> ALLOCATION_PAYOUTS 테이블
-        Token token = tokenRepository.findById(tokenId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        // 상세 페이지 -> 배당금 내역
+        Token token = tokenRepository.findByIdWithAsset(tokenId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         Asset asset = token.getAsset();
         Long assetId = asset.getAssetId();
 
 
-        List<AllocationEvent> findEvents = allocationEventRepository.findAllByAssetId(assetId);
+        List<AllocationEvent> findEvents = allocationEventRepository.findAllByAssetIdOrderBySettledAtDesc(assetId); // 역순
         List<TokenAllocationInfoResponseDto> dtos = new ArrayList<>();
+        Long totalSupply = token.getTotalSupply();
+
         for (AllocationEvent a : findEvents) {
+            Long perToken = (totalSupply != null && totalSupply > 0) ? a.getMonthlyDividendIncome() / totalSupply : 0L;
+
             TokenAllocationInfoResponseDto dto = TokenAllocationInfoResponseDto.builder()
                     .settledAt(a.getSettledAt())
                     .monthlyDividendIncome(a.getMonthlyDividendIncome())
-                    .allocationPerToken((a.getMonthlyDividendIncome() / token.getTotalSupply()))
+                    .allocationPerToken(perToken)
                     .allocationBatchStatus(a.getAllocationBatchStatus())
                     .build();
             dtos.add(dto);
