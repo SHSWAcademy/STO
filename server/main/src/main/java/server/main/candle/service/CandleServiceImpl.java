@@ -3,10 +3,14 @@ package server.main.candle.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import server.main.candle.dto.PriceStatsDto;
+import server.main.candle.dto.CandleResponseDto;
+import server.main.candle.entity.CandleType;
+import server.main.candle.mapper.CandleMapper;
 import server.main.candle.repository.*;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
@@ -14,43 +18,37 @@ import java.time.LocalDateTime;
 public class CandleServiceImpl implements CandleService {
 
     private final CandleMinuteRepository candleMinuteRepository;
-    private final CandleHourRepository   candleHourRepository;
-    private final CandleDayRepository    candleDayRepository;
-    private final CandleMonthRepository  candleMonthRepository;
-    private final CandleYearRepository   candleYearRepository;
+    private final CandleHourRepository candleHourRepository;
+    private final CandleDayRepository candleDayRepository;
+    private final CandleMonthRepository candleMonthRepository;
+    private final CandleYearRepository candleYearRepository;
+    private final CandleMapper candleMapper;
 
     @Override
-    public PriceStatsDto getPriceStats(Long tokenId) {
+    public List<CandleResponseDto> getCandles(Long tokenId, CandleType type) {
         LocalDateTime now = LocalDateTime.now();
+        return switch (type) {
+            case MINUTE -> candleMinuteRepository.findTop35Before(tokenId, now.truncatedTo(ChronoUnit.MINUTES))
+                    .stream()
+                    .map(c -> candleMapper.toDto(c))
+                    .toList();
+            case HOUR -> candleHourRepository.findTop35Before(tokenId, now.truncatedTo(ChronoUnit.HOURS))
+                    .stream()
+                    .map(candleMapper::toDto)
+                    .toList();
+            case DAY -> candleDayRepository.findTop35Before(tokenId, now.truncatedTo(ChronoUnit.DAYS))
+                    .stream()
+                    .map(candleMapper::toDto)
+                    .toList();
+            case MONTH -> candleMonthRepository.findTop35Before(tokenId, now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS))
+                    .stream()
+                    .map(c -> candleMapper.toDto(c))
+                    .toList();
 
-        // 1분: 현재 시각 기준 1분 전
-        LocalDateTime minuteFrom = now.minusMinutes(1);
-
-        // 1시간: 현재 시각 기준 1시간 전
-        LocalDateTime hourFrom = now.minusHours(1);
-
-        // 1일: 오전 9시 기준 초기화
-        LocalDateTime dayFrom = now.getHour() >= 9
-                ? now.toLocalDate().atTime(9, 0)
-                : now.toLocalDate().minusDays(1).atTime(9, 0);
-
-        // 1달: 현재 시각 기준 1달 전
-        LocalDateTime monthFrom = now.minusMonths(1);
-
-        // 1년: 현재 시각 기준 1년 전
-        LocalDateTime yearFrom = now.minusYears(1);
-
-        return PriceStatsDto.builder()
-                .minuteHighPrice(candleMinuteRepository.findMinuteHighPrice(tokenId, minuteFrom))
-                .minuteLowPrice(candleMinuteRepository.findMinuteLowPrice(tokenId, minuteFrom))
-                .hourHighPrice(candleHourRepository.findHourHighPrice(tokenId, hourFrom))
-                .hourLowPrice(candleHourRepository.findHourLowPrice(tokenId, hourFrom))
-                .dayHighPrice(candleDayRepository.findDayHighPrice(tokenId, dayFrom))
-                .dayLowPrice(candleDayRepository.findDayLowPrice(tokenId, dayFrom))
-                .monthHighPrice(candleMonthRepository.findMonthHighPrice(tokenId, monthFrom))
-                .monthLowPrice(candleMonthRepository.findMonthLowPrice(tokenId, monthFrom))
-                .yearHighPrice(candleYearRepository.findYearHighPrice(tokenId, yearFrom))
-                .yearLowPrice(candleYearRepository.findYearLowPrice(tokenId, yearFrom))
-                .build();
+            case YEAR ->  candleYearRepository.findTop35Before(tokenId, now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS))
+                    .stream()
+                    .map(c -> candleMapper.toDto(c))
+                    .toList();
+        };
     }
 }

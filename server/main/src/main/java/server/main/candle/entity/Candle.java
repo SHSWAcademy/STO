@@ -1,25 +1,23 @@
 package server.main.candle.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
 import server.main.token.entity.Token;
 
 import java.time.LocalDateTime;
 
-// Candle 상속 전략 코드, 여유될 때 상속으로 바꿀게요
-
-// @Entity
-// @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-// @DiscriminatorColumn
-public class Candle {
+@Getter
+@MappedSuperclass
+public abstract class Candle {
     private Double openPrice;
     private Double highPrice;
     private Double lowPrice;
     private Double closePrice;
-    private Double volume;
-    private LocalDateTime candleTime;
-    private Integer tradeCount;
+    private Double volume;              // 해당 구간 체결량 합계
+    private LocalDateTime candleTime;   // 1분 단위 타임 스탬프
+    private Integer tradeCount;         // 캔들 시간 구간 동안 실제로 거래가 체결된 횟수
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "token_id")
-//    private Token token;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "token_id")
+    private Token token;
 }

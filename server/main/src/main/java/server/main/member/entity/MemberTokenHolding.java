@@ -36,4 +36,10 @@ public class MemberTokenHolding {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "wallet_id")
     private Wallet wallet;
+
+    // 매도 호가 시 보유 토큰 감소
+    public void lockQuantity(Long amount) {
+        this.currentQuantity -= amount;
+        this.lockedQuantity += amount;
+    }
 }

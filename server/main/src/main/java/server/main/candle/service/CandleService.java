@@ -1,7 +1,11 @@
 package server.main.candle.service;
 
-import server.main.candle.dto.PriceStatsDto;
+import server.main.candle.dto.CandleResponseDto;
+import server.main.candle.entity.CandleType;
+
+import java.util.List;
 
 public interface CandleService {
-    PriceStatsDto getPriceStats(Long tokenId);
+
+    List<CandleResponseDto> getCandles(Long tokenId, CandleType type);
 }
