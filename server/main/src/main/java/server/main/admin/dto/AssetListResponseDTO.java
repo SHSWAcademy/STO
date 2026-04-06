@@ -15,4 +15,5 @@ public class AssetListResponseDTO {
     private Long totalValue;   // 자산 총 금액
     private TokenStatus status; // 자산 상태 여부
     private String tokenSymbol; // 토큰 심볼 (줄임 표현)
+    private String imgUrl;      // 이미지url
 }

@@ -18,7 +18,7 @@ public class PlatformTokenHolding {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long platFormTokenHoldingId;    // 지분ID
 
-    @OneToOne
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "token_id")
     private Token token;                   // 토큰
 
