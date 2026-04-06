@@ -18,10 +18,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import server.main.admin.repository.AdminRepository;
 import server.main.auth.dto.LoginResponse;
 import server.main.auth.dto.MemberLoginRequest;
+import server.main.auth.dto.MemberSignupRequest;
+import server.main.auth.dto.MemberSignupResponse;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.security.JwtTokenProvider;
 import server.main.member.entity.Member;
+import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +44,48 @@ class AuthServiceTest {
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
+
+    @Mock
+    private AccountRepository accountRepository;
+
+    // ── 회원가입 테스트 ────────────────────────────────────────────
+
+    @Test
+    @DisplayName("회원가입 성공 시 회원과 계좌가 함께 저장된다")
+    void signup_success() {
+        // given
+        MemberSignupRequest request = createSignupRequest("user@test.com", "Password1!", "홍길동", "1234");
+
+        given(memberRepository.existsByEmail("user@test.com")).willReturn(false);
+        given(passwordEncoder.encode(anyString())).willReturn("encoded");
+        given(accountRepository.existsByAccountNumber(anyString())).willReturn(false);
+
+        // when
+        MemberSignupResponse response = authService.signup(request);
+
+        // then
+        verify(memberRepository).save(any(Member.class));
+        verify(accountRepository).save(any());
+        assertThat(response.getEmail()).isEqualTo("user@test.com");
+        assertThat(response.getName()).isEqualTo("홍길동");
+    }
+
+    @Test
+    @DisplayName("이미 존재하는 이메일로 회원가입 시 실패한다")
+    void signup_fail_emailDuplicate() {
+        // given
+        MemberSignupRequest request = createSignupRequest("dup@test.com", "Password1!", "홍길동", "1234");
+
+        given(memberRepository.existsByEmail("dup@test.com")).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> authService.signup(request))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.EMAIL_ALREADY_EXISTS);
+
+        verify(memberRepository, never()).save(any());
+        verify(accountRepository, never()).save(any());
+    }
 
     @Test
     @DisplayName("정상 로그인 시 JWT를 반환한다")
@@ -134,6 +179,27 @@ class AuthServiceTest {
     }
 
     // ── 헬퍼 메서드 ────────────────────────────────────────────
+
+    private MemberSignupRequest createSignupRequest(String email, String password, String name, String accountPassword) {
+        try {
+            MemberSignupRequest request = new MemberSignupRequest();
+            Field emailField = MemberSignupRequest.class.getDeclaredField("email");
+            Field passwordField = MemberSignupRequest.class.getDeclaredField("password");
+            Field nameField = MemberSignupRequest.class.getDeclaredField("name");
+            Field accountPasswordField = MemberSignupRequest.class.getDeclaredField("accountPassword");
+            emailField.setAccessible(true);
+            passwordField.setAccessible(true);
+            nameField.setAccessible(true);
+            accountPasswordField.setAccessible(true);
+            emailField.set(request, email);
+            passwordField.set(request, password);
+            nameField.set(request, name);
+            accountPasswordField.set(request, accountPassword);
+            return request;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private MemberLoginRequest createLoginRequest(String email, String password) {
         try {
