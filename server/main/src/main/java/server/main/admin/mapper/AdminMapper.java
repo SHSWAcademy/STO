@@ -99,29 +99,5 @@ public class AdminMapper {
                 .build();
     }
 
-    // 베당 리스트 조회 (기존 자산리스트 + allocation 테이블 합쳐서)
-    public AllocationListResponseDTO toAllocationListResponseDTO(Token token, AllocationEvent allocationEvent) {
-        return AllocationListResponseDTO.builder()
-                .assetId(token.getAsset().getAssetId())
-                .assetName(token.getAsset().getAssetName())
-                .imgUrl(token.getAsset().getImgUrl())
-                .tokenSymbol(token.getTokenSymbol())
-                // null 검증 (배당등록이 안되어있으면 null임)
-                .monthlyDividendIncome(allocationEvent.getMonthlyDividendIncome() == null ? null : allocationEvent.getMonthlyDividendIncome())
-                .allocationBatchStatus(allocationEvent.getAllocationBatchStatus() == null ? null : allocationEvent.getAllocationBatchStatus())
-                .build();
-    }
 
-    // 베당 리스트 조회 (기존 자산리스트 + allocation 테이블 합쳐서)
-    public AllocationListResponseDTO toAllocationListResponseDTO(Token token, AllocationEvent allocationEvent) {
-        return AllocationListResponseDTO.builder()
-                .assetId(token.getAsset().getAssetId())
-                .assetName(token.getAsset().getAssetName())
-                .imgUrl(token.getAsset().getImgUrl())
-                .tokenSymbol(token.getTokenSymbol())
-                // null 검증 (배당등록이 안되어있으면 null임)
-                .monthlyDividendIncome(allocationEvent.getMonthlyDividendIncome() == null ? null : allocationEvent.getMonthlyDividendIncome())
-                .allocationBatchStatus(allocationEvent.getAllocationBatchStatus() == null ? null : allocationEvent.getAllocationBatchStatus())
-                .build();
-    }
 }
