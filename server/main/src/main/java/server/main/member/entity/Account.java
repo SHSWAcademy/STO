@@ -1,6 +1,14 @@
 package server.main.member.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import server.main.global.util.BaseEntity;
@@ -26,6 +34,16 @@ public class Account extends BaseEntity {
     private Long availableBalance;
 
     private Long lockedBalance;
+
+    public static Account create(Member member, String accountNumber, String encodedAccountPassword) {
+        Account account = new Account();
+        account.member =  member;
+        account.accountNumber = accountNumber;
+        account.accountPassword = encodedAccountPassword;
+        account.availableBalance = 0L;
+        account.lockedBalance  =0L;
+        return account;
+    }
 
     // 매수 호가 시 구매력 차감
     public void lockBalance(Long amount) {
