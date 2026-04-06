@@ -33,7 +33,9 @@ public class AssetDetailResponseDTO {
     private Long holdingSupply;
 
     // files
-    private String pdfName;
+    private Long fileId;         // 파일ID
+    private String originName;   // 원본 파일명 (화면에 표시)
+    private String storedName;   // 저장 파일명 (다운로드 시 사용)
 
     //disclosure
     private Long disclosureId;

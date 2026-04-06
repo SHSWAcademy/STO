@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 @Service
 @Log4j2
@@ -33,16 +34,21 @@ public class FileServiceImpl implements FileService{
         new java.io.File(fileStore.getUploadDir(), storedName).delete();
     }
 
-    // 공시ID로 원본 파일명 조회
+    // 공시ID로 건물 소개 파일 조회
     @Override
-    public String getPdfName(Long disclosureId) {
-        File file = fileRepository.findByDisclosureId(disclosureId);
-        return file.getStored_name();
+    public File getAssetFile(Long disclosureId) {
+        return fileRepository.findByDisclosureId(disclosureId);
+    }
+
+    // 배당 스케줄 증빙 자료 조회
+    @Override
+    public List<File> getAllocationFile(List<Long> disclosureIds) {
+        return fileRepository.findAllByDisclosureIdIn(disclosureIds);
     }
 
     // pdf 파일 등록
     @Override
-    public  void savePdf(MultipartFile pdfFile, Long disclosureId) {
+    public void savePdf(MultipartFile pdfFile, Long disclosureId) {
         // 저장될 파일명 변수
         String storedName = null;
         // null 검증

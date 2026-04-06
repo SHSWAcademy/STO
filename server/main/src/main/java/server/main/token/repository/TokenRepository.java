@@ -17,4 +17,8 @@ public interface TokenRepository extends JpaRepository<Token, Long> {
     // 자산 ID 로 토큰 / 자산테이블 리스트 조회용
     @Query("SELECT t FROM Token t JOIN FETCH t.asset")
     List<Token> findAllTokensWithAsset();
+
+    // 자산 ID 로 토큰 / 자산테이블 배당 리스트 조회용
+    @Query("SELECT t FROM Token t JOIN FETCH t.asset WHERE t.tokenStatus = 'TRADING'")
+    List<Token> findAllTokensWithAssetAllocationList();
 }
