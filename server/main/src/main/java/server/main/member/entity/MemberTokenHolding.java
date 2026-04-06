@@ -42,4 +42,12 @@ public class MemberTokenHolding {
         this.currentQuantity -= amount;
         this.lockedQuantity += amount;
     }
+
+    public void relockQuantity(Long oldQuantity, Long updateQuantity) {
+        this.currentQuantity += oldQuantity;
+        this.lockedQuantity -= oldQuantity;
+
+        this.currentQuantity -= updateQuantity;
+        this.lockedQuantity += updateQuantity;
+    }
 }

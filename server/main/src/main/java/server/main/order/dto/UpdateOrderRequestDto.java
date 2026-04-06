@@ -7,4 +7,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdateOrderRequestDto {
+    private Long updatePrice;
+    private Long updateQuantity;
 }

@@ -45,4 +45,10 @@ public class Order extends BaseEntity {
     @JoinColumn(name = "member_id")
     private Member member;
 
+    // 주문 수정 전용 메서드
+    public void updateOrder(Long updatePrice, Long updateQuantity) {
+        this.orderPrice = updatePrice;
+        this.orderQuantity = updateQuantity;
+        this.remainingQuantity = updateQuantity;
+    }
 }

@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import server.main.order.dto.MatchOrderRequestDto;
 
+import java.util.Map;
+
 @Component
 @RequiredArgsConstructor
 public class MatchClient {
@@ -25,5 +27,12 @@ public class MatchClient {
 
     public void sendOrder(MatchOrderRequestDto dto) {
         restTemplate.postForObject(matchServerUrl + "/internal/orders", dto, Void.class);
+    }
+
+
+    // 수정 시 match에 던지는 파라미터, orderId만 던지는 것이 아니라 updatePrice, updateQuantity도 같이 던집니다 !!! (혹시 필요없다면 말씀해주세요)
+    public void updateOrder(Long orderId, Long updatePrice, Long updateQuantity) {
+        String url = matchServerUrl + "/internal/orders/" + orderId;
+        restTemplate.put(url, Map.of("updatePrice", updatePrice, "updateQuantity", updateQuantity));
     }
 }
