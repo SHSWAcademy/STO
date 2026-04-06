@@ -133,7 +133,7 @@ public class OrderServiceImpl implements OrderService {
             long oldAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
             long updateAmount = dto.getUpdatePrice() * dto.getUpdateQuantity();
 
-            // 수정 시점 회원의 구매력 < 수정으로 다시 구매할 구매력일 경우 오류
+            // 수정 시점 회원의 구매력 < 수정으로 다시 구매할 구매력일 경우 오류 -> 부분 체결일 경우 고려하기
             if (findOrder.getMember().getAccount().getAvailableBalance() + oldAmount < updateAmount)
                 throw new BusinessException(INSUFFICIENT_BALANCE);
             else findOrder.getMember().getAccount().relockBalance(oldAmount, updateAmount);
