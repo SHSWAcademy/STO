@@ -18,8 +18,8 @@ public class AllocationEvent extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long allocationEventId;     // 배당관리ID
     @Column(name = "asset_id", insertable = false, updatable = false)
-    private Long assetId;               // 자산ID
-    private Boolean allocationBatchStatus;  // 배치여부
+    private Long assetId;               // 자산 ID
+    private Boolean allocationBatchStatus;  // 배치 여부
     private Long monthlyDividendIncome;   // 월 수익
     private LocalDateTime settledAt;
 }
