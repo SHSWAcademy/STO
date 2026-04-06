@@ -15,15 +15,5 @@ import server.main.token.service.TokenService;
 @Slf4j
 public class TokenController {
 
-    private final TokenService tokenService;
 
-    @GetMapping("/api/token/{tokenId}")
-    public ResponseEntity<TokenDetailDto> tokenDetails(@PathVariable Long tokenId) {
-
-        // 웹소켓 열기 로직 필요
-
-        TokenDetailDto dto = tokenService.getTokenDetail(tokenId);
-        log.info(String.valueOf(dto));
-        return ResponseEntity.ok(dto);
-    }
 }

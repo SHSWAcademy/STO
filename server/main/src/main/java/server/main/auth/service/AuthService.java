@@ -1,15 +1,17 @@
 package server.main.auth.service;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import server.main.admin.entity.Admin;
 import server.main.admin.repository.AdminRepository;
 import server.main.auth.dto.AdminLoginRequest;
 import server.main.auth.dto.LoginResponse;
 import server.main.auth.dto.MemberLoginRequest;
+import server.main.auth.dto.MemberSignupRequest;
+import server.main.auth.dto.MemberSignupResponse;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.security.JwtTokenProvider;
@@ -29,9 +31,21 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
+    public MemberSignupResponse signup(MemberSignupRequest request) {
+        if (memberRepository.existsByEmail(request.getEmail())) {
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+        Member member = Member.create(request.getEmail(), encodedPassword, request.getName());
+
+        memberRepository.save(member);
+
+        return new MemberSignupResponse(member.getMemberId(), member.getEmail(), member.getMemberName());
+    }
+
     public LoginResponse memberLogin(MemberLoginRequest request) {
-        Member member = memberRepository.findByEmailAndIsActiveTrue(request.getEmail())
-                .orElse(null);
+        Member member = memberRepository.findByEmailAndIsActiveTrue(request.getEmail()).orElse(null);
 
         if (member == null) {
             passwordEncoder.matches(request.getPassword(), DUMMY_HASH); // timing 완화
