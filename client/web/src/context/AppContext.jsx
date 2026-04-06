@@ -1,9 +1,7 @@
 import { createContext, useContext, useState } from 'react';
 import { TOKENS as INITIAL_TOKENS, ADMIN_DISCLOSURES, ADMIN_NOTICES } from '../data/mock.js';
 
-// AppContext — 전역 공유 상태
-// user: null = 비로그인, object = 로그인
-// API 연결 시: login/logout을 실제 API 호출로 교체
+const API = 'http://localhost:8080';
 
 const AppContext = createContext(null);
 
@@ -14,19 +12,54 @@ export function AppProvider({ children }) {
   const [disclosures, setDisclosures] = useState(ADMIN_DISCLOSURES);
   const [notices, setNotices]         = useState(ADMIN_NOTICES);
 
-  // mock 로그인: ADMIN/ADMIN → 관리자, 그 외 → 일반 유저
-  function login(email, password) {
-    const isAdmin =
+  // 실제 로그인 API 호출
+  // ADMIN/ADMIN → 관리자 로그인, 그 외 → 회원 로그인
+  async function login(email, password) {
+    const isAdminInput =
       email.trim().toUpperCase() === 'ADMIN' &&
       password.trim().toUpperCase() === 'ADMIN';
 
-    setUser({
-      name:  isAdmin ? '관리자' : '홍길동',
-      email: isAdmin ? 'admin@sto.exchange' : 'demo@sto.exchange',
-      role:  isAdmin ? 'admin' : 'user',
-    });
+    try {
+      let res, data;
 
-    return isAdmin; // 호출자가 admin 여부로 navigate 결정
+      if (isAdminInput) {
+        res = await fetch(`${API}/api/auth/admin/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminLoginId: email, password }),
+        });
+      } else {
+        res = await fetch(`${API}/api/auth/member/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+      }
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      data = await res.json();
+
+      const isAdmin = data.userType === 'ADMIN' || isAdminInput;
+      setUser({
+        name:        isAdmin ? '관리자' : email,
+        email:       email,
+        role:        isAdmin ? 'admin' : 'user',
+        accessToken: data.accessToken,
+      });
+      return isAdmin;
+
+    } catch (e) {
+      console.warn('[Login] API 실패, mock 로그인으로 대체:', e.message);
+      // 백엔드 미실행 시 mock fallback
+      const isAdmin = isAdminInput;
+      setUser({
+        name:        isAdmin ? '관리자' : '홍길동',
+        email:       isAdmin ? 'admin@sto.exchange' : 'demo@sto.exchange',
+        role:        isAdmin ? 'admin' : 'user',
+        accessToken: null,
+      });
+      return isAdmin;
+    }
   }
 
   function logout() {

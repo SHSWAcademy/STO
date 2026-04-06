@@ -6,6 +6,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
+import server.main.global.security.JwtTokenProvider;
 import server.main.global.util.MatchClient;
 
 @Component
@@ -19,8 +20,9 @@ public class OrderBookSubscribeHandler {
 
     private final SimpMessagingTemplate template;
     private final MatchClient matchClient;
+    private final JwtTokenProvider jwtTokenProvider;
 
-    // 클라이언트가 상세 페이지 접속 시 stomp 실행 -> 그 때 발생하는 일을 이벤트 리스너가 확인
+    // 클라이언트가 상세 페이지 접속 시 stomp 실행 -> 그 때 발생하는 일을 이벤트 리스너가 확인 (처음 1회만)
     @EventListener
     public void handleSubscribe(SessionSubscribeEvent event) {
         // 클라이언트가 구독한 주소를 확인
@@ -29,6 +31,12 @@ public class OrderBookSubscribeHandler {
 
         // 검증, 구독 : /topic 이 추가되도록 WebsocketConfig 에서 설정
         if (destination == null || !destination.startsWith("/topic/orderBook/")) return;
+
+        // JWT 검증 추가 (로그인 여부 확인)
+        String token = (String) event.getMessage().getHeaders().get("Authorization");
+        if (token == null || !token.startsWith("Bearer ")) return;
+        token = token.substring(7);
+        if (!jwtTokenProvider.validateToken(token)) return;
 
         String tokenId = destination.replace("/topic/orderBook/", "");
 

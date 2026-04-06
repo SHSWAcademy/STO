@@ -22,7 +22,8 @@ public class Order extends BaseEntity {
     @Column(name = "order_id")
     private Long orderId;
 
-    private Long orderSequence;         // 주문 순서
+    @Column(nullable = true)
+    private Long orderSequence;         // 주문 순서 (match 서버가 부여, 주문 생성 시 null)
 
     private Long orderPrice;            // 지정가 주문 가격 (호가)
 

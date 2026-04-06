@@ -18,7 +18,7 @@ public class AdminMapper {
                 .totalSupply(dto.getTotalSupply())
                 .asset(asset)
                 .tokenName(dto.getAssetName())
-                .currentPrice(dto.getInitPrice().doubleValue())
+                .currentPrice(Double.valueOf(dto.getInitPrice()))
                 .circulatingSupply(dto.getCirculatingSupply())
                 .tokenSymbol(dto.getTokenSymbol())
                 .initPrice(dto.getInitPrice())
@@ -82,6 +82,7 @@ public class AdminMapper {
                 .totalValue(token.getAsset().getTotalValue())
                 .status(token.getTokenStatus())
                 .tokenSymbol(token.getTokenSymbol())
+                .imgUrl(token.getAsset().getImgUrl())
                 .build();
     }
 
@@ -111,4 +112,6 @@ public class AdminMapper {
                 .storedName(file.getStored_name())
                 .build();
     }
+
+
 }
