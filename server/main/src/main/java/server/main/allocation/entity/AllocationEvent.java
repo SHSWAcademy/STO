@@ -20,7 +20,7 @@ public class AllocationEvent extends BaseEntity {
     private Long assetId;               // 자산ID
     private Boolean allocationBatchStatus;  // 배치여부
     private Long monthlyDividendIncome;   // 월 수익
-    private LocalDateTime settled_at;     // 배당 지급일
+    private LocalDateTime settledAt;     // 배당 지급일
     private int settlementYear;           // 배당 지급연도
     private int settlementMonth;          // 배당 지급월
     private Long disclosureId;            // 공시ID (파일 참조)

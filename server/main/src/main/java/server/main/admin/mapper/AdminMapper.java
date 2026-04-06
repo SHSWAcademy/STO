@@ -104,7 +104,7 @@ public class AdminMapper {
         return AllocationDetailResponseDTO.builder()
                 .allocationBatchStatus(dto.getAllocationBatchStatus())
                 .monthlyDividendIncome(dto.getMonthlyDividendIncome())
-                .settled_at(dto.getSettled_at())
+                .settled_at(dto.getSettledAt())
                 .settlementMonth(dto.getSettlementMonth())
                 .settlementYear(dto.getSettlementYear())
                 .fileId(file.getFileId())
