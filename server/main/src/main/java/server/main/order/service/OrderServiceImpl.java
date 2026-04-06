@@ -123,12 +123,15 @@ public class OrderServiceImpl implements OrderService {
         // order 찾기
         Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-        // OPEN, PENDING, PARTIAL 상태값이 아니라면 오류
+        // OPEN, PARTIAL 상태값이 아니라면 오류 (PENDING = match 처리 중이므로 수정 불가)
         if (!findOrder.getOrderStatus().equals(OrderStatus.OPEN) &&
-                !findOrder.getOrderStatus().equals(OrderStatus.PENDING) &&
                 !findOrder.getOrderStatus().equals(OrderStatus.PARTIAL)) {
             throw new BusinessException(ORDER_NOT_MODIFIABLE);
         }
+
+        // PARTIAL 상태일 때: 이미 체결된 수량보다 적은 수량으로 수정 불가
+        if (dto.getUpdateQuantity() <= findOrder.getFilledQuantity())
+            throw new BusinessException(INVALID_UPDATE_QUANTITY);
 
         // 매수일 경우
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
@@ -178,9 +181,8 @@ public class OrderServiceImpl implements OrderService {
         // order 찾기
         Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-        // OPEN, PENDING, PARTIAL 상태값이 아니라면 오류
+        // OPEN, PARTIAL 상태값이 아니라면 오류 (PENDING = match 처리 중이므로 취소 불가)
         if (!findOrder.getOrderStatus().equals(OrderStatus.OPEN) &&
-                !findOrder.getOrderStatus().equals(OrderStatus.PENDING) &&
                 !findOrder.getOrderStatus().equals(OrderStatus.PARTIAL)) {
             throw new BusinessException(ORDER_CANNOT_CANCEL);
         }
