@@ -50,20 +50,29 @@ public class OrderServiceImpl implements OrderService {
         Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
         Token findToken = tokenRepository.findById(tokenId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-        // 매수: 원화 잔고 >= 총 주문 금액 검증
-        if (OrderType.BUY.equals(dto.getOrderType()) &&
-                findMember.getAccount().getAvailableBalance() < dto.getOrderPrice() * dto.getOrderQuantity()) {
-            throw new BusinessException(INSUFFICIENT_BALANCE);
+        // 매수일 경우
+        if (OrderType.BUY.equals(dto.getOrderType())) {
+            // 원화 잔고 >= 총 주문 금액 검증
+            if (findMember.getAccount().getAvailableBalance() < dto.getOrderPrice() * dto.getOrderQuantity())
+                throw new BusinessException(INSUFFICIENT_BALANCE);
+
+            // 매수 주문일 경우 구매력 차감 (current quantity 감소, locked quantity 증가)
+            else findMember.getAccount().lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도 된다)
         }
 
-        // 매도: 보유 수량 >= 요청 수량 검증
+
+        // 매도일 경우
         if (OrderType.SELL.equals(dto.getOrderType())) {
+            // 보유 수량 >= 요청 수량 검증
             MemberTokenHolding tokenHolding = memberTokenHoldingRepository
                     .findByMemberAndToken(findMember, findToken)
                     .orElseThrow(() -> new BusinessException(INSUFFICIENT_TOKEN_BALANCE));
 
             if (tokenHolding.getCurrentQuantity() < dto.getOrderQuantity())
                 throw new BusinessException(INSUFFICIENT_TOKEN_BALANCE);
+
+            // 매도 주문일 경우 보유 토큰 감소 (current quantity 감소, locked quantity 증가)
+            tokenHolding.lockQuantity(dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도 된다)
         }
 
         // 주문 생성 (매도, 매수)
@@ -105,16 +114,21 @@ public class OrderServiceImpl implements OrderService {
         return dtos;
     }
 
-    @Transactional
-    @Override
-    public void cancelOrder(Long orderId) {
-
-    }
 
     @Transactional
     @Override
     public void updateOrder(Long orderId, UpdateOrderRequestDto dto) {
+        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Long memberId = principal.getId();
+        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+    }
 
+    @Transactional
+    @Override
+    public void cancelOrder(Long orderId) {
+        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Long memberId = principal.getId();
+        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
     }
 
 }

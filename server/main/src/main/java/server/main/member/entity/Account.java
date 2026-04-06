@@ -26,4 +26,10 @@ public class Account extends BaseEntity {
     private Long availableBalance;
 
     private Long lockedBalance;
+
+    // 매수 호가 시 구매력 차감
+    public void lockBalance(Long amount) {
+        this.availableBalance -= amount;
+        this.lockedBalance += amount;
+    }
 }

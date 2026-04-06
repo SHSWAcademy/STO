@@ -39,14 +39,16 @@ public class OrderController {
     }
 
     // 호가 수정
-    @PutMapping("/{tokenId}/order/update")
-    public ResponseEntity<List<UpdateOrderRequestDto>> orderUpdate(@PathVariable Long tokenId, UpdateOrderRequestDto dto) {
-
+    @PutMapping("/order/update/{orderId}")
+    public ResponseEntity<Void> orderUpdate(@PathVariable Long orderId, @RequestBody UpdateOrderRequestDto dto) {
+        orderService.updateOrder(orderId, dto);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build(); // 204 No Content
     }
 
     // 호가 삭제
-    @GetMapping("/{tokenId}/order/cancel")
-    public ResponseEntity<Void> orderCancel(@PathVariable Long tokenId) {
-
+    @DeleteMapping("/order/cancel/{orderId}")
+    public ResponseEntity<Void> orderCancel(@PathVariable Long orderId) {
+        orderService.cancelOrder(orderId);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }
