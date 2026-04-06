@@ -48,4 +48,12 @@ public class Account extends BaseEntity {
         this.availableBalance -= amount;
         this.lockedBalance += amount;
     }
+
+    public void relockBalance(Long oldAmount, Long updateAmount) {
+        this.availableBalance += oldAmount;
+        this.lockedBalance -= oldAmount;
+
+        this.availableBalance -= updateAmount;
+        this.lockedBalance += updateAmount;
+    }
 }

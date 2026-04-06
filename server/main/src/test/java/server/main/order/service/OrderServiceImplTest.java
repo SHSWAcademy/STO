@@ -11,7 +11,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
-import server.main.global.websocket.MatchClient;
+import server.main.global.util.MatchClient;
 import server.main.member.entity.Account;
 import server.main.member.entity.Member;
 import server.main.member.entity.MemberTokenHolding;

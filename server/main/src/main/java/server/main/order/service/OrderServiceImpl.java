@@ -7,15 +7,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
-import server.main.global.websocket.MatchClient;
+import server.main.global.util.MatchClient;
 import server.main.member.entity.Member;
 import server.main.member.entity.MemberTokenHolding;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
-import server.main.order.dto.MatchOrderRequestDto;
-import server.main.order.dto.OrderRequestDto;
-import server.main.order.dto.PendingOrderResponseDto;
-import server.main.order.dto.UpdateOrderRequestDto;
+import server.main.order.dto.*;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.entity.OrderType;
@@ -120,7 +117,54 @@ public class OrderServiceImpl implements OrderService {
     public void updateOrder(Long orderId, UpdateOrderRequestDto dto) {
         CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long memberId = principal.getId();
-        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+        // order 찾기
+        Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+        // OPEN, PENDING, PARTIAL 상태값이 아니라면 오류
+        if (!findOrder.getOrderStatus().equals(OrderStatus.OPEN) &&
+                !findOrder.getOrderStatus().equals(OrderStatus.PENDING) &&
+                !findOrder.getOrderStatus().equals(OrderStatus.PARTIAL)) {
+            throw new BusinessException(ORDER_NOT_MODIFIABLE);
+        }
+
+        // 매수일 경우
+        if (OrderType.BUY.equals(findOrder.getOrderType())) {
+            long oldAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
+            long updateAmount = dto.getUpdatePrice() * dto.getUpdateQuantity();
+
+            // 수정 시점 회원의 구매력 < 수정으로 다시 구매할 구매력일 경우 오류
+            if (findOrder.getMember().getAccount().getAvailableBalance() + oldAmount < updateAmount)
+                throw new BusinessException(INSUFFICIENT_BALANCE);
+            else findOrder.getMember().getAccount().relockBalance(oldAmount, updateAmount);
+        }
+
+
+        // 매도일 경우
+        if (OrderType.SELL.equals(findOrder.getOrderType())) {
+            MemberTokenHolding tokenHolding = memberTokenHoldingRepository
+                    .findByMemberAndToken(findOrder.getMember(), findOrder.getToken())
+                    .orElseThrow(() -> new BusinessException(INSUFFICIENT_TOKEN_BALANCE));
+
+            long oldQuantity = findOrder.getRemainingQuantity();
+            long updateQuantity = dto.getUpdateQuantity();
+
+            if (tokenHolding.getCurrentQuantity() + oldQuantity < updateQuantity) {
+                throw new BusinessException(INSUFFICIENT_TOKEN_BALANCE);
+            }
+            else tokenHolding.relockQuantity(oldQuantity, updateQuantity);
+        }
+
+        // DB update (변경 감지)
+        findOrder.updateOrder(dto.getUpdatePrice(), dto.getUpdateQuantity());
+
+        // match 전달
+        matchClient.updateOrder(UpdateMatchOrderRequestDto.builder()
+                .orderId(orderId)
+                .orderSequence(findOrder.getOrderSequence())
+                .updatePrice(dto.getUpdatePrice())
+                .updateQuantity(dto.getUpdateQuantity())
+                .build());
     }
 
     @Transactional
