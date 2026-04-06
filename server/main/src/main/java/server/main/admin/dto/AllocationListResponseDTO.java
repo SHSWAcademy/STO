@@ -14,4 +14,5 @@ public class AllocationListResponseDTO {
     private String tokenSymbol; // 토큰 심볼
     private Long monthlyDividendIncome;   // 월 수익
     private Boolean allocationBatchStatus; // 배당 지급 여부
+
 }

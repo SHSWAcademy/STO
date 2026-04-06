@@ -1,0 +1,25 @@
+package server.main.admin.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+import org.springframework.cglib.core.Local;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@ToString
+@Table(name = "commons")
+public class Commons {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long baseId;    // 기본ID
+    private Double taxRate; // 세율
+    private Double chargeRate; // 수수료
+    private int allocateDate; // 배당 지급일
+    private int allocateSetDate; // 배당 입력일 (관리자)
+
+}

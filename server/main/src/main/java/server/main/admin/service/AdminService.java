@@ -11,4 +11,5 @@ public interface AdminService {
     List<AssetListResponseDTO> getAssetList();             // 자산 리스트 조회
     void updateAsset(Long assetId, AssetUpdateRequestDTO dto, MultipartFile imageFile, MultipartFile pdfFile);   // 자산 수정
     List<AllocationListResponseDTO> getAllocationList();   // 배당 리스트 조회
+    void registerAllocation(AllocationRegisterRequestDTO allocationRegisterRequestDTO); // 배당 등록
 }
