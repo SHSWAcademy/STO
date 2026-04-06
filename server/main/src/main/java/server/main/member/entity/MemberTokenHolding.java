@@ -43,11 +43,18 @@ public class MemberTokenHolding {
         this.lockedQuantity += amount;
     }
 
+    // 매도 호가 수정 : 기존 주문 수량을 변경
     public void relockQuantity(Long oldQuantity, Long updateQuantity) {
         this.currentQuantity += oldQuantity;
         this.lockedQuantity -= oldQuantity;
 
         this.currentQuantity -= updateQuantity;
         this.lockedQuantity += updateQuantity;
+    }
+
+    // 매도 호가 취소 : 토큰 수를 다시 되돌려둔다
+    public void cancelOrder(Long orderQuantity) {
+        this.currentQuantity += orderQuantity;
+        this.lockedQuantity -= orderQuantity;
     }
 }
