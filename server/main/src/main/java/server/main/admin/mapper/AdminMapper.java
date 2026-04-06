@@ -1,10 +1,12 @@
 package server.main.admin.mapper;
 
 import org.springframework.stereotype.Component;
+import server.main.admin.dto.AllocationListResponseDTO;
 import server.main.admin.dto.AssetDetailResponseDTO;
 import server.main.admin.dto.AssetListResponseDTO;
 import server.main.admin.dto.AssetRegisterRequestDTO;
 import server.main.admin.entity.PlatformTokenHolding;
+import server.main.allocation.entity.AllocationEvent;
 import server.main.asset.entity.Asset;
 import server.main.token.entity.Token;
 import server.main.token.entity.TokenStatus;
@@ -18,7 +20,7 @@ public class AdminMapper {
                 .totalSupply(dto.getTotalSupply())
                 .asset(asset)
                 .tokenName(dto.getAssetName())
-                .currentPrice(dto.getInitPrice().doubleValue())
+                .currentPrice(Double.valueOf(dto.getInitPrice()))
                 .circulatingSupply(dto.getCirculatingSupply())
                 .tokenSymbol(dto.getTokenSymbol())
                 .initPrice(dto.getInitPrice())
@@ -80,6 +82,20 @@ public class AdminMapper {
                 .totalValue(token.getAsset().getTotalValue())
                 .status(token.getTokenStatus())
                 .tokenSymbol(token.getTokenSymbol())
+                .imgUrl(token.getAsset().getImgUrl())
+                .build();
+    }
+
+    // 베당 리스트 조회 (기존 자산리스트 + allocation 테이블 합쳐서)
+    public AllocationListResponseDTO toAllocationListResponseDTO(Token token, AllocationEvent allocationEvent) {
+        return AllocationListResponseDTO.builder()
+                .assetId(token.getAsset().getAssetId())
+                .assetName(token.getAsset().getAssetName())
+                .imgUrl(token.getAsset().getImgUrl())
+                .tokenSymbol(token.getTokenSymbol())
+                // null 검증 (배당등록이 안되어있으면 null임)
+                .monthlyDividendIncome(allocationEvent.getMonthlyDividendIncome() == null ? null : allocationEvent.getMonthlyDividendIncome())
+                .allocationBatchStatus(allocationEvent.getAllocationBatchStatus() == null ? null : allocationEvent.getAllocationBatchStatus())
                 .build();
     }
 }

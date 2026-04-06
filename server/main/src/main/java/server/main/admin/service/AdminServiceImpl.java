@@ -6,13 +6,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import server.main.admin.dto.AssetDetailResponseDTO;
-import server.main.admin.dto.AssetListResponseDTO;
-import server.main.admin.dto.AssetRegisterRequestDTO;
-import server.main.admin.dto.AssetUpdateRequestDTO;
+import server.main.admin.dto.*;
 import server.main.admin.entity.PlatformTokenHolding;
 import server.main.admin.mapper.AdminMapper;
 import server.main.admin.repository.PlatformTokenHoldingsRepository;
+import server.main.allocation.entity.AllocationEvent;
+import server.main.allocation.repository.AllocationEventRepository;
 import server.main.asset.entity.Asset;
 import server.main.asset.repository.AssetRepository;
 import server.main.diclosure.service.DisclosureService;
@@ -22,6 +21,7 @@ import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,7 +35,7 @@ public class AdminServiceImpl implements AdminService {
     private final NoticeService noticeService;
     private final DisclosureService disclosureService;
     private final FileService fileService;
-
+    private final AllocationEventRepository allocationEventRepository;
 
     // 자산등록
     // 자산 등록 -> 건물이미지 등록 -> 토큰 등록 -> 플랫폼 소유 토큰 등록 -> 공시 / 공지 등록 -> 첨부파일 등록
@@ -134,5 +134,26 @@ public class AdminServiceImpl implements AdminService {
             fileService.savePdf(pdfFile, dto.getDisclosureId());
         }
     }
+
+    // 배당 리스트 조회
+    @Override
+    public List<AllocationListResponseDTO> getAllocationList() {
+        // 자산 리스트 조회
+        List<Token> tokens = tokenRepository.findAllTokensWithAsset();
+
+        // 배당 이벤트내역 조회
+        // 자산ID를 MAP의 키값으로 설정
+        Map<Long, AllocationEvent> allocationEventMap = allocationEventRepository.findAllCurrentMonthList()
+                .stream()
+                .collect(Collectors.toMap(e -> e.getAssetId(), e -> e));
+
+        // assetId를 기준으로 매핑 후 리턴
+        return tokens.stream()
+                .map(token -> {
+                    AllocationEvent event = allocationEventMap.get(token.getAsset().getAssetId());
+                    return adminMapper.toAllocationListResponseDTO(token, event);
+                }).collect(Collectors.toList());
+    }
+
 
 }
