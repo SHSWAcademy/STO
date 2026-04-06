@@ -3,6 +3,8 @@ package server.main.auth.service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.ThreadLocalRandom;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import server.main.admin.entity.Admin;
@@ -15,7 +17,9 @@ import server.main.auth.dto.MemberSignupResponse;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.security.JwtTokenProvider;
+import server.main.member.entity.Account;
 import server.main.member.entity.Member;
+import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 
 @Slf4j
@@ -30,7 +34,9 @@ public class AuthService {
     private final AdminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final AccountRepository accountRepository;
 
+    @Transactional
     public MemberSignupResponse signup(MemberSignupRequest request) {
         if (memberRepository.existsByEmail(request.getEmail())) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
@@ -38,8 +44,12 @@ public class AuthService {
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
         Member member = Member.create(request.getEmail(), encodedPassword, request.getName());
-
         memberRepository.save(member);
+
+        String accountNumber = generateUniqueAccountNumber();
+        String encodedAccountPassword = passwordEncoder.encode(request.getAccountPassword());
+        Account account = Account.create(member, accountNumber, encodedAccountPassword);
+        accountRepository.save(account);
 
         return new MemberSignupResponse(member.getMemberId(), member.getEmail(), member.getMemberName());
     }
@@ -79,6 +89,16 @@ public class AuthService {
 
         String token = jwtTokenProvider.createAdminToken(admin.getAdminId(), admin.getAdminLoginId());
         return new LoginResponse(token, "ADMIN");
+    }
+
+    private String generateUniqueAccountNumber() {
+        for (int i =0; i < 10; i++) {
+            String accountNumber = String.format("%010d", ThreadLocalRandom.current().nextLong(0, 10_000_000_000L));
+            if (!accountRepository.existsByAccountNumber(accountNumber)) {
+                return accountNumber;
+            }
+        }
+        throw new IllegalStateException("계좌번호 생성에 실패했습니다.");
     }
 
     private String maskEmail(String email) {

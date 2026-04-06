@@ -1,11 +1,16 @@
-package server.main.global.websocket;
+package server.main.global.util;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import server.main.order.dto.MatchOrderRequestDto;
+import server.main.order.dto.UpdateMatchOrderRequestDto;
 
+import java.util.Map;
+
+
+// main -> match 로 전달
 @Component
 @RequiredArgsConstructor
 public class MatchClient {
@@ -23,7 +28,21 @@ public class MatchClient {
     }
 
 
+    // 주문 생성
     public void sendOrder(MatchOrderRequestDto dto) {
         restTemplate.postForObject(matchServerUrl + "/internal/orders", dto, Void.class);
+    }
+
+
+    // 수정 시 match에 던지는 파라미터, orderId, sequence 만 던지는 것이 아니라 updatePrice, updateQuantity도 같이 던집니다 !!! (혹시 필요없다면 말씀해주세요)
+    public void updateOrder(UpdateMatchOrderRequestDto dto) {
+        String url = matchServerUrl + "/internal/orders/" + dto.getOrderId();
+        restTemplate.put(url, dto);
+    }
+
+    // 주문 삭제 시 match 에게 전달, dto 말고 orderId만 던지는데 혹시 값 더 필요하다면 말씀해주세요!
+    public void cancelOrder(Long orderId) {
+        String url = matchServerUrl + "/internal/orders/" + orderId;
+        restTemplate.delete(url);
     }
 }

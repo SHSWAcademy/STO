@@ -7,6 +7,8 @@ import server.main.global.util.BaseEntity;
 import server.main.member.entity.Member;
 import server.main.token.entity.Token;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @NoArgsConstructor
@@ -45,4 +47,15 @@ public class Order extends BaseEntity {
     @JoinColumn(name = "member_id")
     private Member member;
 
+    // 주문 수정 전용 메서드
+    public void updateOrder(Long updatePrice, Long updateQuantity) {
+        this.orderPrice = updatePrice;
+        this.orderQuantity = updateQuantity;
+        this.remainingQuantity = updateQuantity;
+    }
+
+    public void removeOrder() {
+        // updatedAd은 자동으로 값이 채워진다
+        this.orderStatus = OrderStatus.CANCELLED; // 주문 취소
+    }
 }

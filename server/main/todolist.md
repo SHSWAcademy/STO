@@ -1,6 +1,4 @@
-# /trading 페이지 - 차트 / 호가 / 시세 구현 TODO
-
-## 전체 아키텍처 개요
+# /trading 페이지 - 차트 / 호가 / 시세 구현 TODOList
 
 
 
@@ -65,19 +63,36 @@
 
 ## ⬜ 남은 작업
 
-### [6] 캔들 차트 API (main, REST)
+### [10] 시세·체결 목록 API (main, REST + WebSocket) ✅ 완료 (2026-04-04)
 
-- [ ] `CandleController.java` 생성
-  - `GET /api/token/{tokenId}/candles?type={minute|hour|day|month|year}`
-- [ ] `CandleService`에 타입별 완성된 캔들 리스트 조회 메서드 추가
-  - 현재 진행 중인 봉 제외, 완성된 봉만 반환
-- [ ] `CandleResponseDto.java` 생성 (openPrice, highPrice, lowPrice, closePrice, volume, candleTime, tradeCount)
-- [ ] 각 CandleRepository에 시간 범위 조회 쿼리 추가
+- [x] `TradeResponseDto.java` 생성 (tradePrice, tradeQuantity, percentageChange, totalVolume, executedAt)
+- [x] `TradeRepository` — `findTradeList(tokenId)` @Query (최근 50건), `sumDailyVolume(tokenId)` @Query (당일 누적 합산)
+- [x] `TradeMapper.java` — `toDto(Trade)` MapStruct 매핑 (percentageChange ignore)
+- [x] `TradeServiceImpl.getTrades()` — 50건 조회 + 당일 totalVolume 계산 후 각 dto에 세팅
+- [x] `TradeController` — `GET /api/token/{tokenId}/trades`
+- [x] `RedisSubscriber` — `trades:{tokenId}` → `/topic/trades/{tokenId}` 브로드캐스트 (기존 구현)
 
-#### [6-추가] 현재 진행 중인 봉 실시간 반영 (batch 서버 작업 시 함께)
-- **기술**: Redis Pub/Sub 기존 파이프라인 재사용
-  - channel: `candle:{type}:{tokenId}`
-  - `/topic/candle/{type}/{tokenId}` WebSocket 브로드캐스트
+#### [10-이슈] totalVolume 런닝 토탈 미구현
+> **현재**: 당일 총합 단일값을 모든 row에 동일하게 세팅 → 모든 체결 row가 같은 totalVolume 값을 가짐
+>
+> **원래 비즈니스 요구**: 각 체결 row에 그 시점까지의 누적 거래량이 표시되어야 함 (런닝 토탈)
+>
+> **판단**: 지금은 당일 총합으로 퉁치고, 프론트에서 테이블 상단에 "총 거래량: N주" 하나로 표시. 런닝 토탈은 추후 개선.
+>
+> **추후 개선 방법**: match 서버가 체결 시 누적값을 함께 저장하거나, 각 체결 시점 이전 SUM을 윈도우 함수로 계산
+
+---
+
+### [6] 캔들 차트 API (main, REST + WebSocket) ✅ 완료
+
+- [x] `Candle.java` — `@MappedSuperclass`로 전환
+- [x] `CandleMinute`, `CandleHour`, `CandleDay`, `CandleMonth`, `CandleYear` — `extends Candle` 완료
+- [x] `CandleResponseDto.java` 생성
+- [x] `CandleMapper.java` 생성 (MapStruct)
+- [x] 5개 Repository — `findTop35Before(tokenId, before)` 쿼리 추가
+- [x] `CandleServiceImpl.getCandles()` — `CandleType` enum 기반 타입별 분기, truncatedTo 기준 시각 계산
+- [x] `CandleController` — `GET /api/token/{tokenId}/candles?type={MINUTE|HOUR|DAY|MONTH|YEAR}`
+- [x] `RedisSubscriber` — `candle:{type}:{tokenId}` → `/topic/candle/{type}/{tokenId}` 브로드캐스트 추가
 
 ### [7] match 서버 작업 (팀원)
 
@@ -113,24 +128,96 @@
 
 ### [8] 주문 관련
 
-- [x] `GET /api/token/{tokenId}/orders/pending` — 미체결 주문 조회 구현
-- [x] `DELETE /api/orders/{orderId}` — 주문 취소 구현
-- [x] `OrderServiceImpl.getPendingOrders()` — JWT 사용자 추출, OPEN/PENDING/PARTIAL 상태 필터링
-- [x] `OrderServiceImpl.cancelOrder()` — 본인 주문 검증 후 CANCELLED 처리
-- [x] `OrderRepository`에 미체결 주문 조회 쿼리 추가
-  - `findByToken_TokenIdAndMember_MemberIdAndOrderStatusIn(...)`
-- [x] `PendingOrderResponseDto.java` 생성
+- [x] `POST /api/token/{tokenId}/order` — 매수/매도 주문 접수 구현
+- [x] `OrderServiceImpl.createOrder()` — JWT 사용자 추출, 잔고 검증, DB 저장, match 전달
+- [x] `PendingOrderResponseDto.java` 생성 — 필드: orderId, orderType, orderStatus, orderPrice, orderQuantity, filledQuantity, remainingQuantity, createdAt, updatedAt
 - [x] `OrderServiceImpl` SELL 검증 — tokenHolding 없을 때 `EntityNotFoundException` → `INSUFFICIENT_TOKEN_BALANCE`로 수정
+- [x] `OrderServiceImpl.createOrder()` — `orderStatus(OrderStatus.OPEN)` 세팅 추가
+- [x] `OrderMapper` — `toPendingDto()`, `toPendingDtoList()` 추가
+- [x] `OrderRepository` — `findPendingOrderByMemberAndToken()` 쿼리 추가 (member_id, token_id, orderStatus IN OPEN/PENDING/PARTIAL)
+- [x] `OrderServiceImpl.getPendingOrders()` 구현 — JWT memberId 추출 → DB 조회 → DTO 변환
+- [x] `OrderController` — `GET /api/token/{tokenId}/order/pending` 엔드포인트 추가
+- [x] `TokenController` — `GET /api/token/{tokenId}` 엔드포인트 추가 (`@RequestMapping("/api/token")` 포함)
 
-#### [8-TODO] match 서버 연동 후 추가 필요
-- [ ] `cancelOrder()`에 match 서버 취소 요청 전달 (match 서버 cancel API 구현 후)
+#### [8-TODO] match 서버 완성 → 구현 순서 ✅ 완료 (2026-04-06)
 
-### [9] 프론트엔드 연동 (match 서버 완성 후)
+**1단계 — `cancelOrder()` 구현**
+- [x] `Order` 엔티티에 `removeOrder()` 소프트 딜리트 메서드 추가
+- [x] `OrderRepository`에 본인 주문 조회 쿼리 추가 (`findByMemberIdAndOrderId` + `@Param`)
+- [x] `OrderServiceImpl.cancelOrder()` 구현
+  - JWT memberId 추출 → 본인 주문 검증 → 상태 검증(OPEN/PENDING/PARTIAL) → 잔고/수량 복구 → soft delete → match 전달
+- [x] `Account.cancelOrder(amount)` — locked → available 복구
+- [x] `MemberTokenHolding.cancelOrder(qty)` — locked → current 복구
+- [x] `MatchClient.cancelOrder(orderId)` — `restTemplate.delete(url)`
+- [x] `OrderController` — `DELETE /api/token/order/cancel/{orderId}` 엔드포인트
 
-- [ ] WebSocket 연결 코드 작성 (SockJS + STOMP)
-- [ ] 호가창 목업 → `/topic/orderBook/{tokenId}` WebSocket 데이터로 교체
-- [ ] 시세창 목업 → `/topic/trades/{tokenId}` WebSocket 데이터로 교체
-- [ ] 주문 버튼 → `POST /api/token/{tokenId}/order` 호출로 교체
-- [ ] 토큰 정보 → `GET /api/token/{tokenId}` 호출로 교체
-- [ ] 미체결 주문 → `GET /api/token/{tokenId}/orders/pending` 호출로 교체
-- [ ] 캔들 차트 → `GET /api/token/{tokenId}/candles` 호출로 교체
+**2단계 — `updateOrder()` 구현**
+- [x] `UpdateOrderRequestDto` — `updatePrice`, `updateQuantity` 필드 추가
+- [x] `UpdateMatchOrderRequestDto` — `orderId`, `orderSequence`, `updatePrice`, `updateQuantity`
+- [x] `Order.updateOrder(price, qty)` — 엔티티 수정 메서드
+- [x] `Account.relockBalance(oldAmount, newAmount)` — 잔고 재조정
+- [x] `MemberTokenHolding.relockQuantity(oldQty, newQty)` — 수량 재조정
+- [x] `OrderServiceImpl.updateOrder()` — 상태 검증 → 잔고/수량 재조정 → DB 수정 → match 전달
+- [x] `MatchClient.updateOrder(dto)` — `restTemplate.put(url, dto)`
+- [x] `OrderController` — `PUT /api/token/order/update/{orderId}` 엔드포인트
+
+**기타 수정**
+- [x] `createOrder()` — `remainingQuantity(dto.getOrderQuantity())` 세팅 추가
+- [x] `createOrder()` — BUY 시 `lockBalance()`, SELL 시 `lockQuantity()` 호출 추가
+- [x] `ErrorCode.ORDER_NOT_MODIFIABLE` HTTP 상태 `304` → `400` 수정
+
+**3단계 — 대기탭 WebSocket (`getPendingOrders`)** ← match 서버 완성 후
+- [ ] match 서버와 채널명 합의 (`pendingOrders:{tokenId}:{memberId}` 권장)
+- [ ] `RedisSubscriber`에 `pendingOrders` 케이스 추가
+- [ ] `PendingOrderSubscribeHandler` 생성 — 구독 시 JWT로 memberId 추출 후 DB snapshot 즉시 전송
+
+> **주의**: 구독 주소 `/topic/pendingOrders/{tokenId}/{memberId}` — WebSocket 헤더에서 JWT 파싱 필요
+> match 서버가 체결/취소/수정 시 `pendingOrders:{tokenId}:{memberId}` publish 해야 실시간 갱신됨
+
+### [9] 프론트엔드 연동 ← 지금 작업 시작, match 서버가 이 작업 기준으로 맞춰줌
+
+> **작업 방식**: 프론트에서 먼저 WebSocket 데이터 구조(형식)를 정의하면, match/batch 서버가 그 형식에 맞게 publish
+
+#### [9-공통] WebSocket 연결 코드 작성
+- [ ] SockJS + STOMP 클라이언트 설정 (공통 훅 또는 유틸로 분리)
+  - `/ws/trading` 연결
+  - tokenId 기반 topic 구독/해제 (페이지 이동 시 구독 해제 필수)
+
+#### [9-1] 호가창 — `HogaPanel.jsx`
+- [ ] `HOGA_ASKS`, `HOGA_BIDS` mock → WebSocket `/topic/orderBook/{tokenId}` 실시간 데이터로 교체
+- [ ] match 서버에 전달할 데이터 형식 정의 (매도호가 배열, 매수호가 배열)
+  ```json
+  {
+    "asks": [{ "price": 12200, "amount": 300 }, ...],
+    "bids": [{ "price": 12100, "amount": 500 }, ...]
+  }
+  ```
+
+#### [9-2] 시세·체결 목록 — `ChartPanel.jsx` 하단
+- [ ] `PRICE_HISTORY_ROWS`, `HOGA_EXECUTIONS` mock → WebSocket `/topic/trades/{tokenId}` 실시간 데이터로 교체
+- [ ] match 서버에 전달할 데이터 형식 정의 (체결 단건)
+  ```json
+  {
+    "price": 12150,
+    "quantity": 10,
+    "tradeTime": "10:29:56",
+    "isBuy": true
+  }
+  ```
+
+#### [9-3] 캔들 차트 — `ChartPanel.jsx` 상단
+- [ ] `CHART_DATA` mock → `GET /api/token/{tokenId}/candles?type=MINUTE` HTTP 호출로 교체
+- [ ] 차트 기간 버튼(`1분`, `일`, `주`, `월`, `년`) 클릭 시 type 파라미터 변경 후 재조회
+- [ ] WebSocket `/topic/candle/{type}/{tokenId}` 구독 → 새 봉 수신 시 차트 끝에 append
+
+#### [9-4] 주문창 — `OrderPanel.jsx`
+- [ ] 매수/매도 버튼 → `POST /api/token/{tokenId}/order` 호출로 교체
+- [ ] 대기탭 미체결 목록 → WebSocket 연동 (match 서버 완성 후)
+- [ ] 취소/수정 버튼 → `DELETE`, `PATCH /api/orders/{orderId}` 호출로 교체 (match 서버 완성 후)
+
+
+#### [match 서버 팀원 공유] 실시간 체결 WebSocket 데이터 형식
+> match 서버가 `trades:{tokenId}` publish 시 아래 필드 포함 필요
+> - `percentageChange` — (현재 체결가 - 이전 체결가) / 이전 체결가 * 100 (match에서 계산)
+> - `totalVolume` — 당일 누적 체결 수량 (match에서 계산)
+> main 서버는 그대로 relay만 함
