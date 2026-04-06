@@ -24,5 +24,5 @@ public class Disclosure extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private DisclosureCategory disclosureCategory;  // 공시 타입
 
-    private Long assetId;       // 부동산ID
+    private Long assetId;       // 부동산 ID
 }

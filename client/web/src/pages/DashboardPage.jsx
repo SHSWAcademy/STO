@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { TOKENS, TREND_DATA } from "../data/mock.js";
@@ -8,17 +8,37 @@ import { ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
 import { TabSwitcher } from "../components/ui/TabSwitcher.jsx";
 import { AssetAvatar } from "../components/ui/AssetAvatar.jsx";
 
+const API = 'http://localhost:8080';
+
 export function DashboardPage() {
   const navigate = useNavigate();
   const { watchlist, toggleWatchlist } = useApp();
   const [chartFilter, setChartFilter] = useState("전체");
   const [timeRange, setTimeRange] = useState("실시간");
+
+  // 백엔드 자산 목록: { assetId, assetName, tokenSymbol, ... }
+  // mock 데이터에 backendId를 병합해서 사용
+  const [backendAssets, setBackendAssets] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API}/admin/asset`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => setBackendAssets(data))
+      .catch(e => console.warn('[Dashboard] 자산 목록 조회 실패:', e));
+  }, []);
+
+  // mock 토큰에 backendId 병합 (tokenSymbol 기준 매칭)
+  const mergedTokens = TOKENS.map(t => {
+    const matched = backendAssets.find(a => a.tokenSymbol === t.symbol);
+    return { ...t, backendId: matched?.assetId ?? null };
+  });
+
   const [selectedTokenId, setSelectedTokenId] = useState(TOKENS[0].id);
 
   const selectedToken =
-    TOKENS.find((t) => t.id === selectedTokenId) || TOKENS[0];
+    mergedTokens.find((t) => t.id === selectedTokenId) || mergedTokens[0];
 
-  const sortedTokens = [...TOKENS]
+  const sortedTokens = [...mergedTokens]
     .sort((a, b) => {
       if (chartFilter === "거래대금") return b.vol - a.vol;
       if (chartFilter === "거래량") return b.vol / b.price - a.vol / a.price;
@@ -78,7 +98,10 @@ export function DashboardPage() {
                       "group hover:bg-stone-100 transition-colors cursor-pointer",
                       selectedTokenId === t.id && "bg-stone-100",
                     )}
-                    onClick={() => setSelectedTokenId(t.id)}
+                    onClick={() => {
+                      setSelectedTokenId(t.id);
+                      if (t.backendId) navigate(`/mockup/${t.backendId}`);
+                    }}
                   >
                     <td className="py-4">
                       <div className="flex items-center gap-4">
@@ -213,7 +236,11 @@ export function DashboardPage() {
             </div>
 
             <button
-              onClick={() => navigate("/trading")}
+              onClick={() => {
+                if (selectedToken?.backendId) {
+                  navigate(`/mockup/${selectedToken.backendId}`);
+                }
+              }}
               className="w-full py-4 rounded-lg bg-stone-800 text-white font-black uppercase tracking-widest hover:bg-stone-700 transition-colors"
             >
               거래하기

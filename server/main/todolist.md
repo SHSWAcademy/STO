@@ -166,12 +166,13 @@
 - [x] `createOrder()` — BUY 시 `lockBalance()`, SELL 시 `lockQuantity()` 호출 추가
 - [x] `ErrorCode.ORDER_NOT_MODIFIABLE` HTTP 상태 `304` → `400` 수정
 
-**3단계 — 대기탭 WebSocket (`getPendingOrders`)** ← match 서버 완성 후
-- [ ] match 서버와 채널명 합의 (`pendingOrders:{tokenId}:{memberId}` 권장)
-- [ ] `RedisSubscriber`에 `pendingOrders` 케이스 추가
-- [ ] `PendingOrderSubscribeHandler` 생성 — 구독 시 JWT로 memberId 추출 후 DB snapshot 즉시 전송
+**3단계 — 대기탭 WebSocket (`getPendingOrders`)** ✅ 완료 (2026-04-06)
+- [x] match 서버와 채널명 합의 (`pendingOrders:{tokenId}:{memberId}`)
+- [x] `RedisSubscriber`에 `pendingOrders` 케이스 추가
+- [x] `PendingOrderSubscribeHandler` 생성 — 구독 시 JWT 검증 + memberId 본인 확인 + DB snapshot 즉시 전송
+- [x] `OrderBookSubscribeHandler` — JWT 로그인 여부 검증 추가
+- [x] WebSocket 헤더 `Authorization: Bearer {token}` 검증 적용 (전체 핸들러)
 
-> **주의**: 구독 주소 `/topic/pendingOrders/{tokenId}/{memberId}` — WebSocket 헤더에서 JWT 파싱 필요
 > match 서버가 체결/취소/수정 시 `pendingOrders:{tokenId}:{memberId}` publish 해야 실시간 갱신됨
 
 ### [9] 프론트엔드 연동 ← 지금 작업 시작, match 서버가 이 작업 기준으로 맞춰줌

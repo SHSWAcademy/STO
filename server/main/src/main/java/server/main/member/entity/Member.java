@@ -33,6 +33,9 @@ public class Member extends BaseEntity {
     @Column(name = "is_active")
     private Boolean isActive;
 
+    @OneToOne(fetch = FetchType.LAZY, mappedBy = "member")
+    private Account account;
+
     public static Member create(String email, String encodedPassword, String name) {
         Member member = new Member();
         member.email = email;

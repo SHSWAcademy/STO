@@ -6,7 +6,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import server.main.global.error.BusinessException;
-import server.main.token.dto.TokenDetailDto;
+import server.main.token.dto.TokenChartDetailResponseDto;
 import server.main.token.entity.Token;
 import server.main.token.mapper.TokenMapper;
 import server.main.token.repository.TokenRepository;
@@ -34,7 +34,7 @@ class TokenServiceImplTest {
     void getTokenDetail_정상조회() {
         // given
         Token token = new Token();
-        TokenDetailDto dto = TokenDetailDto.builder()
+        TokenChartDetailResponseDto dto = TokenChartDetailResponseDto.builder()
                 .tokenId(1L)
                 .tokenName("서울 빌딩")
                 .tokenSymbol("SEOUL")
@@ -44,7 +44,7 @@ class TokenServiceImplTest {
         when(tokenMapper.toDtoDetail(token)).thenReturn(dto);
 
         // when
-        TokenDetailDto result = tokenService.getTokenDetail(1L);
+        TokenChartDetailResponseDto result = tokenService.getTokenDetail(1L);
 
         // then
         assertThat(result.getTokenId()).isEqualTo(1L);

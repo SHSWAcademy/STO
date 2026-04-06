@@ -11,8 +11,6 @@ import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.UpdateOrderRequestDto;
 import server.main.order.service.OrderService;
-import server.main.token.dto.TokenDetailDto;
-import server.main.token.service.TokenService;
 
 import java.util.List;
 
