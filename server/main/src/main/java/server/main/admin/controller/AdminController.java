@@ -59,6 +59,10 @@ public class AdminController {
         return ResponseEntity.ok().build();
     }
 
+    // 자산 배당금 리스트 조회
+
+
+
     // 발행 -> 발행완료상태 -> 오전9시 발행완료 -> 거래 중
 
  }
