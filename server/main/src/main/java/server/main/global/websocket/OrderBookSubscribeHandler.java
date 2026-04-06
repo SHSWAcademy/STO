@@ -6,6 +6,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
+import server.main.global.util.MatchClient;
 
 @Component
 @RequiredArgsConstructor

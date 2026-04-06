@@ -7,15 +7,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
-import server.main.global.websocket.MatchClient;
+import server.main.global.util.MatchClient;
 import server.main.member.entity.Member;
 import server.main.member.entity.MemberTokenHolding;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
-import server.main.order.dto.MatchOrderRequestDto;
-import server.main.order.dto.OrderRequestDto;
-import server.main.order.dto.PendingOrderResponseDto;
-import server.main.order.dto.UpdateOrderRequestDto;
+import server.main.order.dto.*;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.entity.OrderType;
@@ -158,9 +155,16 @@ public class OrderServiceImpl implements OrderService {
             else tokenHolding.relockQuantity(oldQuantity, updateQuantity);
         }
 
-        // DB update 쿼리 -> 변경 감지
+        // DB update (변경 감지)
         findOrder.updateOrder(dto.getUpdatePrice(), dto.getUpdateQuantity());
-        matchClient.updateOrder(orderId, dto.getUpdatePrice(), dto.getUpdateQuantity());
+
+        // match 전달
+        matchClient.updateOrder(UpdateMatchOrderRequestDto.builder()
+                .orderId(orderId)
+                .orderSequence(findOrder.getOrderSequence())
+                .updatePrice(dto.getUpdatePrice())
+                .updateQuantity(dto.getUpdateQuantity())
+                .build());
     }
 
     @Transactional
