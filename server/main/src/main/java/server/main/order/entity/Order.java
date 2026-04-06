@@ -7,6 +7,8 @@ import server.main.global.util.BaseEntity;
 import server.main.member.entity.Member;
 import server.main.token.entity.Token;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @NoArgsConstructor
@@ -50,5 +52,10 @@ public class Order extends BaseEntity {
         this.orderPrice = updatePrice;
         this.orderQuantity = updateQuantity;
         this.remainingQuantity = updateQuantity;
+    }
+
+    public void removeOrder() {
+        // updatedAd은 자동으로 값이 채워진다
+        this.orderStatus = OrderStatus.CANCELLED; // 주문 취소
     }
 }

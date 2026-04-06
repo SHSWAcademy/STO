@@ -78,6 +78,7 @@ public class OrderServiceImpl implements OrderService {
                 .orderQuantity(dto.getOrderQuantity())
                 .orderType(dto.getOrderType()) // 매도, 매수 판단
                 .orderStatus(OrderStatus.OPEN)
+                .remainingQuantity(dto.getOrderQuantity()) // 잔여 수량은 처음 토큰이 생성될 때는 주문 수량과 동일하게 DB에 들어간다.
                 .token(findToken)
                 .member(findMember)
                 // oderSequence 는 match server 에서 채운다
@@ -133,7 +134,7 @@ public class OrderServiceImpl implements OrderService {
             long oldAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
             long updateAmount = dto.getUpdatePrice() * dto.getUpdateQuantity();
 
-            // 수정 시점 회원의 구매력 < 수정으로 다시 구매할 구매력일 경우 오류
+            // 수정 시점 회원의 구매력 < 수정으로 다시 구매할 구매력일 경우 오류 -> 부분 체결일 경우 고려하기
             if (findOrder.getMember().getAccount().getAvailableBalance() + oldAmount < updateAmount)
                 throw new BusinessException(INSUFFICIENT_BALANCE);
             else findOrder.getMember().getAccount().relockBalance(oldAmount, updateAmount);
@@ -172,7 +173,40 @@ public class OrderServiceImpl implements OrderService {
     public void cancelOrder(Long orderId) {
         CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long memberId = principal.getId();
-        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+        // order 찾기
+        Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+        // OPEN, PENDING, PARTIAL 상태값이 아니라면 오류
+        if (!findOrder.getOrderStatus().equals(OrderStatus.OPEN) &&
+                !findOrder.getOrderStatus().equals(OrderStatus.PENDING) &&
+                !findOrder.getOrderStatus().equals(OrderStatus.PARTIAL)) {
+            throw new BusinessException(ORDER_CANNOT_CANCEL);
+        }
+
+
+        // 매수일 경우
+        if (OrderType.BUY.equals(findOrder.getOrderType())) {
+            // 묶인 금액 풀고 회원 잔고 증가
+            Long lockedAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
+            findOrder.getMember().getAccount().cancelOrder(lockedAmount);
+        }
+
+
+
+        // 매도일 경우
+        if (OrderType.SELL.equals(findOrder.getOrderType())) {
+            MemberTokenHolding tokenHolding = memberTokenHoldingRepository
+                    .findByMemberAndToken(findOrder.getMember(), findOrder.getToken())
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            tokenHolding.cancelOrder(findOrder.getRemainingQuantity()); // 묶인 수량 풀고 회원이 가진 토큰 보유량 증가
+        }
+
+        // 주문 삭제 (soft delete)
+        findOrder.removeOrder();
+
+        // match 전달
+        matchClient.cancelOrder(orderId);
     }
 
 }

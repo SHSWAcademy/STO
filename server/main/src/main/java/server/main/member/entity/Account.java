@@ -49,11 +49,17 @@ public class Account extends BaseEntity {
         this.lockedBalance += amount;
     }
 
+    // 매수 호가 수정 시 기존 주문 금액 복구 후 수정 주문 금액 반영
     public void relockBalance(Long oldAmount, Long updateAmount) {
         this.availableBalance += oldAmount;
         this.lockedBalance -= oldAmount;
 
         this.availableBalance -= updateAmount;
         this.lockedBalance += updateAmount;
+    }
+
+    public void cancelOrder(Long orderAmount) {
+        this.availableBalance += orderAmount;
+        this.lockedBalance -= orderAmount;
     }
 }

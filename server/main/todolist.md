@@ -139,23 +139,32 @@
 - [x] `OrderController` — `GET /api/token/{tokenId}/order/pending` 엔드포인트 추가
 - [x] `TokenController` — `GET /api/token/{tokenId}` 엔드포인트 추가 (`@RequestMapping("/api/token")` 포함)
 
-#### [8-TODO] match 서버 완성 → 구현 순서
+#### [8-TODO] match 서버 완성 → 구현 순서 ✅ 완료 (2026-04-06)
 
 **1단계 — `cancelOrder()` 구현**
-- [ ] `Order` 엔티티에 상태 변경 메서드 추가 (`changeStatus(OrderStatus status)`)
-- [ ] `OrderRepository`에 본인 주문 조회 쿼리 추가
-  - `findByOrderIdAndMember_MemberId(orderId, memberId)`
-- [ ] `OrderServiceImpl.cancelOrder()` 구현
-  - JWT로 memberId 추출 → 본인 주문 검증 → match 서버 취소 요청 → DB CANCELLED 처리
-- [ ] `MatchClient`에 `cancelOrder(orderId)` 메서드 추가 (match 서버 cancel API 호출)
-- [ ] `OrderController`에 `DELETE /api/orders/{orderId}` 엔드포인트 추가
+- [x] `Order` 엔티티에 `removeOrder()` 소프트 딜리트 메서드 추가
+- [x] `OrderRepository`에 본인 주문 조회 쿼리 추가 (`findByMemberIdAndOrderId` + `@Param`)
+- [x] `OrderServiceImpl.cancelOrder()` 구현
+  - JWT memberId 추출 → 본인 주문 검증 → 상태 검증(OPEN/PENDING/PARTIAL) → 잔고/수량 복구 → soft delete → match 전달
+- [x] `Account.cancelOrder(amount)` — locked → available 복구
+- [x] `MemberTokenHolding.cancelOrder(qty)` — locked → current 복구
+- [x] `MatchClient.cancelOrder(orderId)` — `restTemplate.delete(url)`
+- [x] `OrderController` — `DELETE /api/token/order/cancel/{orderId}` 엔드포인트
 
 **2단계 — `updateOrder()` 구현**
-- [ ] `UpdateOrderRequestDto`에 필드 추가 (새 가격: `newPrice`, 새 수량: `newQuantity`)
-- [ ] `OrderServiceImpl.updateOrder()` 구현
-  - 본인 주문 검증 → match 서버 수정 요청 → DB 업데이트
-- [ ] `MatchClient`에 `updateOrder(orderId, dto)` 메서드 추가
-- [ ] `OrderController`에 `PATCH /api/orders/{orderId}` 엔드포인트 추가
+- [x] `UpdateOrderRequestDto` — `updatePrice`, `updateQuantity` 필드 추가
+- [x] `UpdateMatchOrderRequestDto` — `orderId`, `orderSequence`, `updatePrice`, `updateQuantity`
+- [x] `Order.updateOrder(price, qty)` — 엔티티 수정 메서드
+- [x] `Account.relockBalance(oldAmount, newAmount)` — 잔고 재조정
+- [x] `MemberTokenHolding.relockQuantity(oldQty, newQty)` — 수량 재조정
+- [x] `OrderServiceImpl.updateOrder()` — 상태 검증 → 잔고/수량 재조정 → DB 수정 → match 전달
+- [x] `MatchClient.updateOrder(dto)` — `restTemplate.put(url, dto)`
+- [x] `OrderController` — `PUT /api/token/order/update/{orderId}` 엔드포인트
+
+**기타 수정**
+- [x] `createOrder()` — `remainingQuantity(dto.getOrderQuantity())` 세팅 추가
+- [x] `createOrder()` — BUY 시 `lockBalance()`, SELL 시 `lockQuantity()` 호출 추가
+- [x] `ErrorCode.ORDER_NOT_MODIFIABLE` HTTP 상태 `304` → `400` 수정
 
 **3단계 — 대기탭 WebSocket (`getPendingOrders`)** ← match 서버 완성 후
 - [ ] match 서버와 채널명 합의 (`pendingOrders:{tokenId}:{memberId}` 권장)
