@@ -2,6 +2,7 @@ package server.main.diclosure.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import server.main.diclosure.entity.Disclosure;
 
 import java.util.List;
