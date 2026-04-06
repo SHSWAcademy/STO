@@ -1,5 +1,6 @@
 package server.main.diclosure.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -7,6 +8,8 @@ import server.main.diclosure.dto.DisclosureRegisterAssetDTO;
 import server.main.diclosure.entity.Disclosure;
 import server.main.diclosure.mapper.DisclosureMapper;
 import server.main.diclosure.repository.DisclosureRepository;
+
+import java.util.Optional;
 
 @Service
 @Log4j2
@@ -23,6 +26,14 @@ public class DisclosureServiceImpl implements DisclosureService{
         disclosureRegisterAssetDTO.changeDisclosure(assetName, assetId);
         Disclosure disclosure = disclosureRepository.save(disclosureMapper.toDisclosure(disclosureRegisterAssetDTO));
         log.info("공시 등록내역 확인 : {}", disclosureRegisterAssetDTO);
+        return disclosure.getDisclosureId();
+    }
+
+    // 자산 건물정보 공시 조회
+    @Override
+    public Long getDisclosureBuilding(Long assetId) {
+        Disclosure disclosure = disclosureRepository.findByAssetIdAndCategory(assetId)
+                .orElseThrow(() -> new EntityNotFoundException("조회된 공시가 없음"));
         return disclosure.getDisclosureId();
     }
 }

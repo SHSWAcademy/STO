@@ -24,4 +24,11 @@ public class Asset extends BaseEntity {
     private Long totalSupply;
     private String assetName;
     private Boolean isAllocated;
+
+    // 자산 수정용 메서드 dto -> entity (bgchoi)
+    public void updateAsset(String assetName, String assetAddress, String imgUrl) {
+        if (assetAddress != null) this.assetAddress = assetAddress;
+        if (assetName != null) this.assetName = assetName;
+        if (imgUrl != null) this.imgUrl = imgUrl;
+    }
 }

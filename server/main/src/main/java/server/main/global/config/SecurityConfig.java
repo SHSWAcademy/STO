@@ -32,31 +32,36 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
+//        http
+//                .csrf(AbstractHttpConfigurer::disable)
+//                .formLogin(AbstractHttpConfigurer::disable)
+//                .httpBasic(AbstractHttpConfigurer::disable)
+//                .cors(cors -> cors.configurationSource(corsConfig.corsConfigurationSource()))
+//                .sessionManagement(session ->
+//                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+//                .authorizeHttpRequests(auth -> auth
+//                        .requestMatchers(
+//                                /* 공개 url 규칙표 즉 비회원 */
+//                                "/api/auth/**",
+//                                "/api/tokens/**",
+//                                "/swagger-ui/**",
+//                                "/v3/api-docs/**",
+//                                "/ws/trading/**"
+//                        ).permitAll()
+//                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+//                        .anyRequest().authenticated()
+//                )
+//                .exceptionHandling(exception -> exception
+//                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+//                        .accessDeniedHandler(jwtAccessDeniedHandler)
+//                )
+//                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                // 개발동안은 시큐리티 비활성화
+                http
                 .csrf(AbstractHttpConfigurer::disable)
-                .formLogin(AbstractHttpConfigurer::disable)
-                .httpBasic(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfig.corsConfigurationSource()))
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                /* 공개 url 규칙표 즉 비회원 */
-                                "/api/auth/**",
-                                "/api/tokens/**",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/ws/trading/**"
-                        ).permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated()
-                )
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                        .accessDeniedHandler(jwtAccessDeniedHandler)
-                )
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
-
+                        .anyRequest().permitAll()
+                );
         return http.build();
     }
 }
