@@ -18,7 +18,7 @@ public class AdminMapper {
                 .totalSupply(dto.getTotalSupply())
                 .asset(asset)
                 .tokenName(dto.getAssetName())
-                .currentPrice(dto.getInitPrice())
+                .currentPrice(dto.getInitPrice().doubleValue())
                 .circulatingSupply(dto.getCirculatingSupply())
                 .tokenSymbol(dto.getTokenSymbol())
                 .initPrice(dto.getInitPrice())
