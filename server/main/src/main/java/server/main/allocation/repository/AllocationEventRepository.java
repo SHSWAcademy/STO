@@ -12,4 +12,5 @@ public interface AllocationEventRepository extends JpaRepository<AllocationEvent
     @Query("SELECT a FROM AllocationEvent a WHERE YEAR(a.createdAt) = :year AND MONTH(a.createdAt) = :month")
     List<AllocationEvent> findAllBySettlementMonth(@Param("year") int year, @Param("month") int month);
 
+    List<AllocationEvent> findAllByAssetId(Long assetId);
 }

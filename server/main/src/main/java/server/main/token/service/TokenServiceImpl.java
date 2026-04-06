@@ -4,6 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.main.allocation.entity.AllocationEvent;
+import server.main.allocation.entity.AllocationPayout;
+import server.main.allocation.repository.AllocationEventRepository;
+import server.main.allocation.repository.AllocationPayoutRepository;
 import server.main.asset.entity.Asset;
 import server.main.asset.mapper.AssetMapper;
 import server.main.asset.repository.AssetRepository;
@@ -20,6 +24,7 @@ import server.main.token.entity.Token;
 import server.main.token.mapper.TokenMapper;
 import server.main.token.repository.TokenRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -84,10 +89,23 @@ public class TokenServiceImpl implements TokenService{
         //    private Long monthlyDividendIncome; // 총 배당금 (ALLOCATION_EVENTS 테이블)
         //    private AllocationPayoutStatus status; // 지급 상태 (대기, 성공, 실패) -> ALLOCATION_PAYOUTS 테이블
         Token token = tokenRepository.findById(tokenId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
         Asset asset = token.getAsset();
         Long assetId = asset.getAssetId();
 
-        AllocationEvent findEvent = allocationEventRepository.findBy
+
+        List<AllocationEvent> findEvents = allocationEventRepository.findAllByAssetId(assetId);
+        List<TokenAllocationInfoResponseDto> dtos = new ArrayList<>();
+        for (AllocationEvent a : findEvents) {
+            TokenAllocationInfoResponseDto dto = TokenAllocationInfoResponseDto.builder()
+                    .settledAt(a.getSettledAt())
+                    .monthlyDividendIncome(a.getMonthlyDividendIncome())
+                    .allocationPerToken((a.getMonthlyDividendIncome() / token.getTotalSupply()))
+                    .allocationBatchStatus(a.getAllocationBatchStatus())
+                    .build();
+            dtos.add(dto);
+        }
+        return dtos;
     }
 
     @Override

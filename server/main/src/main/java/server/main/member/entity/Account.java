@@ -37,11 +37,11 @@ public class Account extends BaseEntity {
 
     public static Account create(Member member, String accountNumber, String encodedAccountPassword) {
         Account account = new Account();
-        account.member =  member;
+        account.member = member;
         account.accountNumber = accountNumber;
         account.accountPassword = encodedAccountPassword;
         account.availableBalance = 0L;
-        account.lockedBalance  =0L;
+        account.lockedBalance = 0L;
         return account;
     }
 
