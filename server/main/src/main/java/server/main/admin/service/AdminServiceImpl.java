@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.*;
 import server.main.admin.entity.PlatformTokenHolding;
 import server.main.admin.mapper.AdminMapper;
+import server.main.admin.repository.CommonsRepository;
 import server.main.admin.repository.PlatformTokenHoldingsRepository;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
@@ -20,6 +21,8 @@ import server.main.notice.service.NoticeService;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -36,6 +39,7 @@ public class AdminServiceImpl implements AdminService {
     private final DisclosureService disclosureService;
     private final FileService fileService;
     private final AllocationEventRepository allocationEventRepository;
+    private final CommonsRepository commonsRepository;
 
     // 자산등록
     // 자산 등록 -> 건물이미지 등록 -> 토큰 등록 -> 플랫폼 소유 토큰 등록 -> 공시 / 공지 등록 -> 첨부파일 등록
@@ -45,7 +49,7 @@ public class AdminServiceImpl implements AdminService {
 
         // 이미지 파일 디스크 저장 (DB 작업 전에 먼저 수행)
         String storedImageName = fileService.saveImage(imageFile);
-        
+
         try {
             // 자산 정보 먼저 등록
             Asset saveAsset = assetRepository.save(adminMapper.toAsset(dto, storedImageName));
@@ -140,10 +144,17 @@ public class AdminServiceImpl implements AdminService {
     public List<AllocationListResponseDTO> getAllocationList() {
         // 자산 리스트 조회
         List<Token> tokens = tokenRepository.findAllTokensWithAsset();
+        // 배당기준일 조회 후 정산월 계산
+        int settlementDay = commonsRepository.findAllocateDate();
+        // 배당 기준일보다 지났으면 현재월 넘었으면 다음월 년과 함게 넣기
+        YearMonth targetMonth = LocalDate.now().getDayOfMonth() > settlementDay
+                ? YearMonth.now().plusMonths(1)
+                : YearMonth.now();
 
         // 배당 이벤트내역 조회
         // 자산ID를 MAP의 키값으로 설정
-        Map<Long, AllocationEvent> allocationEventMap = allocationEventRepository.findAllCurrentMonthList()
+        Map<Long, AllocationEvent> allocationEventMap = allocationEventRepository
+                .findAllBySettlementMonth(targetMonth.getYear(), targetMonth.getYear())
                 .stream()
                 .collect(Collectors.toMap(e -> e.getAssetId(), e -> e));
 
@@ -155,5 +166,30 @@ public class AdminServiceImpl implements AdminService {
                 }).collect(Collectors.toList());
     }
 
+    // 배당 등록
+    // 배당 등록 -> 공시 등록 -> 파일 저장
+    @Transactional
+    @Override
+    public void registerAllocation(AllocationRegisterRequestDTO dto) {
+        AllocationEvent allocationEvent = AllocationEvent.builder()
+                .monthlyDividendIncome(dto.getMonthlyDividendIncome())
+                .assetId(dto.getAssetId())
+                .allocationBatchStatus(false)
+                .build();
+
+        log.info("배당 이벤트 저장 : {}", allocationEvent);
+        AllocationEvent saveAllocationEvent = allocationEventRepository.save(allocationEvent);
+
+        // 공시 등록
+
+        // 자산이름 조회
+        String assetName = assetRepository.findAssetName(dto.getAssetId());
+        // 년 / 월 추출 (공시글에 추가할거)
+        int year = saveAllocationEvent.getCreatedAt().getYear();
+        int month = saveAllocationEvent.getCreatedAt().getMonthValue();
+
+        // 공시 자동등록
+        Long disclosureId = disclosureService.registerAllocationDisclosure(year, month, assetName, dto.getAssetId());
+    }
 
 }

@@ -16,10 +16,12 @@ public class Disclosure extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long disclosureId;      // 공시ID
     private String disclosureTitle;     // 공시 제목
-    @Column(columnDefinition = "TEXT")
+
+    @Column(name = "disclosure_content", columnDefinition = "TEXT")
     private String disclosureContent;   // 공시본문
-    @Enumerated(EnumType.STRING)  // ← STRING으로 변경
+
+    @Enumerated(EnumType.STRING)
     private DisclosureCategory disclosureCategory;  // 공시 타입
 
-    private Long assetId;       // 부동산 ID
+    private Long assetId;       // 부동산ID
 }
