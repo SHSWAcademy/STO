@@ -6,8 +6,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -43,6 +41,5 @@ public class Member extends BaseEntity {
         member.isActive = true;
         return member;
     }
-    @OneToOne(mappedBy = "member", fetch = FetchType.LAZY) // cascade 설정 : member 삭제 시 account도 삭제되어야 한다면 cascade = CascadeType.REMOVE 추가 설정 필요
-    private Account account;
+
 }

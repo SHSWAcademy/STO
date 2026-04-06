@@ -47,8 +47,8 @@ public class AuthService {
         memberRepository.save(member);
 
         String accountNumber = generateUniqueAccountNumber();
-        String encodededAccountPassword = passwordEncoder.encode(request.getAccountPassword());
-        Account account = Account.create(member, accountNumber, encodededAccountPassword);
+        String encodedAccountPassword = passwordEncoder.encode(request.getAccountPassword());
+        Account account = Account.create(member, accountNumber, encodedAccountPassword);
         accountRepository.save(account);
 
         return new MemberSignupResponse(member.getMemberId(), member.getEmail(), member.getMemberName());
