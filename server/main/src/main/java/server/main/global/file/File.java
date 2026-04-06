@@ -21,5 +21,4 @@ public class File extends BaseEntity {
     private Long size;          // 파일 용량
     private String path;        // 파일 저장명
 
-
 }

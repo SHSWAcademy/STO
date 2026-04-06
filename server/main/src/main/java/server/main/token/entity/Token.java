@@ -38,10 +38,17 @@ public class Token extends BaseEntity {
     @JoinColumn(name = "asset_id")
     private Asset asset;
 
+
     // DB 저장 직전에 자동 실행
     @PrePersist
     public void prePersist() {
         this.issuedAt = LocalDateTime.now();
     }
 
+
+    // 토큰 수정용 메서드만듬 dto -> entity 변환 (bgchoi)
+    public void update (TokenStatus tokenStatus, String tokenSymbol) {
+        if (tokenStatus != null) this.tokenStatus = tokenStatus;
+        if (tokenSymbol != null) this.tokenSymbol = tokenSymbol;
+    }
 }

@@ -49,7 +49,7 @@ public class AdminMapper {
     }
 
     // 자산 상세조회 entity -> dto 변환
-    public AssetDetailResponseDTO toAssetDetailResponseDTO(PlatformTokenHolding holding) {
+    public AssetDetailResponseDTO toAssetDetailResponseDTO(PlatformTokenHolding holding, String pdfName) {
         Token token = holding.getToken();
         Asset asset = token.getAsset();
         return AssetDetailResponseDTO.builder()
@@ -68,6 +68,7 @@ public class AdminMapper {
                 .tokenStatus(token.getTokenStatus())
                 .issuedAt(token.getIssuedAt())
                 .holdingSupply(holding.getHoldingSupply())
+                .pdfName(pdfName)
                 .build();
     }
 

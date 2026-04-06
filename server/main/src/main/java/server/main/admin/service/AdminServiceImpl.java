@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.AssetDetailResponseDTO;
 import server.main.admin.dto.AssetListResponseDTO;
 import server.main.admin.dto.AssetRegisterRequestDTO;
+import server.main.admin.dto.AssetUpdateRequestDTO;
 import server.main.admin.entity.PlatformTokenHolding;
 import server.main.admin.mapper.AdminMapper;
 import server.main.admin.repository.PlatformTokenHoldingsRepository;
@@ -16,12 +17,10 @@ import server.main.asset.entity.Asset;
 import server.main.asset.repository.AssetRepository;
 import server.main.diclosure.service.DisclosureService;
 import server.main.global.file.FileService;
-import server.main.global.file.FileStore;
 import server.main.notice.service.NoticeService;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,8 +34,8 @@ public class AdminServiceImpl implements AdminService {
     private final AdminMapper adminMapper;
     private final NoticeService noticeService;
     private final DisclosureService disclosureService;
-    private final FileStore fileStore;
     private final FileService fileService;
+
 
     // 자산등록
     // 자산 등록 -> 건물이미지 등록 -> 토큰 등록 -> 플랫폼 소유 토큰 등록 -> 공시 / 공지 등록 -> 첨부파일 등록
@@ -45,8 +44,8 @@ public class AdminServiceImpl implements AdminService {
     public void registerAsset(AssetRegisterRequestDTO dto, MultipartFile imageFile, MultipartFile pdfFile) {
 
         // 이미지 파일 디스크 저장 (DB 작업 전에 먼저 수행)
-        String storedImageName = saveImage(imageFile);
-
+        String storedImageName = fileService.saveImage(imageFile);
+        
         try {
             // 자산 정보 먼저 등록
             Asset saveAsset = assetRepository.save(adminMapper.toAsset(dto, storedImageName));
@@ -77,25 +76,9 @@ public class AdminServiceImpl implements AdminService {
 
         } catch (Exception e) {
             // DB 저장 실패 시 디스크에 저장된 이미지 파일 삭제
-            deleteFileIfExists(storedImageName);
+            fileService.deleteFile(storedImageName);
             throw e;
         }
-    }
-
-    // 이미지 저장
-    private String saveImage(MultipartFile imageFile) {
-        if (imageFile == null || imageFile.isEmpty()) return null;
-        try {
-            return fileStore.saveFile(imageFile);
-        } catch (IOException e) {
-            throw new RuntimeException("이미지 파일 저장 실패", e);
-        }
-    }
-
-    // 예외 발생 시 파일 삭제처리
-    private void deleteFileIfExists(String storedName) {
-        if (storedName == null) return;
-        new java.io.File(fileStore.getUploadDir(), storedName).delete();
     }
 
     // 자산 상세조회
@@ -103,7 +86,11 @@ public class AdminServiceImpl implements AdminService {
     public AssetDetailResponseDTO getAssetDetail(Long assetId) {
         PlatformTokenHolding holding = platformTokenHoldingsRepository.findWithTokenAndAssetByAssetId(assetId)
                 .orElseThrow(() -> new EntityNotFoundException("자산을 찾을 수 없음"));
-        return adminMapper.toAssetDetailResponseDTO(holding);
+        // 자산ID로 공시에서 건물정보에 관한 공시ID조화
+        Long disclosureId = disclosureService.getDisclosureBuilding(assetId);
+        // PDF원본 파일명
+        String pdfName = fileService.getPdfName(disclosureId);
+        return adminMapper.toAssetDetailResponseDTO(holding, pdfName);
     }
 
     // 자산 리스트 조회
@@ -113,6 +100,39 @@ public class AdminServiceImpl implements AdminService {
                 .stream()
                 .map(token -> adminMapper.toAssetListResponseDTO(token))
                 .collect(Collectors.toList());
+    }
+
+    // 자산 수정
+    @Transactional
+    @Override
+    public void updateAsset(Long assetId, AssetUpdateRequestDTO dto, MultipartFile imageFile, MultipartFile pdfFile) {
+
+        // 기존 자산내역 조회
+        Asset asset = assetRepository.findById(assetId)
+                .orElseThrow(() -> new EntityNotFoundException("자산을 찾을 수 없음"));
+
+        // 이미지가 null이 아닐 때만 저장 / 삭제
+        String storedImageName = asset.getImgUrl();
+        if (imageFile != null && !imageFile.isEmpty()) {
+            // 기존 파일 삭제
+            fileService.deleteFile(storedImageName);
+            // 새 파일 저장
+            storedImageName = fileService.saveImage(imageFile);
+        }
+        // 자산수정
+        asset.updateAsset(dto.getAssetName(), dto.getAssetAddress(), storedImageName);
+
+        // 토큰 수정
+        Token token = tokenRepository.findById(dto.getTokenId())
+                .orElseThrow(() -> new EntityNotFoundException("토큰을 찾을 수 없음"));
+        // 토큰 수정
+        token.update(dto.getTokenStatus(), dto.getTokenSymbol());
+
+        // pdf파일이 수정됐다면
+        if (pdfFile != null && !pdfFile.isEmpty()) {
+            // pdf 저장 메소드 호출 (여기에 기존파일 삭제로직 들어감)
+            fileService.savePdf(pdfFile, dto.getDisclosureId());
+        }
     }
 
 }

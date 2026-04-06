@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.AssetDetailResponseDTO;
 import server.main.admin.dto.AssetListResponseDTO;
 import server.main.admin.dto.AssetRegisterRequestDTO;
+import server.main.admin.dto.AssetUpdateRequestDTO;
 import server.main.admin.service.AdminService;
 
 import java.io.IOException;
@@ -44,4 +45,20 @@ public class AdminController {
         AssetDetailResponseDTO dto = adminService.getAssetDetail(assetId);
         return ResponseEntity.ok(dto);
     }
+
+    // 자산 수정
+    // 수정 대상 : 자산명, 자산주소, 자산PDF, 자산 이미지, 토큰 심볼, 토큰 상태
+    @PatchMapping("/asset/{assetId}")
+    public ResponseEntity<Void> assetUpdate(
+            @PathVariable Long assetId,
+            @RequestPart AssetUpdateRequestDTO dto,
+            @RequestPart(required = false) MultipartFile imageFile,
+            @RequestPart(required = false) MultipartFile pdfFile) {
+            // 수정 서비스 호출
+            adminService.updateAsset(assetId, dto, imageFile, pdfFile);
+        return ResponseEntity.ok().build();
+    }
+
+    // 발행 -> 발행완료상태 -> 오전9시 발행완료 -> 거래 중
+
  }

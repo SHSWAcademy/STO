@@ -31,4 +31,10 @@ public class AssetDetailResponseDTO {
 
     // platform_token_holdings
     private Long holdingSupply;
+
+    // files
+    private String pdfName;
+
+    //disclosure
+    private Long disclosureId;
 }

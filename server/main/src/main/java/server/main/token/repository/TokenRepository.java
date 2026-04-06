@@ -15,6 +15,6 @@ public interface TokenRepository extends JpaRepository<Token, Long> {
     Optional<Token> findByIdWithAsset(@Param("tokenId") Long tokenId);
 
     // 자산ID로 토큰 / 자산테이블 리스트 조회용
-    @Query("SELECT t FROM Token t JOIN FETCH t.asset")
+    @Query("SELECT t FROM Token t JOIN FETCH t.asset WHERE t.tokenStatus = 'SUSPENDED'")
     List<Token> findAllTokensWithAsset();
 }
