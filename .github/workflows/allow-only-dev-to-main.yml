@@ -15,9 +15,10 @@ jobs:
     steps:
       - name: Validate source branch
         run: |
+          echo "event: ${{ github.event_name }}"
           echo "base: ${{ github.base_ref }}"
           echo "head: ${{ github.head_ref }}"
-          if [ "${{ github.head_ref }}" != "dev" ]; then
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.head_ref }}" != "dev" ]; then
             echo "Only pull requests from 'dev' to 'main' are allowed."
             exit 1
           fi
