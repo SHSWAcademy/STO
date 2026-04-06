@@ -12,6 +12,12 @@ public interface AllocationEventRepository extends JpaRepository<AllocationEvent
     @Query("SELECT a FROM AllocationEvent a WHERE YEAR(a.createdAt) = :year AND MONTH(a.createdAt) = :month")
     List<AllocationEvent> findAllBySettlementMonth(@Param("year") int year, @Param("month") int month);
 
+    // 현재월에 배당 스케줄 등록했는지 검증
+    boolean existsByAssetIdAndSettlementYearAndSettlementMonth(
+            Long assetId, int settlementYear, int settlementMonth);
+
+    // 자산별 배당 스케줄내역 상세조회
+    List<AllocationEvent> findAllocationEventsByAssetIdOrderByCreatedAt(Long assetId);
     // List<AllocationEvent> findAllByAssetId(Long assetId);
 
     List<AllocationEvent> findAllByAssetIdOrderBySettledAtDesc(Long assetId);

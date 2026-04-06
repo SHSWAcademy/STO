@@ -5,9 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
-import server.main.admin.dto.AssetDetailResponseDTO;
-import server.main.admin.dto.AssetListResponseDTO;
-import server.main.admin.dto.AssetRegisterRequestDTO;
+import server.main.admin.dto.*;
 import server.main.asset.repository.AssetRepository;
 import server.main.token.repository.TokenRepository;
 
@@ -64,7 +62,7 @@ class AdminServiceImplTest {
     // 자산상세조회 테스트
     @Test
     void testSelectAsset() {
-        AssetDetailResponseDTO dto = adminService.getAssetDetail(5L);
+        AssetDetailResponseDTO dto = adminService.getAssetDetail(8L);
         System.out.println("상세 조회 내역 test : " + dto);
     }
 
@@ -73,5 +71,38 @@ class AdminServiceImplTest {
     void testSelectList() {
         List<AssetListResponseDTO> list =  adminService.getAssetList();
         System.out.println("자산 리스트 확인 : " + list);
+    }
+
+    // 배당 스케줄 등록
+    @Test
+    void testAllocationRegister() {
+        AllocationRegisterRequestDTO dto = AllocationRegisterRequestDTO.builder()
+                .assetId(12L)
+                .monthlyDividendIncome(2000000L)
+                .build();
+
+        // 가짜 PDF 파일
+        MockMultipartFile pdfFile = new MockMultipartFile(
+                "pdfFile",
+                "test.pdf",
+                "application/pdf",
+                "fake pdf content".getBytes()
+        );
+
+        adminService.registerAllocation(dto, pdfFile);
+    }
+
+    // 배당 스케줄 리스트 조회
+    @Test
+    void testGetListAllocation() {
+        List<AllocationListResponseDTO> list = adminService.getAllocationList();
+        System.out.println("배당 리스트 확인 : " + list);
+    }
+
+    // 배당 스케줄 상세내역 조회
+    @Test
+    void testGetDetailAllocation() {
+        List<AllocationDetailResponseDTO> list = adminService.getAllocationDetailList(12L);
+        System.out.println("배당 상세조회 확인 : " + list);
     }
 }

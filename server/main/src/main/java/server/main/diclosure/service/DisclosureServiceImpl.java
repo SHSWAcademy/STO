@@ -29,7 +29,7 @@ public class DisclosureServiceImpl implements DisclosureService{
     public Long registerAllocationDisclosure(int year, int month, String assetName, Long assetId) {
         Disclosure disclosure = disclosureRepository.save(disclosureMapper.toDisclosureAllocation(year, month, assetName, assetId));
         log.info("공시 등록내역 확인(DIVIDEND) : {}", disclosure);
-        return 0L;
+        return disclosure.getDisclosureId();
     }
 
     // 자산 건물정보 공시 조회

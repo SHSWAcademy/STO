@@ -16,6 +16,9 @@ import server.main.allocation.repository.AllocationEventRepository;
 import server.main.asset.entity.Asset;
 import server.main.asset.repository.AssetRepository;
 import server.main.diclosure.service.DisclosureService;
+import server.main.global.error.BusinessException;
+import server.main.global.error.ErrorCode;
+import server.main.global.file.File;
 import server.main.global.file.FileService;
 import server.main.notice.service.NoticeService;
 import server.main.token.entity.Token;
@@ -92,9 +95,9 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new EntityNotFoundException("자산을 찾을 수 없음"));
         // 자산ID로 공시에서 건물정보에 관한 공시ID조화
         Long disclosureId = disclosureService.getDisclosureBuilding(assetId);
-        // PDF원본 파일명
-        String pdfName = fileService.getPdfName(disclosureId);
-        return adminMapper.toAssetDetailResponseDTO(holding, pdfName);
+        // PDF파일 조회
+        File file = fileService.getAssetFile(disclosureId);
+        return adminMapper.toAssetDetailResponseDTO(holding, file);
     }
 
     // 자산 리스트 조회
@@ -143,21 +146,18 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public List<AllocationListResponseDTO> getAllocationList() {
         // 자산 리스트 조회
-        List<Token> tokens = tokenRepository.findAllTokensWithAsset();
-        // 배당기준일 조회 후 정산월 계산
-        int settlementDay = commonsRepository.findAllocateDate();
-        // 배당 기준일보다 지났으면 현재월 넘었으면 다음월 년과 함게 넣기
-        YearMonth targetMonth = LocalDate.now().getDayOfMonth() > settlementDay
-                ? YearMonth.now().plusMonths(1)
-                : YearMonth.now();
+        List<Token> tokens = tokenRepository.findAllTokensWithAssetAllocationList();
+
+        // 마감월 확인
+        YearMonth targetMonth = getTargetMonth();
 
         // 배당 이벤트내역 조회
         // 자산ID를 MAP의 키값으로 설정
         Map<Long, AllocationEvent> allocationEventMap = allocationEventRepository
-                .findAllBySettlementMonth(targetMonth.getYear(), targetMonth.getYear())
+                .findAllBySettlementMonth(targetMonth.getYear(), targetMonth.getMonthValue())
                 .stream()
                 .collect(Collectors.toMap(e -> e.getAssetId(), e -> e));
-
+        log.info("배당 이벤트 내역 조회 : {}", allocationEventMap);
         // assetId를 기준으로 매핑 후 리턴
         return tokens.stream()
                 .map(token -> {
@@ -170,26 +170,75 @@ public class AdminServiceImpl implements AdminService {
     // 배당 등록 -> 공시 등록 -> 파일 저장
     @Transactional
     @Override
-    public void registerAllocation(AllocationRegisterRequestDTO dto) {
+    public void registerAllocation(AllocationRegisterRequestDTO dto, MultipartFile file) {
+        // 마감월 확인
+        YearMonth targetMonth = getTargetMonth();
+        // 년 / 월 추출 (공시글에 추가할거)
+        int year = targetMonth.getYear();
+        int month = targetMonth.getMonthValue();
+
+        // 해당 월에 이미 등록했는지 검증
+        if (allocationEventRepository.existsByAssetIdAndSettlementYearAndSettlementMonth(dto.getAssetId(), targetMonth.getYear(), targetMonth.getMonthValue())) {
+            throw new BusinessException(ErrorCode.ALLOCATION_ALREADY_EXISTS);
+        }
+
+        // 자산이름 조회
+        String assetName = assetRepository.findAssetName(dto.getAssetId());
+        // 공시 자동등록
+        Long disclosureId = disclosureService.registerAllocationDisclosure(year, month, assetName, dto.getAssetId());
+
+        // 중복데이터 없다면 등록 진행
         AllocationEvent allocationEvent = AllocationEvent.builder()
                 .monthlyDividendIncome(dto.getMonthlyDividendIncome())
                 .assetId(dto.getAssetId())
                 .allocationBatchStatus(false)
+                .settlementYear(targetMonth.getYear())
+                .settlementMonth(targetMonth.getMonthValue())
+                .disclosureId(disclosureId)
                 .build();
 
-        log.info("배당 이벤트 저장 : {}", allocationEvent);
         AllocationEvent saveAllocationEvent = allocationEventRepository.save(allocationEvent);
+        log.info("배당 이벤트 저장 : {}", saveAllocationEvent);
 
-        // 공시 등록
-
-        // 자산이름 조회
-        String assetName = assetRepository.findAssetName(dto.getAssetId());
-        // 년 / 월 추출 (공시글에 추가할거)
-        int year = saveAllocationEvent.getCreatedAt().getYear();
-        int month = saveAllocationEvent.getCreatedAt().getMonthValue();
-
-        // 공시 자동등록
-        Long disclosureId = disclosureService.registerAllocationDisclosure(year, month, assetName, dto.getAssetId());
+        // 파일저장
+        fileService.savePdf(file, disclosureId);
     }
 
+    // 배당 스케줄내역 상세조회 리스트
+    @Override
+    public List<AllocationDetailResponseDTO> getAllocationDetailList(Long assetId) {
+
+        // 배당 스케줄 내역 조회
+        List<AllocationEvent> events = allocationEventRepository.findAllocationEventsByAssetIdOrderByCreatedAt(assetId);
+        // 공시ID 목록 추출
+        List<Long> disclosureIds = events.stream()
+                .map(allocationEvent -> allocationEvent.getDisclosureId())
+                .collect(Collectors.toList());
+
+        // 파일 리스트 추출후 공시ID를 키값으로 MAP 변환
+        Map<Long, File> fileMap = fileService.getAllocationFile(disclosureIds)
+                .stream()
+                .collect(Collectors.toMap(
+                   file -> file.getDisclosureId(),
+                   file -> file
+                ));
+
+        // 파일 서비스에서 공시ID 기준으로 조회 후 MAP으로 조합
+        return events.stream()
+                .map(event -> {
+                    File file = fileMap.get(event.getDisclosureId());
+                    return adminMapper.toAllocationDetailResponseDTO(event, file);
+                })
+                .collect(Collectors.toList());
+    }
+
+    // 마감월 리턴 메서드
+    // 플랫폼설정 테이블에서 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
+    private YearMonth getTargetMonth() {
+        int settlementDay = commonsRepository.findAllocateDate();
+        log.info("배당 지급일 확인 : {} ", settlementDay);
+        return LocalDate.now().getDayOfMonth() > settlementDay
+                ? YearMonth.now().plusMonths(1)
+                : YearMonth.now();
+    }
 }

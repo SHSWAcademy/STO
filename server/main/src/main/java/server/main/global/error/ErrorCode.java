@@ -56,7 +56,8 @@ public enum ErrorCode {
 
     // ── 배당 ──────────────────────────────────────────────────
     DIVIDEND_NO_HOLDERS(HttpStatus.BAD_REQUEST, "DIVIDEND_NO_HOLDERS", "해당 토큰의 보유자가 없습니다."),
-    TOKEN_NOT_TRADING(HttpStatus.BAD_REQUEST, "TOKEN_NOT_TRADING", "거래 중인 토큰에만 배당을 지급할 수 있습니다.");
+    TOKEN_NOT_TRADING(HttpStatus.BAD_REQUEST, "TOKEN_NOT_TRADING", "거래 중인 토큰에만 배당을 지급할 수 있습니다."),
+    ALLOCATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "ALLOCATION_ALREADY_EXISTS", "이미 해당월에 배당이 등록되어 있습니다.");
 
     private final HttpStatus httpStatus;
     private final String errorCode;
