@@ -228,7 +228,7 @@ CREATE TABLE ORDERS (
     updated_at         TIMESTAMP         NOT NULL DEFAULT NOW(),
     order_type         order_type_enum   NOT NULL,
     order_status       order_status_enum NOT NULL,
-    order_sequence     BIGINT            NOT NULL,
+    order_sequence     BIGINT            NULL,
     CONSTRAINT PK_ORDERS PRIMARY KEY (order_id),
     CONSTRAINT FK_MEMBERS_TO_ORDERS
         FOREIGN KEY (member_id) REFERENCES MEMBERS (member_id),

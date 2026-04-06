@@ -76,12 +76,13 @@ public class OrderServiceImpl implements OrderService {
         Order createOrder = Order.builder()
                 .orderPrice(dto.getOrderPrice())
                 .orderQuantity(dto.getOrderQuantity())
-                .orderType(dto.getOrderType()) // 매도, 매수 판단
-                .orderStatus(OrderStatus.OPEN)
-                .remainingQuantity(dto.getOrderQuantity()) // 잔여 수량은 처음 토큰이 생성될 때는 주문 수량과 동일하게 DB에 들어간다.
+                .orderType(dto.getOrderType())
+                .orderStatus(OrderStatus.OPEN)   // 주문 접수 완료, 아직 매칭 전
+                .filledQuantity(0L)
+                .remainingQuantity(dto.getOrderQuantity())
+                .orderSequence(null)             // match 서버가 매칭 시작 시 부여
                 .token(findToken)
                 .member(findMember)
-                // oderSequence 는 match server 에서 채운다
                 .build();
 
         log.info(String.valueOf(createOrder));
