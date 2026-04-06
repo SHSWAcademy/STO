@@ -33,6 +33,8 @@ public class RedisSubscriber implements MessageListener {
             messagingTemplate.convertAndSend("/topic/trades/" + parts[1], body);
         } else if ("candle".equals(type)) { // 상세 페이지 - 캔들 차트 마지막 봉 소켓으로 가져오기
             messagingTemplate.convertAndSend("/topic/candle/" + parts[1] + "/" + parts[2], body);
+        } else if ("pendingOrders".equals(type)) { // 상세 페이지 - 대기 웹소켓
+            messagingTemplate.convertAndSend("/topic/pendingOrders/" + parts[1] + "/" + parts[2], body);
         }
     }
 }
