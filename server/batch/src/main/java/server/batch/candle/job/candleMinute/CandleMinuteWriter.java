@@ -17,10 +17,20 @@ public class CandleMinuteWriter implements ItemWriter<CandleMinute> { // 쓰는 
     // reader -> processor -> writer 흐름
 
     private final CandleMinuteRepository candleMinuteRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Override
     public void write(Chunk<? extends CandleMinute> chunk) throws Exception {
         candleMinuteRepository.saveAll(chunk.getItems()); // 벌크 insert : 하나의 쿼리로 전부 insert
 
+        // redis에 각 데이터들을 publish
+        for (CandleMinute candleMinute : chunk.getItems()) {
+            String channel = "candle:" + candleMinute.getTokenId() + ":MINUTE";
+
+            String payload = objectMapper.writeValueAsString(candleMinute);
+            redisTemplate.convertAndSend(channel, payload);
+            log.info("Published candle : {}", channel);
+        }
     }
 }

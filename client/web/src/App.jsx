@@ -14,7 +14,7 @@ import { MockupPage }           from './pages/MockupPage.jsx';
 import { AdminLayout }          from './pages/admin/AdminLayout.jsx';
 import { AdminDashboard }       from './pages/admin/AdminDashboard.jsx';
 import { UserManagement }       from './pages/admin/UserManagement.jsx';
-import { AssetManagement }      from './pages/admin/AssetManagement.jsx';
+import { AssetManagement }      from './pages/admin/asset';
 import { PlatformRevenue }      from './pages/admin/PlatformRevenue.jsx';
 import { DividendManagement }   from './pages/admin/DividendManagement.jsx';
 import { ContentManagement }    from './pages/admin/ContentManagement.jsx';

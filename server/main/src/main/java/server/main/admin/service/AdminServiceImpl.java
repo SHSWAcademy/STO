@@ -14,7 +14,7 @@ import server.main.admin.repository.PlatformTokenHoldingsRepository;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
 import server.main.asset.entity.Asset;
-import server.main.asset.repository.AssetRepository;
+import server.main.asset.service.AssetService;
 import server.main.disclosure.service.DisclosureService;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 @Log4j2
 public class AdminServiceImpl implements AdminService {
     private final PlatformTokenHoldingsRepository platformTokenHoldingsRepository;
-    private final AssetRepository assetRepository;
+    private final AssetService assetService;
     private final TokenRepository tokenRepository;
     private final AdminMapper adminMapper;
     private final NoticeService noticeService;
@@ -45,7 +45,7 @@ public class AdminServiceImpl implements AdminService {
     private final CommonsRepository commonsRepository;
 
     // 자산등록
-    // 자산 등록 -> 건물이미지 등록 -> 토큰 등록 -> 플랫폼 소유 토큰 등록 -> 공시 / 공지 등록 -> 첨부파일 등록
+    // 자산 이미지 등록 -> 자산 등록 ->  토큰 등록 -> 플랫폼 소유 토큰 등록 -> 자산 계좌 생성 및 입금 -> 공시 / 공지 등록 -> 첨부파일 등록
     @Transactional
     @Override
     public void registerAsset(AssetRegisterRequestDTO dto, MultipartFile imageFile, MultipartFile pdfFile) {
@@ -55,7 +55,7 @@ public class AdminServiceImpl implements AdminService {
 
         try {
             // 자산 정보 먼저 등록
-            Asset saveAsset = assetRepository.save(adminMapper.toAsset(dto, storedImageName));
+            Asset saveAsset = assetService.AssetRegister(adminMapper.toAsset(dto, storedImageName));
             log.info("부동산 저장 : {} ", saveAsset);
 
             // 자산ID도 토큰 엔터티에 넣기
@@ -67,8 +67,12 @@ public class AdminServiceImpl implements AdminService {
             // 플랫폼 보유 토큰 설정
             PlatformTokenHolding platformTokenHoldings = adminMapper.toPlatformTokenHoldings(dto, saveToken);
             log.info("플랫폼 보유 토큰 저장 : {}", platformTokenHoldings);
+
             // 플랫폼 보유 테이블 SAVE
             platformTokenHoldingsRepository.save(platformTokenHoldings);
+
+            // 자산 계좌 생성
+            assetService.AssetAccountRegister(saveToken);
 
             // 공지 등록 메서드 호출
             noticeService.registerAssetNotice(dto);
@@ -115,8 +119,7 @@ public class AdminServiceImpl implements AdminService {
     public void updateAsset(Long assetId, AssetUpdateRequestDTO dto, MultipartFile imageFile, MultipartFile pdfFile) {
 
         // 기존 자산내역 조회
-        Asset asset = assetRepository.findById(assetId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUNT_ERROR));
+        Asset asset = assetService.findById(assetId);
 
         // 이미지가 null이 아닐 때만 저장 / 삭제
         String storedImageName = asset.getImgUrl();
@@ -183,7 +186,7 @@ public class AdminServiceImpl implements AdminService {
         }
 
         // 자산이름 조회
-        String assetName = assetRepository.findAssetName(dto.getAssetId());
+        String assetName = assetService.findAssetName(dto.getAssetId());
         // 공시 자동등록
         Long disclosureId = disclosureService.registerAllocationDisclosure(year, month, assetName, dto.getAssetId());
 
@@ -196,9 +199,11 @@ public class AdminServiceImpl implements AdminService {
                 .settlementMonth(targetMonth.getMonthValue())
                 .disclosureId(disclosureId)
                 .build();
-
         AllocationEvent saveAllocationEvent = allocationEventRepository.save(allocationEvent);
         log.info("배당 이벤트 저장 : {}", saveAllocationEvent);
+
+        // 배당 월수익 입금처리
+        assetService.AllocationAccountDeposit(saveAllocationEvent.getMonthlyDividendIncome(), saveAllocationEvent.getAssetId());
 
         // 파일저장
         fileService.saveOrUpdatePdf(file, disclosureId);
