@@ -8,7 +8,6 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum ErrorCode {
 
-
     // 도연님 에러코드 확인해보시고 유동적으로 추가나 삭제 부탁드립니다 ! 아래는 예시라서
 
     // ── 시스템 ──────────────────────────────────────────────
@@ -42,14 +41,15 @@ public enum ErrorCode {
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "주문을 찾을 수 없습니다."),
     ORDER_CANNOT_CANCEL(HttpStatus.BAD_REQUEST, "ORDER_CANNOT_CANCEL", "취소할 수 없는 주문 상태입니다."),
     ORDER_NOT_OWNED(HttpStatus.FORBIDDEN, "ORDER_NOT_OWNED", "본인의 주문이 아닙니다."),
-    ORDER_NOT_MODIFIABLE(HttpStatus.NOT_MODIFIED, "ORDER_CANNOT_UPDATE", "수정할 수 없는 주문 상태입니다."),
+    ORDER_NOT_MODIFIABLE(HttpStatus.BAD_REQUEST, "ORDER_CANNOT_UPDATE", "수정할 수 없는 주문 상태입니다."),
     INVALID_UPDATE_QUANTITY(HttpStatus.BAD_REQUEST, "INVALID_UPDATE_QUANTITY", "수정 수량이 이미 체결된 수량이하입니다."),
 
     // ── 거래 시간 ────────────────────────────────────────────
     OUTSIDE_TRADING_HOURS(HttpStatus.BAD_REQUEST, "OUTSIDE_TRADING_HOURS", "거래 시간이 아닙니다. (09:00 ~ 15:30)"),
 
     // ── Match 서비스 ──────────────────────────────────────────
-    MATCH_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "MATCH_SERVICE_UNAVAILABLE", "체결 서비스에 연결할 수 없습니다. 주문은 접수되었으며 잠시 후 처리됩니다."),
+    MATCH_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "MATCH_SERVICE_UNAVAILABLE",
+            "체결 서비스에 연결할 수 없습니다. 주문은 접수되었으며 잠시 후 처리됩니다."),
 
     // ── 관심 종목 ─────────────────────────────────────────────
     WATCHLIST_ALREADY_EXISTS(HttpStatus.CONFLICT, "WATCHLIST_ALREADY_EXISTS", "이미 관심 종목에 추가된 토큰입니다."),

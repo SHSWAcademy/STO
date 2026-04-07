@@ -43,14 +43,16 @@ public class OrderServiceImpl implements OrderService {
     private final MemberTokenHoldingRepository memberTokenHoldingRepository;
     private final MatchClient matchClient;
 
-
     @Transactional
     @Override
     public void createOrder(Long tokenId, OrderRequestDto dto) {
-        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
+                .getPrincipal();
         Long memberId = principal.getId();
-        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-        Token findToken = tokenRepository.findById(tokenId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        Member findMember = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        Token findToken = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         // 매수일 경우
         if (OrderType.BUY.equals(dto.getOrderType())) {
@@ -61,7 +63,6 @@ public class OrderServiceImpl implements OrderService {
             // 매수 주문일 경우 구매력 차감 (current quantity 감소, locked quantity 증가)
             else findMember.getAccount().lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도 된다)
         }
-
 
         // 매도일 경우
         if (OrderType.SELL.equals(dto.getOrderType())) {
@@ -82,10 +83,10 @@ public class OrderServiceImpl implements OrderService {
                 .orderPrice(dto.getOrderPrice())
                 .orderQuantity(dto.getOrderQuantity())
                 .orderType(dto.getOrderType())
-                .orderStatus(OrderStatus.OPEN)   // 주문 접수 완료, 아직 매칭 전
+                .orderStatus(OrderStatus.OPEN) // 주문 접수 완료, 아직 매칭 전
                 .filledQuantity(0L)
                 .remainingQuantity(dto.getOrderQuantity())
-                .orderSequence(null)             // match 서버가 매칭 시작 시 부여
+                .orderSequence(null) // match 서버가 매칭 시작 시 부여
                 .token(findToken)
                 .member(findMember)
                 .build();
@@ -110,7 +111,8 @@ public class OrderServiceImpl implements OrderService {
     // 상세 화면의 '대기' : 소켓 필요
     @Override
     public List<PendingOrderResponseDto> getPendingOrders(Long tokenId) {
-        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
+                .getPrincipal();
         Long memberId = principal.getId();
 
         List<Order> pendingOrders = orderRepository.findPendingOrderByMemberAndToken(memberId, tokenId);
@@ -118,15 +120,16 @@ public class OrderServiceImpl implements OrderService {
         return dtos;
     }
 
-
     @Transactional
     @Override
     public void updateOrder(Long orderId, UpdateOrderRequestDto dto) {
-        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
+                .getPrincipal();
         Long memberId = principal.getId();
 
         // order 찾기
-        Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId)
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         // OPEN, PARTIAL 만 허용
         if (!findOrder.getOrderStatus().equals(OrderStatus.OPEN) &&
@@ -183,11 +186,13 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     @Override
     public void cancelOrder(Long orderId) {
-        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
+                .getPrincipal();
         Long memberId = principal.getId();
 
         // order 찾기
-        Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId)
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         // OPEN, PARTIAL 만 허용
         if (!findOrder.getOrderStatus().equals(OrderStatus.OPEN) &&
@@ -195,15 +200,12 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(ORDER_CANNOT_CANCEL);
         }
 
-
         // 매수일 경우
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
             // 묶인 금액 풀고 회원 잔고 증가
             Long lockedAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
             findOrder.getMember().getAccount().cancelOrder(lockedAmount);
         }
-
-
 
         // 매도일 경우
         if (OrderType.SELL.equals(findOrder.getOrderType())) {
