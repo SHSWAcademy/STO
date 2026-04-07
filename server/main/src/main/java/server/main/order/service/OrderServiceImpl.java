@@ -145,12 +145,6 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(ORDER_NOT_MODIFIABLE);
         }
 
-        // 공통 입력 검증 (null, 0, 음수 차단)
-        if (dto.getUpdatePrice() == null || dto.getUpdatePrice() <= 0 ||
-                dto.getUpdateQuantity() == null || dto.getUpdateQuantity() <= 0) {
-            throw new BusinessException(INVALID_INPUT_VALUE);
-        }
-
         // PARTIAL 상태일 때만 수량 검증
         if (findOrder.getOrderStatus().equals(OrderStatus.PARTIAL)) {
             if (dto.getUpdateQuantity() <= findOrder.getFilledQuantity()) {

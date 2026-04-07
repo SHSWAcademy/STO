@@ -29,7 +29,8 @@ public class Order extends BaseEntity {
 
     private Long orderQuantity;         // 처음 요청한 매도 / 매수 수량
 
-    private Long filledQuantity;        // 체결 수량
+    @Column(nullable = false)
+    private Long filledQuantity = 0L;   // 체결 수량
 
     private Long remainingQuantity;     // 미체결 수량
 

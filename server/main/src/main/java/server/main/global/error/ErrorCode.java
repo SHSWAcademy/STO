@@ -42,7 +42,7 @@ public enum ErrorCode {
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "주문을 찾을 수 없습니다."),
     ORDER_CANNOT_CANCEL(HttpStatus.BAD_REQUEST, "ORDER_CANNOT_CANCEL", "취소할 수 없는 주문 상태입니다."),
     ORDER_NOT_OWNED(HttpStatus.FORBIDDEN, "ORDER_NOT_OWNED", "본인의 주문이 아닙니다."),
-    ORDER_NOT_MODIFIABLE(HttpStatus.BAD_REQUEST, "ORDER_CANNOT_UPDATE", "수정할 수 없는 주문 상태입니다."),
+    ORDER_NOT_MODIFIABLE(HttpStatus.BAD_REQUEST, "ORDER_NOT_MODIFIABLE", "수정할 수 없는 주문 상태입니다."),
     INVALID_UPDATE_QUANTITY(HttpStatus.BAD_REQUEST, "INVALID_UPDATE_QUANTITY", "이미 체결된 수량보다 적은 수량으로 수정할 수 없습니다."),
 
     // ── 거래 시간 ────────────────────────────────────────────
