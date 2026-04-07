@@ -41,6 +41,10 @@ public class RedisConfig {
         container.addMessageListener(messageListenerAdapter, new PatternTopic("orderBook:*"));
         // Subscribes to Redis topics matching the pattern "trades:*" to receive incoming data
         container.addMessageListener(messageListenerAdapter, new PatternTopic("trades:*"));
+        // Subscribes to candle updates published by batch server
+        container.addMessageListener(messageListenerAdapter, new PatternTopic("candle:*"));
+        // Subscribes to pending order updates
+        container.addMessageListener(messageListenerAdapter, new PatternTopic("pendingOrders:*"));
         return container;
     }
 }

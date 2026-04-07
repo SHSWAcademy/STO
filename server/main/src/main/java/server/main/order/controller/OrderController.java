@@ -38,7 +38,7 @@ public class OrderController {
 
     // 호가 수정
     @PutMapping("/order/update/{orderId}")
-    public ResponseEntity<Void> orderUpdate(@PathVariable Long orderId, @RequestBody UpdateOrderRequestDto dto) {
+    public ResponseEntity<Void> orderUpdate(@PathVariable Long orderId, @Validated @RequestBody UpdateOrderRequestDto dto) {
         orderService.updateOrder(orderId, dto);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build(); // 204 No Content
     }
