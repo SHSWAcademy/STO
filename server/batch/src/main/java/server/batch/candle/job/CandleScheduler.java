@@ -19,6 +19,9 @@ public class CandleScheduler {
 
     @Qualifier("candleMinuteJob")
     private final Job candleMinuteJob;
+    @Qualifier("candleHourJob")
+    private final Job candleHourJob;
+
 
     @Scheduled(cron = "0 * * * * *")  // 매 분 0초
     public void runCandleMinuteJob() throws Exception {
@@ -26,7 +29,17 @@ public class CandleScheduler {
                 .addLong("currentTime", System.currentTimeMillis())
                 .toJobParameters();
 
-        log.info("Starting candleMinuteJob");
+        log.info("캔들차트 1분 배치 고가 저가 작업 시작");
         jobLauncher.run(candleMinuteJob, params);
+    }
+
+    @Scheduled(cron = "0 0 * * * *")  // 매 정시
+    public void runCandleHourJob() throws Exception {
+        JobParameters params = new JobParametersBuilder()
+                .addLong("currentTime", System.currentTimeMillis())
+                .toJobParameters();
+
+        log.info("캔들차트 1시간 배치 고가 저가 작업 시작");
+        jobLauncher.run(candleHourJob, params);
     }
 }
