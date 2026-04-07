@@ -1,5 +1,14 @@
 package server.main.order.service;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -9,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.MatchClient;
@@ -19,6 +29,7 @@ import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
+import server.main.order.dto.UpdateOrderRequestDto;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.entity.OrderType;
@@ -26,15 +37,6 @@ import server.main.order.mapper.OrderMapper;
 import server.main.order.repository.OrderRepository;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceImplTest {
@@ -50,7 +52,7 @@ class OrderServiceImplTest {
     OrderServiceImpl orderService;
 
     private final Long MEMBER_ID = 1L;
-    private final Long TOKEN_ID  = 10L;
+    private final Long TOKEN_ID = 10L;
 
     @BeforeEach
     void setSecurityContext() {
@@ -147,7 +149,7 @@ class OrderServiceImplTest {
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.BUY)
                 .orderPrice(12000L)
-                .orderQuantity(5L)   // 총 60000 < 잔고 1000000
+                .orderQuantity(5L) // 총 60000 < 잔고 1000000
                 .build();
 
         // when
@@ -162,8 +164,8 @@ class OrderServiceImplTest {
     void createOrder_매수_잔고부족_예외발생() {
         // given
         Account account = mock(Account.class);
-        Member member   = mock(Member.class);
-        Token token     = mock(Token.class);
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
 
         when(member.getAccount()).thenReturn(account);
         when(account.getAvailableBalance()).thenReturn(10_000L);  // 잔고 부족
@@ -173,7 +175,7 @@ class OrderServiceImplTest {
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.BUY)
                 .orderPrice(12000L)
-                .orderQuantity(5L)   // 총 60000 > 잔고 10000
+                .orderQuantity(5L) // 총 60000 > 잔고 10000
                 .build();
 
         // when & then
@@ -187,7 +189,7 @@ class OrderServiceImplTest {
     void createOrder_매도_토큰미보유_예외발생() {
         // given
         Member member = mock(Member.class);
-        Token token   = mock(Token.class);
+        Token token = mock(Token.class);
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
@@ -210,20 +212,20 @@ class OrderServiceImplTest {
     @Test
     void createOrder_매도_수량부족_예외발생() {
         // given
-        Member member             = mock(Member.class);
-        Token token               = mock(Token.class);
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
         MemberTokenHolding holding = mock(MemberTokenHolding.class);
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
-        when(holding.getCurrentQuantity()).thenReturn(3L);  // 보유 3주
+        when(holding.getCurrentQuantity()).thenReturn(3L); // 보유 3주
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.SELL)
                 .orderPrice(12000L)
-                .orderQuantity(5L)   // 요청 5주 > 보유 3주
+                .orderQuantity(5L) // 요청 5주 > 보유 3주
                 .build();
 
         // when & then
@@ -236,20 +238,20 @@ class OrderServiceImplTest {
     @Test
     void createOrder_매도_정상접수() {
         // given
-        Member member             = mock(Member.class);
-        Token token               = mock(Token.class);
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
         MemberTokenHolding holding = mock(MemberTokenHolding.class);
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
-        when(holding.getCurrentQuantity()).thenReturn(10L);  // 보유 10주
+        when(holding.getCurrentQuantity()).thenReturn(10L); // 보유 10주
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.SELL)
                 .orderPrice(12000L)
-                .orderQuantity(5L)   // 요청 5주 <= 보유 10주
+                .orderQuantity(5L) // 요청 5주 <= 보유 10주
                 .build();
 
         // when
@@ -258,5 +260,61 @@ class OrderServiceImplTest {
         // then
         verify(orderRepository).save(any(Order.class));
         verify(matchClient).sendOrder(any());
+    }
+
+    @Test
+    void updateOrder_pendingStatus_throwOrderNotModifiable() {
+        // given
+        Long orderId = 1L;
+        Order order = mock(Order.class);
+        when(order.getOrderStatus()).thenReturn(OrderStatus.PENDING);
+        when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId))
+                .thenReturn(Optional.of(order));
+
+        UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
+                .updatePrice(12000L)
+                .updateQuantity(5L)
+                .build();
+
+        // when & then
+        assertThrows(BusinessException.class,
+                () -> orderService.updateOrder(orderId, dto));
+        verify(matchClient, never()).updateOrder(any());
+    }
+
+    @Test
+    void updateOrder_partialWithQuantityBelowFilled_throwInvalidUpdateQuantity() {
+        // given
+        Long orderId = 1L;
+        Order order = mock(Order.class);
+        when(order.getOrderStatus()).thenReturn(OrderStatus.PARTIAL);
+        when(order.getFilledQuantity()).thenReturn(5L);
+        when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId))
+                .thenReturn(Optional.of(order));
+
+        UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
+                .updatePrice(12000L)
+                .updateQuantity(5L) // filledQuantity(5)와 같음 → 예외
+                .build();
+
+        // when & then
+        assertThrows(BusinessException.class,
+                () -> orderService.updateOrder(orderId, dto));
+        verify(matchClient, never()).updateOrder(any());
+    }
+
+    @Test
+    void cancelOrder_pendingStatus_throwOrderCannotCancel() {
+        // given
+        Long orderId = 1L;
+        Order order = mock(Order.class);
+        when(order.getOrderStatus()).thenReturn(OrderStatus.PENDING);
+        when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId))
+                .thenReturn(Optional.of(order));
+
+        // when & then
+        assertThrows(BusinessException.class,
+                () -> orderService.cancelOrder(orderId));
+        verify(matchClient, never()).cancelOrder(any());
     }
 }

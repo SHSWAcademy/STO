@@ -43,6 +43,7 @@ public enum ErrorCode {
     ORDER_CANNOT_CANCEL(HttpStatus.BAD_REQUEST, "ORDER_CANNOT_CANCEL", "취소할 수 없는 주문 상태입니다."),
     ORDER_NOT_OWNED(HttpStatus.FORBIDDEN, "ORDER_NOT_OWNED", "본인의 주문이 아닙니다."),
     ORDER_NOT_MODIFIABLE(HttpStatus.NOT_MODIFIED, "ORDER_CANNOT_UPDATE", "수정할 수 없는 주문 상태입니다."),
+    INVALID_UPDATE_QUANTITY(HttpStatus.BAD_REQUEST, "INVALID_UPDATE_QUANTITY", "수정 수량이 이미 체결된 수량이하입니다."),
 
     // ── 거래 시간 ────────────────────────────────────────────
     OUTSIDE_TRADING_HOURS(HttpStatus.BAD_REQUEST, "OUTSIDE_TRADING_HOURS", "거래 시간이 아닙니다. (09:00 ~ 15:30)"),
