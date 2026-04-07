@@ -23,12 +23,6 @@ public class CandleMonthWriter implements ItemWriter<CandleMonth> {
         // 프로세스에서 CandleMonth 값들을 chunk 로 받아 DB에 저장
         candleMonthRepository.saveAll(chunk.getItems());
 
-        // Redis Publish -> main 으로 전달
-        for (CandleMonth candleMonth : chunk.getItems()) {
-            String channel = "candle:" + candleMonth.getTokenId() + ":MONTH";
-            String payload = objectMapper.writeValueAsString(candleMonth);
-            redisTemplate.convertAndSend(channel, payload);
-            log.info("Published candle : {}", channel);
-        }
+
     }
 }

@@ -23,12 +23,5 @@ public class CandleYearWriter implements ItemWriter<CandleYear> {
         // 프로세스에서 CandleYear 값들을 chunk 로 받아 DB에 저장
         candleYearRepository.saveAll(chunk.getItems());
 
-        // Redis Publish -> main 으로 전달
-        for (CandleYear candleYear : chunk.getItems()) {
-            String channel = "candle:" + candleYear.getTokenId() + ":YEAR";
-            String payload = objectMapper.writeValueAsString(candleYear);
-            redisTemplate.convertAndSend(channel, payload);
-            log.info("Published candle : {}", channel);
-        }
     }
 }

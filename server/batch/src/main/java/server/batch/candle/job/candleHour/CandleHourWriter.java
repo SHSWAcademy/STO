@@ -22,12 +22,6 @@ public class CandleHourWriter implements ItemWriter<CandleHour> {
         // 프로세스에서 CandleHour 값들을 chunk 로 받아 DB에 저장
         candleHourRepository.saveAll(chunk.getItems());
 
-        // Redis Publish -> main 으로 전달
-        for (CandleHour candleHour : chunk.getItems()) {
-            String channel = "candle:" + candleHour.getTokenId() + ":HOUR";
-            String payload = objectMapper.writeValueAsString(candleHour);
-            redisTemplate.convertAndSend(channel, payload);
-            log.info("Published candle : {}", channel);
-        }
+
     }
 }
