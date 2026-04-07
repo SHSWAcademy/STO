@@ -18,4 +18,5 @@ public class AssetUpdateRequestDTO {
     private String assetAddress;        // 자산 주소
     private String tokenSymbol;         // 토큰 심볼
     private String imgUrl;              // 자산 이미지
+    private Boolean isAllocated;        // 배당 지급 여부
 }

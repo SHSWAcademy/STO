@@ -24,4 +24,9 @@ public class AllocationEvent extends BaseEntity {
     private int settlementYear;           // 배당 지급연도
     private int settlementMonth;          // 배당 지급월
     private Long disclosureId;            // 공시ID (파일 참조)
+
+    // 배치 이벤트 수정용
+    public void updateAllocationEvent(Long monthlyDividendIncome) {
+        this.monthlyDividendIncome = monthlyDividendIncome;
+    }
 }

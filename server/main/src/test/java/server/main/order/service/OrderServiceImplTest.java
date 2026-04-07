@@ -25,6 +25,7 @@ import server.main.global.util.MatchClient;
 import server.main.member.entity.Account;
 import server.main.member.entity.Member;
 import server.main.member.entity.MemberTokenHolding;
+import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.OrderRequestDto;
@@ -46,6 +47,7 @@ class OrderServiceImplTest {
     @Mock TokenRepository tokenRepository;
     @Mock MemberRepository memberRepository;
     @Mock MemberTokenHoldingRepository memberTokenHoldingRepository;
+    @Mock AccountRepository accountRepository;
     @Mock MatchClient matchClient;
 
     @InjectMocks
@@ -141,10 +143,10 @@ class OrderServiceImplTest {
         Member member = mock(Member.class);
         Token token = mock(Token.class);
 
-        when(member.getAccount()).thenReturn(account);
-        when(account.getAvailableBalance()).thenReturn(1_000_000L);  // 잔고 세팅
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(1_000_000L);  // 잔고 세팅
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.BUY)
@@ -167,10 +169,10 @@ class OrderServiceImplTest {
         Member member = mock(Member.class);
         Token token = mock(Token.class);
 
-        when(member.getAccount()).thenReturn(account);
-        when(account.getAvailableBalance()).thenReturn(10_000L);  // 잔고 부족
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(10_000L);  // 잔고 부족
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.BUY)

@@ -1,12 +1,12 @@
-package server.main.diclosure.service;
+package server.main.disclosure.service;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
-import server.main.diclosure.entity.Disclosure;
-import server.main.diclosure.mapper.DisclosureMapper;
-import server.main.diclosure.repository.DisclosureRepository;
+import server.main.disclosure.entity.Disclosure;
+import server.main.disclosure.mapper.DisclosureMapper;
+import server.main.disclosure.repository.DisclosureRepository;
 
 @Service
 @Log4j2

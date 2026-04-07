@@ -13,8 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.MatchClient;
+import server.main.member.entity.Account;
 import server.main.member.entity.Member;
 import server.main.member.entity.MemberTokenHolding;
+import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.MatchOrderRequestDto;
@@ -41,6 +43,7 @@ public class OrderServiceImpl implements OrderService {
     private final TokenRepository tokenRepository;
     private final MemberRepository memberRepository;
     private final MemberTokenHoldingRepository memberTokenHoldingRepository;
+    private final AccountRepository accountRepository;
     private final MatchClient matchClient;
 
     @Transactional
@@ -56,12 +59,15 @@ public class OrderServiceImpl implements OrderService {
 
         // 매수일 경우
         if (OrderType.BUY.equals(dto.getOrderType())) {
+            Account findAccount = accountRepository.findByMember(findMember)
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
             // 원화 잔고 >= 총 주문 금액 검증
-            if (findMember.getAccount().getAvailableBalance() < dto.getOrderPrice() * dto.getOrderQuantity())
+            if (findAccount.getAvailableBalance() < dto.getOrderPrice() * dto.getOrderQuantity())
                 throw new BusinessException(INSUFFICIENT_BALANCE);
 
             // 매수 주문일 경우 구매력 차감 (current quantity 감소, locked quantity 증가)
-            else findMember.getAccount().lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도 된다)
+            else findAccount.lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도 된다)
         }
 
         // 매도일 경우
@@ -131,7 +137,7 @@ public class OrderServiceImpl implements OrderService {
         Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-        // OPEN, PARTIAL 만 허용
+        // OPEN, PARTIAL 상태값이 아니라면 오류 (PENDING = match 처리 중이므로 수정 불가)
         if (!findOrder.getOrderStatus().equals(OrderStatus.OPEN) &&
                 !findOrder.getOrderStatus().equals(OrderStatus.PARTIAL)) {
             throw new BusinessException(ORDER_NOT_MODIFIABLE);
@@ -146,13 +152,16 @@ public class OrderServiceImpl implements OrderService {
 
         // 매수일 경우
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
+            Account findAccount = accountRepository.findByMember(findOrder.getMember())
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
             long oldAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
             long updateAmount = dto.getUpdatePrice() * dto.getUpdateQuantity();
 
             // 수정 시점 회원의 구매력 < 수정으로 다시 구매할 구매력일 경우 오류 -> 부분 체결일 경우 고려하기
-            if (findOrder.getMember().getAccount().getAvailableBalance() + oldAmount < updateAmount)
+            if (findAccount.getAvailableBalance() + oldAmount < updateAmount)
                 throw new BusinessException(INSUFFICIENT_BALANCE);
-            else findOrder.getMember().getAccount().relockBalance(oldAmount, updateAmount);
+            else findAccount.relockBalance(oldAmount, updateAmount);
         }
 
         // 매도일 경우
@@ -194,7 +203,7 @@ public class OrderServiceImpl implements OrderService {
         Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-        // OPEN, PARTIAL 만 허용
+        // OPEN, PARTIAL 상태값이 아니라면 오류 (PENDING = match 처리 중이므로 취소 불가)
         if (!findOrder.getOrderStatus().equals(OrderStatus.OPEN) &&
                 !findOrder.getOrderStatus().equals(OrderStatus.PARTIAL)) {
             throw new BusinessException(ORDER_CANNOT_CANCEL);
@@ -202,9 +211,12 @@ public class OrderServiceImpl implements OrderService {
 
         // 매수일 경우
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
+            Account findAccount = accountRepository.findByMember(findOrder.getMember())
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
             // 묶인 금액 풀고 회원 잔고 증가
             Long lockedAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
-            findOrder.getMember().getAccount().cancelOrder(lockedAmount);
+            findAccount.cancelOrder(lockedAmount);
         }
 
         // 매도일 경우
