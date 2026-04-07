@@ -1,7 +1,7 @@
 package server.main.token.dto;
 
 import lombok.*;
-import server.main.diclosure.entity.DisclosureCategory;
+import server.main.disclosure.entity.DisclosureCategory;
 
 import java.time.LocalDateTime;
 

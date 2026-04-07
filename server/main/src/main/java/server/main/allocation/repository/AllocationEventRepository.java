@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface AllocationEventRepository extends JpaRepository<AllocationEvent, Long> {
     // 현재월 기준으로 자산 배당 리스트 조회
-    @Query("SELECT a FROM AllocationEvent a WHERE YEAR(a.createdAt) = :year AND MONTH(a.createdAt) = :month")
+    @Query("SELECT a FROM AllocationEvent a WHERE a.settlementYear = :year AND a.settlementMonth = :month")
     List<AllocationEvent> findAllBySettlementMonth(@Param("year") int year, @Param("month") int month);
 
     // 현재월에 배당 스케줄 등록했는지 검증

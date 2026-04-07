@@ -15,7 +15,7 @@ import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
 import server.main.asset.entity.Asset;
 import server.main.asset.repository.AssetRepository;
-import server.main.diclosure.service.DisclosureService;
+import server.main.disclosure.service.DisclosureService;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.file.File;
@@ -79,7 +79,7 @@ public class AdminServiceImpl implements AdminService {
             Long disclosureId = disclosureService.registerAssetDisclosure(assetName, assetId);
 
             // PDF파일 저장 (pdf 파일, 공시ID 넣어서 호출)
-            fileService.savePdf(pdfFile, disclosureId);
+            fileService.saveOrUpdatePdf(pdfFile, disclosureId);
 
         } catch (Exception e) {
             // DB 저장 실패 시 디스크에 저장된 이미지 파일 삭제
@@ -92,12 +92,12 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public AssetDetailResponseDTO getAssetDetail(Long assetId) {
         PlatformTokenHolding holding = platformTokenHoldingsRepository.findWithTokenAndAssetByAssetId(assetId)
-                .orElseThrow(() -> new EntityNotFoundException("자산을 찾을 수 없음"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUNT_ERROR));
         // 자산ID로 공시에서 건물정보에 관한 공시ID조화
         Long disclosureId = disclosureService.getDisclosureBuilding(assetId);
         // PDF파일 조회
         File file = fileService.getAssetFile(disclosureId);
-        return adminMapper.toAssetDetailResponseDTO(holding, file);
+        return adminMapper.toAssetDetailResponseDTO(holding, file, disclosureId);
     }
 
     // 자산 리스트 조회
@@ -116,7 +116,7 @@ public class AdminServiceImpl implements AdminService {
 
         // 기존 자산내역 조회
         Asset asset = assetRepository.findById(assetId)
-                .orElseThrow(() -> new EntityNotFoundException("자산을 찾을 수 없음"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUNT_ERROR));
 
         // 이미지가 null이 아닐 때만 저장 / 삭제
         String storedImageName = asset.getImgUrl();
@@ -127,18 +127,18 @@ public class AdminServiceImpl implements AdminService {
             storedImageName = fileService.saveImage(imageFile);
         }
         // 자산수정
-        asset.updateAsset(dto.getAssetName(), dto.getAssetAddress(), storedImageName);
+        asset.updateAsset(dto.getAssetName(), dto.getAssetAddress(), storedImageName, dto.getIsAllocated());
 
         // 토큰 수정
         Token token = tokenRepository.findById(dto.getTokenId())
-                .orElseThrow(() -> new EntityNotFoundException("토큰을 찾을 수 없음"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUNT_ERROR));
         // 토큰 수정
         token.update(dto.getTokenStatus(), dto.getTokenSymbol());
 
         // pdf파일이 수정됐다면
         if (pdfFile != null && !pdfFile.isEmpty()) {
             // pdf 저장 메소드 호출 (여기에 기존파일 삭제로직 들어감)
-            fileService.savePdf(pdfFile, dto.getDisclosureId());
+            fileService.saveOrUpdatePdf(pdfFile, dto.getDisclosureId());
         }
     }
 
@@ -201,7 +201,7 @@ public class AdminServiceImpl implements AdminService {
         log.info("배당 이벤트 저장 : {}", saveAllocationEvent);
 
         // 파일저장
-        fileService.savePdf(file, disclosureId);
+        fileService.saveOrUpdatePdf(file, disclosureId);
     }
 
     // 배당 스케줄내역 상세조회 리스트
@@ -230,6 +230,25 @@ public class AdminServiceImpl implements AdminService {
                     return adminMapper.toAllocationDetailResponseDTO(event, file);
                 })
                 .collect(Collectors.toList());
+    }
+
+    // 배당 배치 스케줄 수정
+    @Transactional
+    @Override
+    public void updateAllocation(Long allocationEventId, AllocationUpdateRequestDTO dto, MultipartFile file) {
+        // 기존 내역 확인
+        AllocationEvent allocationEvent = allocationEventRepository.findById(allocationEventId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUNT_ERROR));
+        // 이미 지급된 배당인지 검증
+        if (allocationEvent.getAllocationBatchStatus()) {
+            throw new BusinessException(ErrorCode.ALLOCATION_UPDATE_NOT_ALLOWED);
+        }
+        // 월 수익 수정
+        allocationEvent.updateAllocationEvent(dto.getMonthlyDividendIncome());
+        // file도 수정됐다면
+        if (file != null && !file.isEmpty()) {
+            fileService.saveOrUpdatePdf(file, dto.getDisclosureId());
+        }
     }
 
     // 마감월 리턴 메서드
