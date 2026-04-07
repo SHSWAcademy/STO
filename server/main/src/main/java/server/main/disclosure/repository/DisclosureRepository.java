@@ -1,9 +1,9 @@
-package server.main.diclosure.repository;
+package server.main.disclosure.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import server.main.diclosure.entity.Disclosure;
+import server.main.disclosure.entity.Disclosure;
 
 import java.util.List;
 import java.util.Optional;

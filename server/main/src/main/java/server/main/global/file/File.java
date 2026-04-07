@@ -21,4 +21,12 @@ public class File extends BaseEntity {
     private Long size;          // 파일 용량
     private String path;        // 파일 저장명
 
+
+    // 파일 수정용 메서드
+    public void updateFile(String origin_name, String stored_name, Long size, String path) {
+        this.origin_name = origin_name;
+        this.stored_name = stored_name;
+        this.size = size;
+        this.path = path;
+    }
 }
