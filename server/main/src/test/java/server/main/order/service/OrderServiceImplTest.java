@@ -316,6 +316,69 @@ class OrderServiceImplTest {
     }
 
     @Test
+    void updateOrder_PARTIAL_BUY_정상수정_남은수량기준_relockBalance검증() {
+        // given
+        Long orderId = 1L;
+        Order order = mock(Order.class);
+        Member member = mock(Member.class);
+        Account account = mock(Account.class);
+
+        when(order.getOrderStatus()).thenReturn(OrderStatus.PARTIAL);
+        when(order.getOrderType()).thenReturn(OrderType.BUY);
+        when(order.getFilledQuantity()).thenReturn(5L);
+        when(order.getRemainingQuantity()).thenReturn(5L);   // oldAmount = 100 * 5 = 500
+        when(order.getOrderPrice()).thenReturn(100L);
+        when(order.getMember()).thenReturn(member);
+        when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId)).thenReturn(Optional.of(order));
+        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(0L);  // availableBalance(0) + oldAmount(500) >= updateAmount(360)
+
+        UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
+                .updatePrice(120L)
+                .updateQuantity(8L)  // newRemaining = 8 - 5 = 3, updateAmount = 120 * 3 = 360
+                .build();
+
+        // when
+        orderService.updateOrder(orderId, dto);
+
+        // then: total 기준(120*8=960)이 아닌 remaining 기준(120*3=360)으로 호출되어야 한다
+        verify(account).relockBalance(500L, 360L);
+        verify(matchClient).updateOrder(any());
+    }
+
+    @Test
+    void updateOrder_PARTIAL_SELL_정상수정_남은수량기준_relockQuantity검증() {
+        // given
+        Long orderId = 1L;
+        Order order = mock(Order.class);
+        Member member = mock(Member.class);
+        MemberTokenHolding holding = mock(MemberTokenHolding.class);
+        Token token = mock(Token.class);
+
+        when(order.getOrderStatus()).thenReturn(OrderStatus.PARTIAL);
+        when(order.getOrderType()).thenReturn(OrderType.SELL);
+        when(order.getFilledQuantity()).thenReturn(5L);
+        when(order.getRemainingQuantity()).thenReturn(5L);   // oldQuantity = 5
+        when(order.getMember()).thenReturn(member);
+        when(order.getToken()).thenReturn(token);
+        when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId)).thenReturn(Optional.of(order));
+        when(memberTokenHoldingRepository.findByMemberAndToken(member, token)).thenReturn(Optional.of(holding));
+        when(holding.getCurrentQuantity()).thenReturn(0L);  // currentQuantity(0) + oldQuantity(5) >= updateQuantity(3)
+
+        UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
+                .updatePrice(120L)
+                .updateQuantity(8L)  // updateQuantity(remaining) = 8 - 5 = 3
+                .build();
+
+        // when
+        orderService.updateOrder(orderId, dto);
+
+        // then: total 기준(8)이 아닌 remaining 기준(3)으로 호출되어야 한다
+        verify(holding).relockQuantity(5L, 3L);
+        verify(matchClient).updateOrder(any());
+    }
+
+    @Test
     void cancelOrder_PENDING상태_취소불가_예외발생() {
         // given
         Long orderId = 1L;

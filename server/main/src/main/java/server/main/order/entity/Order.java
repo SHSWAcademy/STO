@@ -30,8 +30,10 @@ public class Order extends BaseEntity {
     private Long orderQuantity;         // 처음 요청한 매도 / 매수 수량
 
     @Column(nullable = false)
+    @Builder.Default
     private Long filledQuantity = 0L;   // 체결 수량
 
+    @Column(nullable = false)
     private Long remainingQuantity;     // 미체결 수량
 
     @Enumerated(EnumType.STRING)
