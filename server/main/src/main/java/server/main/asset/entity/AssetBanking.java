@@ -19,8 +19,10 @@ public class AssetBanking {
     private LocalDateTime createdAt;    // 시각
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "asset_banking_direction")
     private AssetBankingDirection direction;    // 입금 / 출금
     @Enumerated(EnumType.STRING)
+    @Column(name = "asset_banking_type")
     private AssetBankingType type;      // 입출금 유형
 
     // 계좌랑 연관 N : 1

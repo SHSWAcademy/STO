@@ -50,8 +50,8 @@ public class AssetServiceImpl implements AssetService{
         AssetAccount account = assetAccountRepository.save(saveAccount);
         // 초기 금액 입금처리 (플랫폼 소유토큰 제외)
         AssetBanking assetBanking = AssetBanking.builder()
-                // 토큰발행 실제 개수 * 현재가격
-                .assetBankingAmount(token.getCirculatingSupply() * token.getInitPrice())
+                // 토큰발행 (총 개수 - 실제 개수) * 초기가격 = 플랫폼 소유 가격만 입금함
+                .assetBankingAmount((token.getTotalSupply() - token.getCirculatingSupply()) * token.getInitPrice())
                 .assetAccount(account)
                 .direction(AssetBankingDirection.DEPOSIT)
                 .type(AssetBankingType.EXTRA)

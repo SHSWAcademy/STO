@@ -22,6 +22,7 @@ public class AssetAccount extends BaseEntity {
     // 초기 자산 계좌 생성용
     @Builder
     public AssetAccount (Long assetId) {
+        this.assetAccountBalance = 0L;
         this.assetId = assetId;
     }
 
