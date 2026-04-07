@@ -49,11 +49,12 @@ public class AdminMapper {
     }
 
     // 자산 상세조회 entity -> dto 변환
-    public AssetDetailResponseDTO toAssetDetailResponseDTO(PlatformTokenHolding holding, File file) {
+    public AssetDetailResponseDTO toAssetDetailResponseDTO(PlatformTokenHolding holding, File file, Long disclosureId) {
         Token token = holding.getToken();
         Asset asset = token.getAsset();
         return AssetDetailResponseDTO.builder()
                 .assetId(asset.getAssetId())
+                .disclosureId(disclosureId)
                 .assetName(asset.getAssetName())
                 .assetAddress(asset.getAssetAddress())
                 .imgUrl(asset.getImgUrl())
@@ -102,14 +103,14 @@ public class AdminMapper {
     // 배당 상세내역 리스트 entity -> dto
     public AllocationDetailResponseDTO toAllocationDetailResponseDTO(AllocationEvent dto, File file) {
         return AllocationDetailResponseDTO.builder()
+                .allocationEventId(dto.getAllocationEventId())
+                .disclosureId(dto.getDisclosureId())
                 .allocationBatchStatus(dto.getAllocationBatchStatus())
                 .monthlyDividendIncome(dto.getMonthlyDividendIncome())
                 .settled_at(dto.getSettledAt())
                 .settlementMonth(dto.getSettlementMonth())
                 .settlementYear(dto.getSettlementYear())
-                .fileId(file.getFileId())
-                .originName(file.getOrigin_name())
-                .storedName(file.getStored_name())
+                .pdfName(file.getOrigin_name())
                 .build();
     }
 

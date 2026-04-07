@@ -1,4 +1,4 @@
-package server.main.diclosure.service;
+package server.main.disclosure.service;
 
 public interface DisclosureService {
     Long registerAssetDisclosure(String assetName, Long assetId);   // 공시 자동등록(BUILDING)

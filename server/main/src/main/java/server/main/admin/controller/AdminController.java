@@ -6,10 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import server.main.admin.dto.AssetDetailResponseDTO;
-import server.main.admin.dto.AssetListResponseDTO;
-import server.main.admin.dto.AssetRegisterRequestDTO;
-import server.main.admin.dto.AssetUpdateRequestDTO;
+import server.main.admin.dto.*;
 import server.main.admin.service.AdminService;
 
 import java.io.IOException;
@@ -59,10 +56,37 @@ public class AdminController {
         return ResponseEntity.ok().build();
     }
 
-    // 자산 배당금 리스트 조회
+    // 배당 스케줄 등록
+    @PostMapping("/allocationEvent")
+    public ResponseEntity<Void> RegisterAllocationEvent(@RequestPart AllocationRegisterRequestDTO dto,
+                                    @RequestPart MultipartFile file) {
+        adminService.registerAllocation(dto, file);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
 
+    // 배당 리스트 조회
+    @GetMapping("/allocationEvent")
+    public ResponseEntity <List<AllocationListResponseDTO>> getAllocationEventList() {
+        List<AllocationListResponseDTO> list = adminService.getAllocationList();
+        return ResponseEntity.ok(list);
+    }
 
+    // 배당 스케줄 상세 조회
+    @GetMapping("/allocationEvent/{allocationEventId}")
+    public ResponseEntity<List<AllocationDetailResponseDTO>> getAllocationEventDetail(@PathVariable Long allocationEventId) {
+        List<AllocationDetailResponseDTO> list = adminService.getAllocationDetailList(allocationEventId);
+        return ResponseEntity.ok(list);
+    }
 
+    // 배당 수정
+    @PatchMapping("/allocationEvent/{allocationEventId}")
+    public ResponseEntity<Void> updateAllocationEvent(@PathVariable Long allocationEventId,
+                                                      @RequestPart AllocationUpdateRequestDTO dto,
+                                                      @RequestPart MultipartFile file) {
+        // 수정 서비스 호출
+        adminService.updateAllocation(allocationEventId, dto, file);
+        return ResponseEntity.ok().build();
+    }
     // 발행 -> 발행완료상태 -> 오전9시 발행완료 -> 거래 중
 
  }

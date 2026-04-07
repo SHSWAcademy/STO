@@ -1,8 +1,8 @@
-package server.main.diclosure.mapper;
+package server.main.disclosure.mapper;
 
 import org.springframework.stereotype.Component;
-import server.main.diclosure.entity.Disclosure;
-import server.main.diclosure.entity.DisclosureCategory;
+import server.main.disclosure.entity.Disclosure;
+import server.main.disclosure.entity.DisclosureCategory;
 
 @Component
 public class DisclosureMapper {

@@ -1,9 +1,7 @@
-package server.main.diclosure.entity;
+package server.main.disclosure.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.apache.ibatis.annotations.Many;
-import server.main.asset.entity.Asset;
 import server.main.global.util.BaseEntity;
 
 @Entity
