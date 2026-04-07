@@ -525,7 +525,7 @@ CREATE TABLE APILOG (
 -- =====================================================
 -- 29. CANDLEMINUTES
 -- =====================================================
-CREATE TABLE CANDLEMINUTES (
+CREATE TABLE CANDLE_MINUTES (
     candle_id   BIGINT        NOT NULL,
     token_id    BIGINT        NOT NULL,
     open_price  DECIMAL(20,4) NULL,
@@ -543,7 +543,7 @@ CREATE TABLE CANDLEMINUTES (
 -- =====================================================
 -- 30. CANDLEHOURS
 -- =====================================================
-CREATE TABLE CANDLEHOURS (
+CREATE TABLE CANDLE_HOURS (
     candle_id   BIGINT        NOT NULL,
     token_id    BIGINT        NOT NULL,
     open_price  DECIMAL(20,4) NULL,
@@ -561,7 +561,7 @@ CREATE TABLE CANDLEHOURS (
 -- =====================================================
 -- 31. CANDLEDAYS
 -- =====================================================
-CREATE TABLE CANDLEDAYS (
+CREATE TABLE CANDLE_DAYS (
     candle_id   BIGINT        NOT NULL,
     token_id    BIGINT        NOT NULL,
     open_price  DECIMAL(20,4) NULL,
@@ -579,7 +579,7 @@ CREATE TABLE CANDLEDAYS (
 -- =====================================================
 -- 32. CANDLEMONTHS
 -- =====================================================
-CREATE TABLE CANDLEMONTHS (
+CREATE TABLE CANDLE_MONTHS (
     candle_id   BIGINT        NOT NULL,
     token_id    BIGINT        NOT NULL,
     open_price  DECIMAL(20,4) NULL,
@@ -597,7 +597,7 @@ CREATE TABLE CANDLEMONTHS (
 -- =====================================================
 -- 33. CANDLEYEARS
 -- =====================================================
-CREATE TABLE CANDLEYEARS (
+CREATE TABLE CANDLE_YEARS (
     candle_id   BIGINT        NOT NULL,
     token_id    BIGINT        NOT NULL,
     open_price  DECIMAL(20,4) NULL,
