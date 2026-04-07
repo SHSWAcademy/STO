@@ -15,8 +15,7 @@ import server.batch.candle.repository.CandleHourRepository;
 @Slf4j
 public class CandleHourWriter implements ItemWriter<CandleHour> {
     private final CandleHourRepository candleHourRepository;
-    private final RedisTemplate<String, String> redisTemplate;
-    private final ObjectMapper objectMapper;
+
     @Override
     public void write(Chunk<? extends CandleHour> chunk) throws Exception {
         // 프로세스에서 CandleHour 값들을 chunk 로 받아 DB에 저장

@@ -1,6 +1,5 @@
 package server.main.global.websocket;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
@@ -20,19 +19,18 @@ public class RedisSubscriber implements MessageListener {
         String channel = new String(message.getChannel());
         String body = new String(message.getBody());
 
-        // Redis checks if the message being published is related to the orderBook or trades or candleChart
-        // 레디스가 받은 메시지가 어떤 것인지 확인 (호가창, 거래 완료, 캔들 차트 관련)
+        // Redis checks if the message being published is related to the orderBook or trades or pendingOrders
+        // 레디스가 받은 메시지가 어떤 것인지 확인 (호가창, 거래 완료, 대기 주문)
         String[] parts = channel.split(":");
         String type = parts[0];
 
         // send to subscriber
-        // 호가, 거래 완료 메시지는 매치 서버에서 받고, 캔들 차트 신호는 배치 서버로부터 받는다
+        // 호가, 거래 완료 메시지는 매치 서버에서 받는다
+        // 캔들 차트는 과거 봉 REST, 현재 봉은 trades 이벤트 기반으로 처리하므로 batch publish 없음
         if ("orderBook".equals(type)) {
             messagingTemplate.convertAndSend("/topic/orderBook/" + parts[1], body);
         } else if ("trades".equals(type)) {
             messagingTemplate.convertAndSend("/topic/trades/" + parts[1], body);
-        } else if ("candle".equals(type)) { // 상세 페이지 - 캔들 차트 마지막 봉 소켓으로 가져오기
-            messagingTemplate.convertAndSend("/topic/candle/" + parts[1] + "/" + parts[2], body);
         } else if ("pendingOrders".equals(type)) { // 상세 페이지 - 대기 웹소켓
             messagingTemplate.convertAndSend("/topic/pendingOrders/" + parts[1] + "/" + parts[2], body);
         }

@@ -15,8 +15,7 @@ import server.batch.candle.repository.CandleYearRepository;
 @Slf4j
 public class CandleYearWriter implements ItemWriter<CandleYear> {
     private final CandleYearRepository candleYearRepository;
-    private final RedisTemplate<String, String> redisTemplate;
-    private final ObjectMapper objectMapper;
+
 
     @Override
     public void write(Chunk<? extends CandleYear> chunk) throws Exception {

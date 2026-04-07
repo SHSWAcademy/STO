@@ -83,16 +83,55 @@
 
 ---
 
-### [6] 캔들 차트 API (main, REST + WebSocket) ✅ 완료
+### [6] 캔들 차트 API (main, REST + WebSocket)
 
+#### [6-1] 과거 봉 REST API ✅ 완료
 - [x] `Candle.java` — `@MappedSuperclass`로 전환
 - [x] `CandleMinute`, `CandleHour`, `CandleDay`, `CandleMonth`, `CandleYear` — `extends Candle` 완료
-- [x] `CandleResponseDto.java` 생성
+- [x] `CandleResponseDto.java` 생성 (openPrice, highPrice, lowPrice, closePrice, volume, candleTime, tradeCount)
 - [x] `CandleMapper.java` 생성 (MapStruct)
 - [x] 5개 Repository — `findTop35Before(tokenId, before)` 쿼리 추가
 - [x] `CandleServiceImpl.getCandles()` — `CandleType` enum 기반 타입별 분기, truncatedTo 기준 시각 계산
-- [x] `CandleController` — `GET /api/token/{tokenId}/candles?type={MINUTE|HOUR|DAY|MONTH|YEAR}`
-- [x] `RedisSubscriber` — `candle:{type}:{tokenId}` → `/topic/candle/{type}/{tokenId}` 브로드캐스트 추가
+- [x] `CandleController` — `GET /api/token/{tokenId}/candle?type={MINUTE|HOUR|DAY|MONTH|YEAR}`
+  > 클라이언트가 상세 페이지 진입 시 이 API로 과거 봉 35개를 가져와 차트에 렌더링
+  >
+  > **주의**: Batch Processor에서 openPrice/closePrice/volume/tradeCount를 NULL로 저장 중 → REST 응답에 해당 필드 NULL. Batch todolist의 Processor 버그 수정 후 정상 동작
+
+#### [6-2] Batch Redis candle publish 제거 ✅ 완료 (2026-04-07)
+- [x] `RedisSubscriber` — `candle` 타입 케이스 삭제
+- [x] Batch Writer 5개 (Minute/Hour/Day/Month/Year) — Redis publish 코드 전부 제거
+  > Batch는 DB 적재만 담당. 과거 봉은 REST, 현재 봉은 trades 이벤트로 처리
+
+#### [6-3] 현재 봉 실시간 고가/저가 WebSocket ⬜ 미구현 (내일 작업)
+
+> **설계**: match 서버 체결 완료 → Redis publish("trades:{tokenId}") → main RedisSubscriber 수신
+> → 현재 봉 고가/저가를 갱신해 WebSocket `/topic/candle/live/{tokenId}`으로 클라이언트에 push
+
+**구현 순서:**
+- [ ] `candle/CandleLiveManager.java` 생성 — 현재 봉 상태 in-memory 관리
+  - `ConcurrentHashMap<Long tokenId, LiveCandle>` 으로 관리
+  - `LiveCandle` 필드: `currentHigh`, `currentLow`, `openPrice`, `candleStartTime`
+  - 봉 기간(1분)이 바뀌면 자동 초기화
+- [ ] `RedisSubscriber` `trades` 케이스 확장
+  - 현재는 `/topic/trades/{tokenId}`로 relay만 함
+  - body에서 `tradePrice` 추출 → `CandleLiveManager.update(tokenId, tradePrice)` 호출
+  - 갱신된 현재 봉 데이터를 `/topic/candle/live/{tokenId}`로 추가 브로드캐스트
+- [ ] match 서버 팀원 공유: `trades:{tokenId}` payload에 `tradePrice` 필드 반드시 포함 필요
+
+**현재 봉 WebSocket 응답 예시 (main → 클라이언트):**
+```json
+{
+  "highPrice": 12200,
+  "lowPrice": 12050,
+  "openPrice": 12100,
+  "candleTime": "2026-04-07T10:29:00"
+}
+```
+
+#### [6-4] 프론트엔드 캔들 차트 연동 ⬜ 미구현 (내일 작업, [9-3]과 동일)
+- [ ] 상세 페이지 진입 시 `GET /api/token/{tokenId}/candle?type=MINUTE` 호출 → 과거 봉 35개 렌더링
+- [ ] 차트 기간 버튼(`1분`, `시간`, `일`, `달`, `년`) 클릭 시 type 파라미터 변경 후 재조회
+- [ ] WebSocket `/topic/candle/live/{tokenId}` 구독 → 수신 시 현재(마지막) 봉의 고가/저가 실시간 업데이트
 
 ### [7] match 서버 작업 (팀원)
 
@@ -206,10 +245,11 @@
   }
   ```
 
-#### [9-3] 캔들 차트 — `ChartPanel.jsx` 상단
-- [ ] `CHART_DATA` mock → `GET /api/token/{tokenId}/candles?type=MINUTE` HTTP 호출로 교체
-- [ ] 차트 기간 버튼(`1분`, `일`, `주`, `월`, `년`) 클릭 시 type 파라미터 변경 후 재조회
-- [ ] WebSocket `/topic/candle/{type}/{tokenId}` 구독 → 새 봉 수신 시 차트 끝에 append
+#### [9-3] 캔들 차트 — `ChartPanel.jsx` 상단 (→ [6-4]에 상세 기술)
+- [ ] `CHART_DATA` mock → `GET /api/token/{tokenId}/candle?type=MINUTE` HTTP 호출로 교체
+- [ ] 차트 기간 버튼(`1분`, `시간`, `일`, `달`, `년`) 클릭 시 type 파라미터 변경 후 재조회
+- [ ] WebSocket `/topic/candle/live/{tokenId}` 구독 → 수신 시 현재 봉 고가/저가 실시간 업데이트
+  > ~~`/topic/candle/{type}/{tokenId}`~~ 변경됨 — Batch publish 제거로 인해 live topic으로 교체
 
 #### [9-4] 주문창 — `OrderPanel.jsx`
 - [ ] 매수/매도 버튼 → `POST /api/token/{tokenId}/order` 호출로 교체

@@ -17,8 +17,6 @@ public class CandleMinuteWriter implements ItemWriter<CandleMinute> { // 쓰는 
     // reader -> processor -> writer 흐름
 
     private final CandleMinuteRepository candleMinuteRepository;
-    private final RedisTemplate<String, String> redisTemplate;
-    private final ObjectMapper objectMapper;
 
     @Override
     public void write(Chunk<? extends CandleMinute> chunk) throws Exception {
