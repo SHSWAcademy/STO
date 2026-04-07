@@ -1,4 +1,4 @@
-package server.batch.candle.job;
+package server.batch.candle.job.candleMinute;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
