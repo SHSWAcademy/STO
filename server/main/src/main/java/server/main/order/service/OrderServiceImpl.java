@@ -67,7 +67,9 @@ public class OrderServiceImpl implements OrderService {
                 throw new BusinessException(INSUFFICIENT_BALANCE);
 
             // 매수 주문일 경우 구매력 차감 (current quantity 감소, locked quantity 증가)
-            else findAccount.lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도 된다)
+            else
+                findAccount.lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도
+                                                                                       // 된다)
         }
 
         // 매도일 경우
@@ -143,6 +145,12 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(ORDER_NOT_MODIFIABLE);
         }
 
+        // 공통 입력 검증 (null, 0, 음수 차단)
+        if (dto.getUpdatePrice() == null || dto.getUpdatePrice() <= 0 ||
+                dto.getUpdateQuantity() == null || dto.getUpdateQuantity() <= 0) {
+            throw new BusinessException(INVALID_INPUT_VALUE);
+        }
+
         // PARTIAL 상태일 때만 수량 검증
         if (findOrder.getOrderStatus().equals(OrderStatus.PARTIAL)) {
             if (dto.getUpdateQuantity() <= findOrder.getFilledQuantity()) {
@@ -156,12 +164,14 @@ public class OrderServiceImpl implements OrderService {
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
             long oldAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
-            long updateAmount = dto.getUpdatePrice() * dto.getUpdateQuantity();
+            long newRemaining = dto.getUpdateQuantity() - findOrder.getFilledQuantity();
+            long updateAmount = dto.getUpdatePrice() * newRemaining;
 
             // 수정 시점 회원의 구매력 < 수정으로 다시 구매할 구매력일 경우 오류 -> 부분 체결일 경우 고려하기
             if (findAccount.getAvailableBalance() + oldAmount < updateAmount)
                 throw new BusinessException(INSUFFICIENT_BALANCE);
-            else findAccount.relockBalance(oldAmount, updateAmount);
+            else
+                findAccount.relockBalance(oldAmount, updateAmount);
         }
 
         // 매도일 경우
@@ -171,7 +181,7 @@ public class OrderServiceImpl implements OrderService {
                     .orElseThrow(() -> new BusinessException(INSUFFICIENT_TOKEN_BALANCE));
 
             long oldQuantity = findOrder.getRemainingQuantity();
-            long updateQuantity = dto.getUpdateQuantity();
+            long updateQuantity = dto.getUpdateQuantity() - findOrder.getFilledQuantity();
 
             if (tokenHolding.getCurrentQuantity() + oldQuantity < updateQuantity) {
                 throw new BusinessException(INSUFFICIENT_TOKEN_BALANCE);

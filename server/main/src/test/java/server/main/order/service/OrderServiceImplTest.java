@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static server.main.global.error.ErrorCode.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,13 +43,20 @@ import server.main.token.repository.TokenRepository;
 @ExtendWith(MockitoExtension.class)
 class OrderServiceImplTest {
 
-    @Mock OrderMapper orderMapper;
-    @Mock OrderRepository orderRepository;
-    @Mock TokenRepository tokenRepository;
-    @Mock MemberRepository memberRepository;
-    @Mock MemberTokenHoldingRepository memberTokenHoldingRepository;
-    @Mock AccountRepository accountRepository;
-    @Mock MatchClient matchClient;
+    @Mock
+    OrderMapper orderMapper;
+    @Mock
+    OrderRepository orderRepository;
+    @Mock
+    TokenRepository tokenRepository;
+    @Mock
+    MemberRepository memberRepository;
+    @Mock
+    MemberTokenHoldingRepository memberTokenHoldingRepository;
+    @Mock
+    AccountRepository accountRepository;
+    @Mock
+    MatchClient matchClient;
 
     @InjectMocks
     OrderServiceImpl orderService;
@@ -128,8 +136,8 @@ class OrderServiceImplTest {
         when(orderMapper.toPendingDtoList(List.of(partialOrder))).thenReturn(List.of(dto));
 
         // when
-        List<PendingOrderResponseDto> result = orderService.getPendingOrders(TOKEN_ID);
 
+        List<PendingOrderResponseDto> result = orderService.getPendingOrders(TOKEN_ID);
         // then
         assertThat(result.get(0).getOrderStatus()).isEqualTo(OrderStatus.PARTIAL);
         assertThat(result.get(0).getFilledQuantity()).isEqualTo(4L);
@@ -146,7 +154,7 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
-        when(account.getAvailableBalance()).thenReturn(1_000_000L);  // 잔고 세팅
+        when(account.getAvailableBalance()).thenReturn(1_000_000L); // 잔고 세팅
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.BUY)
@@ -172,7 +180,7 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
-        when(account.getAvailableBalance()).thenReturn(10_000L);  // 잔고 부족
+        when(account.getAvailableBalance()).thenReturn(10_000L); // 잔고 부족
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.BUY)
@@ -265,7 +273,7 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void updateOrder_pendingStatus_throwOrderNotModifiable() {
+    void updateOrder_PENDING상태_수정불가_예외발생() {
         // given
         Long orderId = 1L;
         Order order = mock(Order.class);
@@ -279,13 +287,14 @@ class OrderServiceImplTest {
                 .build();
 
         // when & then
-        assertThrows(BusinessException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> orderService.updateOrder(orderId, dto));
+        assertThat(ex.getErrorCode()).isEqualTo(ORDER_NOT_MODIFIABLE);
         verify(matchClient, never()).updateOrder(any());
     }
 
     @Test
-    void updateOrder_partialWithQuantityBelowFilled_throwInvalidUpdateQuantity() {
+    void updateOrder_PARTIAL상태_수정수량이체결량이하_예외발생() {
         // given
         Long orderId = 1L;
         Order order = mock(Order.class);
@@ -300,13 +309,14 @@ class OrderServiceImplTest {
                 .build();
 
         // when & then
-        assertThrows(BusinessException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> orderService.updateOrder(orderId, dto));
+        assertThat(ex.getErrorCode()).isEqualTo(INVALID_UPDATE_QUANTITY);
         verify(matchClient, never()).updateOrder(any());
     }
 
     @Test
-    void cancelOrder_pendingStatus_throwOrderCannotCancel() {
+    void cancelOrder_PENDING상태_취소불가_예외발생() {
         // given
         Long orderId = 1L;
         Order order = mock(Order.class);
@@ -315,8 +325,9 @@ class OrderServiceImplTest {
                 .thenReturn(Optional.of(order));
 
         // when & then
-        assertThrows(BusinessException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> orderService.cancelOrder(orderId));
+        assertThat(ex.getErrorCode()).isEqualTo(ORDER_CANNOT_CANCEL);
         verify(matchClient, never()).cancelOrder(any());
     }
 }

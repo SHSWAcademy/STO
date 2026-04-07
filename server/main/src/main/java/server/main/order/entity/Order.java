@@ -52,7 +52,7 @@ public class Order extends BaseEntity {
     public void updateOrder(Long updatePrice, Long updateQuantity) {
         this.orderPrice = updatePrice;
         this.orderQuantity = updateQuantity;
-        this.remainingQuantity = updateQuantity;
+        this.remainingQuantity = updateQuantity - this.filledQuantity;
     }
 
     public void removeOrder() {
