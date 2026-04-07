@@ -20,9 +20,9 @@ export function AuthPage() {
   const [email, setEmail]           = useState('');
   const [password, setPassword]     = useState('');
 
-  function handleLogin() {
+  async function handleLogin() {
     if (!email.trim() || !password.trim()) return;
-    const isAdmin = login(email, password);
+    const isAdmin = await login(email, password);
     navigate(isAdmin ? '/admin' : '/');
   }
 
@@ -30,8 +30,8 @@ export function AuthPage() {
     setShowComplete(true);
   }
 
-  function handleSignupComplete() {
-    login('demo@sto.exchange', 'user');
+  async function handleSignupComplete() {
+    await login('demo@sto.exchange', 'user');
     navigate('/');
   }
 
