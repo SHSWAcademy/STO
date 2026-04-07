@@ -1,20 +1,12 @@
 package server.main.asset.service;
 
-import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import server.main.asset.entity.Asset;
-import server.main.asset.mapper.AssetMapper;
-import server.main.asset.repository.AssetRepository;
+import server.main.token.entity.Token;
 
-@Transactional(readOnly = true)
-@RequiredArgsConstructor
-@Service
-@Slf4j
-public class AssetService {
-    private final AssetRepository assetRepository;
-    private final AssetMapper assetMapper;
-
+public interface AssetService {
+    Asset AssetRegister(Asset asset);        // 자산등록 (admin)
+    Asset findById(Long assetId);           // 기존 자산조회 (admin)
+    String findAssetName(Long assetId);     // 자산 이름조회 (admin)
+    void AssetAccountRegister(Token token); // 자산 계좌 생성 (admin)
+    void AllocationAccountDeposit(Long amount, Long assetId);  // 배당 월수익 입금 처리 (admin)
 }
