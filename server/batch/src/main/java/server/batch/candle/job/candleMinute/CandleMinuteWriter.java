@@ -7,8 +7,8 @@ import org.springframework.batch.item.ItemWriter;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import server.batch.candle.entity.CandleMinute;
-import server.batch.candle.repository.CandleMinuteRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import server.batch.candle.repository.CandleMinuteRepository;
 
 @Component
 @RequiredArgsConstructor

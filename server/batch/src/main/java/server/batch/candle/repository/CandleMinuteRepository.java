@@ -14,5 +14,4 @@ public interface CandleMinuteRepository extends JpaRepository<CandleMinute, Long
     List<Long> findDistinctTokenIdByCandleTimeBetween(LocalDateTime from, LocalDateTime to);
 
     List<CandleMinute> findByTokenIdAndCandleTimeBetween(Long tokenId, LocalDateTime from, LocalDateTime to);
-
 }
