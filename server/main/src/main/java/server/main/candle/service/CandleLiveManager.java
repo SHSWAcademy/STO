@@ -103,7 +103,7 @@ public class CandleLiveManager {
     // 체결이 발생할 때마다 현재 봉의 갱신된 상태를 차트 화면에 실시간으로 전송
     private void pushToWebSocket(Long tokenId, LiveCandleDto candle, CandleType type) {
         CandleResponseDto dto = candleMapper.toLiveDto(candle, type);
-        messagingTemplate.convertAndSend("/topic/candle/live/" + tokenId, dto);
+        messagingTemplate.convertAndSend("/topic/candle/live/" + tokenId + "/" + type.name(), dto);
     }
 
     @Scheduled(cron = "0 * * * * *")  // 매 분 0초

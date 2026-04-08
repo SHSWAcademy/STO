@@ -22,11 +22,11 @@ public class CandleFlushService {
 
     @Transactional
     public void saveToDB(LiveCandleDto dto, Long tokenId, CandleType type) {
-        Token token = tokenRepository.findById(tokenId).orElseThrow();
+        Token token = tokenRepository.getReferenceById(tokenId); // 토큰 프록시로 조회 (실제 쿼리가 나가지 않는다)
         switch (type) {
             case MINUTE -> candleMinuteRepository.save(
                     CandleMinute.builder()
-                            .token(token)
+                            .token(token)// 프록시 주입
                             .openPrice(dto.getOpenPrice())
                             .highPrice(dto.getHighPrice())
                             .lowPrice(dto.getLowPrice())

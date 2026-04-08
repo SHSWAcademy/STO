@@ -2,7 +2,9 @@ package server.main.order.service;
 
 import static server.main.global.error.ErrorCode.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.MatchClient;
+import server.main.log.orderLog.repository.OrderLogRepository;
+import server.main.log.orderLog.service.OrderLogService;
 import server.main.member.entity.Account;
 import server.main.member.entity.Member;
 import server.main.member.entity.MemberTokenHolding;
@@ -39,6 +43,7 @@ import server.main.token.repository.TokenRepository;
 public class OrderServiceImpl implements OrderService {
 
     private final OrderMapper orderMapper;
+    private final OrderLogService orderLogService;
     private final OrderRepository orderRepository;
     private final TokenRepository tokenRepository;
     private final MemberRepository memberRepository;
@@ -49,13 +54,10 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     @Override
     public void createOrder(Long tokenId, OrderRequestDto dto) {
-        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
-                .getPrincipal();
+        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long memberId = principal.getId();
-        Member findMember = memberRepository.findById(memberId)
-                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-        Token findToken = tokenRepository.findById(tokenId)
-                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        Token findToken = tokenRepository.findById(tokenId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         // 매수일 경우
         if (OrderType.BUY.equals(dto.getOrderType())) {
@@ -67,9 +69,7 @@ public class OrderServiceImpl implements OrderService {
                 throw new BusinessException(INSUFFICIENT_BALANCE);
 
             // 매수 주문일 경우 구매력 차감 (current quantity 감소, locked quantity 증가)
-            else
-                findAccount.lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도
-                                                                                       // 된다)
+            else findAccount.lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도 된다)
         }
 
         // 매도일 경우
@@ -114,13 +114,18 @@ public class OrderServiceImpl implements OrderService {
                 .orderType(createOrder.getOrderType())
                 .build();
         matchClient.sendOrder(matchDto); // sendOrder 실패 시 모두 롤백
+
+
+        // 로그 저장
+        String detail = String.format("토큰 ID=%d 매수매도=%s 가격=%d 수량=%d",
+                tokenId, dto.getOrderType(), dto.getOrderPrice(), dto.getOrderQuantity());
+        orderLogService.save(findMember.getMemberName(), detail, true); // 트랜잭션 requires new
     }
 
     // 상세 화면의 '대기' : 소켓 필요
     @Override
     public List<PendingOrderResponseDto> getPendingOrders(Long tokenId) {
-        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
-                .getPrincipal();
+        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long memberId = principal.getId();
 
         List<Order> pendingOrders = orderRepository.findPendingOrderByMemberAndToken(memberId, tokenId);
@@ -140,16 +145,12 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         // OPEN, PARTIAL 상태값이 아니라면 오류 (PENDING = match 처리 중이므로 수정 불가)
-        if (!findOrder.getOrderStatus().equals(OrderStatus.OPEN) &&
-                !findOrder.getOrderStatus().equals(OrderStatus.PARTIAL)) {
-            throw new BusinessException(ORDER_NOT_MODIFIABLE);
-        }
-
         // PARTIAL 상태일 때만 수량 검증
-        if (findOrder.getOrderStatus().equals(OrderStatus.PARTIAL)) {
-            if (dto.getUpdateQuantity() <= findOrder.getFilledQuantity()) {
-                throw new BusinessException(INVALID_UPDATE_QUANTITY);
-            }
+        OrderStatus status = findOrder.getOrderStatus();
+        if (status != OrderStatus.OPEN && status != OrderStatus.PARTIAL) {
+            throw new BusinessException(ORDER_NOT_MODIFIABLE);
+        } else if (status == OrderStatus.PARTIAL && dto.getUpdateQuantity() <= findOrder.getFilledQuantity()) {
+            throw new BusinessException(INVALID_UPDATE_QUANTITY);
         }
 
         // 매수일 경우
