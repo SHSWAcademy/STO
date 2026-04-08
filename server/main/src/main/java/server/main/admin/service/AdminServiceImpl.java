@@ -7,6 +7,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.*;
+import server.main.admin.entity.Commons;
 import server.main.admin.entity.PlatformTokenHolding;
 import server.main.admin.mapper.AdminMapper;
 import server.main.admin.repository.CommonsRepository;
@@ -25,6 +26,7 @@ import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
@@ -153,7 +155,9 @@ public class AdminServiceImpl implements AdminService {
 
         // 마감월 확인
         YearMonth targetMonth = getTargetMonth();
-
+        // 관리자 마감일
+        LocalDate adminTargetMonth = getAdminTargetMonth();
+        log.info("관리자 마감일 : {}", adminTargetMonth );
         // 배당 이벤트내역 조회
         // 자산ID를 MAP의 키값으로 설정
         Map<Long, AllocationEvent> allocationEventMap = allocationEventRepository
@@ -165,7 +169,7 @@ public class AdminServiceImpl implements AdminService {
         return tokens.stream()
                 .map(token -> {
                     AllocationEvent event = allocationEventMap.get(token.getAsset().getAssetId());
-                    return adminMapper.toAllocationListResponseDTO(token, event);
+                    return adminMapper.toAllocationListResponseDTO(token, event, targetMonth, adminTargetMonth);
                 }).collect(Collectors.toList());
     }
 
@@ -259,10 +263,18 @@ public class AdminServiceImpl implements AdminService {
     // 마감월 리턴 메서드
     // 플랫폼설정 테이블에서 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
     private YearMonth getTargetMonth() {
-        int settlementDay = commonsRepository.findAllocateDate();
-        log.info("배당 지급일 확인 : {} ", settlementDay);
-        return LocalDate.now().getDayOfMonth() > settlementDay
+        Commons commons = commonsRepository.findAllocateDate();
+        return LocalDate.now().getDayOfMonth() > commons.getAllocateDate()
                 ? YearMonth.now().plusMonths(1)
                 : YearMonth.now();
+    }
+
+    // 관리자 마감일 리턴
+    private LocalDate getAdminTargetMonth() {
+        Commons commons = commonsRepository.findAllocateDate();
+        YearMonth targetMonth = LocalDate.now().getDayOfMonth() > commons.getAllocateSetDate()
+                ? YearMonth.now().plusMonths(1)
+                : YearMonth.now();
+        return targetMonth.atDay(commons.getAllocateSetDate());
     }
 }

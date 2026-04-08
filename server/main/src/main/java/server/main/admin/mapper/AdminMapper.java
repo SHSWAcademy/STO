@@ -9,6 +9,9 @@ import server.main.global.file.File;
 import server.main.token.entity.Token;
 import server.main.token.entity.TokenStatus;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
+
 @Component
 public class AdminMapper {
 
@@ -84,11 +87,13 @@ public class AdminMapper {
                 .status(token.getTokenStatus())
                 .tokenSymbol(token.getTokenSymbol())
                 .imgUrl(token.getAsset().getImgUrl())
+                .issuedAt(token.getIssuedAt())
+                .totalSupply(token.getTotalSupply())
                 .build();
     }
 
     // 베당 리스트 조회 (기존 자산리스트 + allocation 테이블 합쳐서)
-    public AllocationListResponseDTO toAllocationListResponseDTO(Token token, AllocationEvent allocationEvent) {
+    public AllocationListResponseDTO toAllocationListResponseDTO(Token token, AllocationEvent allocationEvent, YearMonth targetMonth, LocalDate adminTargetMonth) {
         return AllocationListResponseDTO.builder()
                 .assetId(token.getAsset().getAssetId())
                 .assetName(token.getAsset().getAssetName())
@@ -97,6 +102,8 @@ public class AdminMapper {
                 // null 검증 (배당등록이 안되어있으면 null임)
                 .monthlyDividendIncome(allocationEvent != null ? allocationEvent.getMonthlyDividendIncome() : null)
                 .allocationBatchStatus(allocationEvent != null ? allocationEvent.getAllocationBatchStatus() : null)
+                .targetMonth(targetMonth)
+                .allocateSetMonth(adminTargetMonth)
                 .build();
     }
 
@@ -110,7 +117,8 @@ public class AdminMapper {
                 .settled_at(dto.getSettledAt())
                 .settlementMonth(dto.getSettlementMonth())
                 .settlementYear(dto.getSettlementYear())
-                .pdfName(file.getOrigin_name())
+                .storedName(file.getOrigin_name())
+                .originName(file.getOrigin_name())
                 .build();
     }
 

@@ -10,7 +10,7 @@ import server.main.token.entity.TokenStatus;
 @ToString
 public class AssetUpdateRequestDTO {
 
-    // 자산 수정 대상 : 자산이름, 토큰심볼, 자산 주소, 자산 설명, 자산PDF
+    // 자산 수정 대상 : 자산이름, 토큰심볼, 자산 주소, 자산PDF
     private Long tokenId;               // 토큰ID
     private Long disclosureId;          // 공시ID (파일 조회용)
     private String assetName;           // 자산 이름

@@ -28,6 +28,8 @@ public class AssetDetailResponseDTO {
     private Long circulatingSupply;
     private TokenStatus tokenStatus;
     private LocalDateTime issuedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     // platform_token_holdings
     private Long holdingSupply;

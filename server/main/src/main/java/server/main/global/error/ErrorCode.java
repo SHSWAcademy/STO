@@ -62,6 +62,7 @@ public enum ErrorCode {
     ALLOCATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "ALLOCATION_ALREADY_EXISTS", "이미 해당월에 배당이 등록되어 있습니다."),
     ALLOCATION_UPDATE_NOT_ALLOWED(HttpStatus.CONFLICT, "ALLOCATION_UPDATE_NOT_ALLOWED", "이미 지급된 배당은 수정이 불가합니다.");
 
+    // ── 파일 ──────────────────────────────────────────────────
     private final HttpStatus httpStatus;
     private final String errorCode;
     private final String message;
