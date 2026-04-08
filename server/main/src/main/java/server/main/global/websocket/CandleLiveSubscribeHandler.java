@@ -24,17 +24,19 @@ public class CandleLiveSubscribeHandler {
         String destination = (String) event.getMessage().getHeaders()
                 .get(SimpMessageHeaderAccessor.DESTINATION_HEADER);
 
-        // /topic/candle/live/{tokenId}
+        // /topic/candle/live/{tokenId}/{type}
         if (destination == null || !destination.startsWith("/topic/candle/live/")) return;
 
-        Long tokenId = Long.parseLong(destination.replace("/topic/candle/live/", ""));
+        // "/"을 기준으로 분기 처리
+        String[] parts = destination.replace("/topic/candle/live/", "").split("/");
+        if (parts.length != 2) return;
 
-        // 현재 봉 스냅샷 전부 전송
-        for (CandleType type : CandleType.values()) {
-            LiveCandleDto snapshot = candleLiveManager.getSnapshot(tokenId, type);
-            if (snapshot != null) {
-                template.convertAndSend(destination, candleMapper.toLiveDto(snapshot, type));
-            }
+        Long tokenId = Long.parseLong(parts[0]);
+        CandleType type = CandleType.valueOf(parts[1]); // 분, 시, 일, 월, 년 별로 분기
+
+        LiveCandleDto snapshot = candleLiveManager.getSnapshot(tokenId, type);
+        if (snapshot != null) {
+            template.convertAndSend(destination, candleMapper.toLiveDto(snapshot, type));
         }
     }
 }
