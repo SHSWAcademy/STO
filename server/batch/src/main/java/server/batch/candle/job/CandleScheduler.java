@@ -29,7 +29,7 @@ public class CandleScheduler {
     private final Job candleYearJob;
 
 
-    @Scheduled(cron = "0 * * * * *")  // 매 분 0초
+    //@Scheduled(cron = "0 * * * * *")  // 매 분 0초
     public void runCandleMinuteJob() throws Exception {
         JobParameters params = new JobParametersBuilder()
                 .addLong("currentTime", System.currentTimeMillis())
@@ -39,7 +39,7 @@ public class CandleScheduler {
         jobLauncher.run(candleMinuteJob, params);
     }
 
-    @Scheduled(cron = "0 0 * * * *")  // 매 정시
+    //@Scheduled(cron = "0 0 * * * *")  // 매 정시
     public void runCandleHourJob() throws Exception {
         JobParameters params = new JobParametersBuilder()
                 .addLong("currentTime", System.currentTimeMillis())
@@ -49,7 +49,7 @@ public class CandleScheduler {
         jobLauncher.run(candleHourJob, params);
     }
 
-    @Scheduled(cron = "0 0 9 * * *")  // 매 정시
+    //@Scheduled(cron = "0 0 9 * * *")  // 매 정시
     public void runCandleDayJob() throws Exception {
         JobParameters params = new JobParametersBuilder()
                 .addLong("currentTime", System.currentTimeMillis())
@@ -59,7 +59,7 @@ public class CandleScheduler {
         jobLauncher.run(candleDayJob, params);
     }
 
-    @Scheduled(cron = "0 0 9 1 * *")  // 매달 1일 오전 9시
+    //@Scheduled(cron = "0 0 9 1 * *")  // 매달 1일 오전 9시
     public void runCandleMonthJob() throws Exception {
         JobParameters params = new JobParametersBuilder()
                 .addLong("currentTime", System.currentTimeMillis())
@@ -69,7 +69,7 @@ public class CandleScheduler {
         jobLauncher.run(candleMonthJob, params);
     }
 
-    @Scheduled(cron = "0 0 9 1 1 *")  // 매년 1월 1일 오전 9시
+    //@Scheduled(cron = "0 0 9 1 1 *")  // 매년 1월 1일 오전 9시
     public void runCandleYearJob() throws Exception {
         JobParameters params = new JobParametersBuilder()
                 .addLong("currentTime", System.currentTimeMillis())
