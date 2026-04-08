@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart } from "lucide-react";
-import { TOKENS, TREND_DATA } from "../data/mock.js";
+import { TREND_DATA } from "../data/mock.js";
 import { useApp } from "../context/AppContext.jsx";
 import { cn } from "../lib/utils.js";
 import { ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
@@ -12,7 +12,7 @@ const API = 'http://localhost:8080';
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { watchlist, toggleWatchlist } = useApp();
+  const { watchlist, toggleWatchlist, tokens } = useApp();
   const [chartFilter, setChartFilter] = useState("전체");
   const [timeRange, setTimeRange] = useState("실시간");
 
@@ -28,15 +28,28 @@ export function DashboardPage() {
   }, []);
 
   // mock 토큰에 backendId 병합 (tokenSymbol 기준 매칭)
-  const mergedTokens = TOKENS.map(t => {
+  const mergedTokens = tokens.map(t => {
     const matched = backendAssets.find(a => a.tokenSymbol === t.symbol);
-    return { ...t, backendId: matched?.assetId ?? null };
+    return { ...t, assetId: matched?.assetId ?? null };
   });
 
-  const [selectedTokenId, setSelectedTokenId] = useState(TOKENS[0].id);
+  const [selectedTokenId, setSelectedTokenId] = useState(tokens[0]?.id ?? null);
+
+  useEffect(() => {
+    if (!mergedTokens.length) return;
+
+    const hasSelectedToken = mergedTokens.some((token) => token.id === selectedTokenId);
+    if (!hasSelectedToken) {
+      setSelectedTokenId(mergedTokens[0].id);
+    }
+  }, [mergedTokens, selectedTokenId]);
 
   const selectedToken =
     mergedTokens.find((t) => t.id === selectedTokenId) || mergedTokens[0];
+  // 토큰이 하나도 없을 때 렌더링 오류 막기
+  if (!selectedToken) {
+    return null;
+  }
 
   const sortedTokens = [...mergedTokens]
     .sort((a, b) => {
@@ -100,7 +113,6 @@ export function DashboardPage() {
                     )}
                     onClick={() => {
                       setSelectedTokenId(t.id);
-                      if (t.backendId) navigate(`/mockup/${t.backendId}`);
                     }}
                   >
                     <td className="py-4">
@@ -108,11 +120,11 @@ export function DashboardPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            toggleWatchlist(t.id);
+                            toggleWatchlist(t.assetId);
                           }}
                           className={cn(
                             "transition-colors",
-                            watchlist.includes(t.id)
+                            watchlist.includes(t.assetId)
                               ? "text-brand-red"
                               : "text-stone-400 hover:text-brand-red",
                           )}
@@ -120,7 +132,7 @@ export function DashboardPage() {
                           <Heart
                             size={16}
                             fill={
-                              watchlist.includes(t.id) ? "currentColor" : "none"
+                              watchlist.includes(t.assetId) ? "currentColor" : "none"
                             }
                           />
                         </button>
@@ -186,10 +198,10 @@ export function DashboardPage() {
                 </div>
               </div>
               <button
-                onClick={() => toggleWatchlist(selectedToken.id)}
+                onClick={() => toggleWatchlist(selectedToken.assetId)}
                 className={cn(
                   "p-3 rounded-lg transition-colors border",
-                  watchlist.includes(selectedToken.id)
+                  watchlist.includes(selectedToken.assetId)
                     ? "bg-brand-red-light text-brand-red border-brand-red-light"
                     : "bg-stone-100 text-stone-400 border-stone-200 hover:text-brand-red",
                 )}
@@ -197,7 +209,7 @@ export function DashboardPage() {
                 <Heart
                   size={20}
                   fill={
-                    watchlist.includes(selectedToken.id)
+                    watchlist.includes(selectedToken.assetId)
                       ? "currentColor"
                       : "none"
                   }
@@ -237,8 +249,8 @@ export function DashboardPage() {
 
             <button
               onClick={() => {
-                if (selectedToken?.backendId) {
-                  navigate(`/mockup/${selectedToken.backendId}`);
+                if (selectedToken?.assetId) {
+                  navigate(`/mockup/${selectedToken.assetId}`);
                 }
               }}
               className="w-full py-4 rounded-lg bg-stone-800 text-white font-black uppercase tracking-widest hover:bg-stone-700 transition-colors"
