@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import server.main.global.util.BaseEntity;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @AllArgsConstructor
@@ -23,4 +25,5 @@ public class Disclosure extends BaseEntity {
     private DisclosureCategory disclosureCategory;  // 공시 타입
 
     private Long assetId;       // 부동산 ID
+    private LocalDateTime deletedAt; // 삭제일
 }

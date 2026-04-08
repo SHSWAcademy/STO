@@ -18,7 +18,7 @@ public class AssetDetailResponseDTO {
     private String imgUrl;
     private Long totalValue;
     private Long totalSupply;
-
+    private Boolean isAllocated;
     // Token
     private Long tokenId;
     private String tokenName;

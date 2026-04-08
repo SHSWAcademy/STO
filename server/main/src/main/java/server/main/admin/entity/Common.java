@@ -2,9 +2,6 @@ package server.main.admin.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.cglib.core.Local;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -13,7 +10,7 @@ import java.time.LocalDateTime;
 @Builder
 @ToString
 @Table(name = "commons")
-public class Commons {
+public class Common {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long baseId;    // 기본ID
@@ -21,5 +18,13 @@ public class Commons {
     private Double chargeRate; // 수수료
     private int allocateDate; // 배당 지급일
     private int allocateSetDate; // 배당 입력일 (관리자)
+
+    // 수정용
+    public void update(Double taxRate, Double chargeRate, int allocateDate, int allocateSetDate) {
+        this.taxRate = taxRate;
+        this.chargeRate = chargeRate;
+        this.allocateDate = allocateDate;
+        this.allocateSetDate = allocateSetDate;
+    }
 
 }

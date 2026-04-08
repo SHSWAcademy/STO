@@ -1,6 +1,8 @@
 package server.main.notice.mapper;
 
 import org.springframework.stereotype.Component;
+import server.main.notice.dto.NoticeDetailResponseDTO;
+import server.main.notice.dto.NoticeListResponseDTO;
 import server.main.notice.dto.NoticeRegisterAssetDTO;
 import server.main.notice.entity.Notice;
 
@@ -13,6 +15,28 @@ public class NoticeMapper {
                 .noticeTitle(dto.getNoticeTitle())
                 .noticeContent(dto.getNoticeContent())
                 .noticeType(dto.getNoticeType())
+                .build();
+    }
+
+    // 공지사항 리스트 조회 entity -> dto
+    public NoticeListResponseDTO toNoticeAdmin(Notice notice) {
+        return NoticeListResponseDTO.builder()
+                .noticeId(notice.getNoticeId())
+                .noticeTitle(notice.getNoticeTitle())
+                .noticeType(notice.getNoticeType())
+                .noticeContent(notice.getNoticeContent())
+                .deletedAt(notice.getDeletedAt())
+                .createdAt(notice.getCreatedAt())
+                .build();
+    }
+
+    // 공지사항 상세조회
+    public NoticeDetailResponseDTO noticeDetailResponseDTO(Notice notice) {
+        return NoticeDetailResponseDTO.builder()
+                .noticeType(notice.getNoticeType())
+                .noticeTitle(notice.getNoticeTitle())
+                .noticeContent(notice.getNoticeContent())
+                .createdAt(notice.getCreatedAt())
                 .build();
     }
 }

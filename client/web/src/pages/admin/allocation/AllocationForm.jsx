@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Upload } from "lucide-react";
-import { formatDate, formatYearMonth, formatSettlementLabel } from "./allocationUtils.jsx";
+import { Download, Eye, FileText, Upload } from "lucide-react";
+import {
+  formatDate,
+  formatYearMonth,
+  formatSettlementLabel,
+  pdfDownloadUrl,
+  pdfViewUrl,
+} from "./allocationUtils.jsx";
 
 function Field({ label, children }) {
   return (
@@ -34,6 +40,7 @@ export function AllocationForm({
   item,
   details,
   monthMeta,
+  selectedHistory,
   loading,
   saving,
   submitError,
@@ -54,16 +61,18 @@ export function AllocationForm({
     );
   }, [details, monthMeta]);
 
+  const displayAllocation = selectedHistory ?? currentAllocation;
+
   useEffect(() => {
-    if (currentAllocation) {
-      setMonthlyDividendIncome(String(currentAllocation.monthlyDividendIncome ?? ""));
+    if (displayAllocation) {
+      setMonthlyDividendIncome(String(displayAllocation.monthlyDividendIncome ?? ""));
       setFile(null);
       return;
     }
 
     setMonthlyDividendIncome(item?.monthlyDividendIncome ? String(item.monthlyDividendIncome) : "");
     setFile(null);
-  }, [currentAllocation, item]);
+  }, [displayAllocation, item]);
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -79,10 +88,12 @@ export function AllocationForm({
     <form onSubmit={handleSubmit} className="space-y-6 rounded-lg border border-stone-200 bg-white p-8">
       <div className="border-b border-stone-200 pb-4">
         <h3 className="text-sm font-semibold uppercase tracking-widest text-stone-800">
-          {currentAllocation ? "이번 정산월 등록 정보" : "이번 정산월 등록"}
+          {displayAllocation ? "배당 정산 정보" : "이번 정산월 등록"}
         </h3>
         <p className="mt-2 text-sm text-stone-400">
-          {formatYearMonth(monthMeta?.targetMonth)} 정산월 기준 화면입니다.
+          {displayAllocation
+            ? `${formatSettlementLabel(displayAllocation.settlementYear, displayAllocation.settlementMonth)} 정산 기록을 표시합니다.`
+            : `${formatYearMonth(monthMeta?.targetMonth)} 정산월 기준 화면입니다.`}
         </p>
       </div>
 
@@ -92,7 +103,9 @@ export function AllocationForm({
             정산월
           </p>
           <p className="mt-1 text-sm font-semibold text-stone-800">
-            {formatYearMonth(monthMeta?.targetMonth)}
+            {displayAllocation
+              ? formatSettlementLabel(displayAllocation.settlementYear, displayAllocation.settlementMonth)
+              : formatYearMonth(monthMeta?.targetMonth)}
           </p>
         </div>
         <div className="rounded-md border border-stone-200 bg-stone-50 px-4 py-3">
@@ -116,15 +129,38 @@ export function AllocationForm({
         <TextInput
           value={monthlyDividendIncome}
           placeholder="48000000"
-          readOnly={Boolean(currentAllocation)}
+          readOnly={Boolean(displayAllocation)}
           onChange={(event) => setMonthlyDividendIncome(event.target.value)}
         />
       </Field>
 
       <Field label="증빙 자료 PDF">
-        {currentAllocation ? (
-          <div className="rounded-md border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-medium text-stone-700">
-            {currentAllocation.originName ?? "등록된 파일 없음"}
+        {displayAllocation ? (
+          <div className="space-y-3 rounded-md border border-stone-200 bg-stone-50 px-4 py-3">
+            <div className="text-sm font-medium text-stone-700">
+              {displayAllocation.originName ?? displayAllocation.storedName ?? "등록된 파일 없음"}
+            </div>
+            {displayAllocation.storedName && (
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={pdfViewUrl(displayAllocation.storedName)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition-colors hover:border-brand-blue hover:text-brand-blue"
+                >
+                  <Eye className="h-4 w-4" />
+                  보기
+                </a>
+                <a
+                  href={pdfDownloadUrl(displayAllocation.storedName)}
+                  download={displayAllocation.originName ?? displayAllocation.storedName}
+                  className="inline-flex items-center gap-2 rounded-md border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition-colors hover:border-brand-blue hover:text-brand-blue"
+                >
+                  <Download className="h-4 w-4" />
+                  다운로드
+                </a>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -146,7 +182,7 @@ export function AllocationForm({
         )}
       </Field>
 
-      {currentAllocation && (
+      {displayAllocation && (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-md border border-stone-200 bg-stone-50 px-4 py-3">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400">
@@ -154,8 +190,8 @@ export function AllocationForm({
             </p>
             <p className="mt-1 text-sm font-semibold text-stone-800">
               {formatSettlementLabel(
-                currentAllocation.settlementYear,
-                currentAllocation.settlementMonth,
+                displayAllocation.settlementYear,
+                displayAllocation.settlementMonth,
               )}
             </p>
           </div>
@@ -164,7 +200,7 @@ export function AllocationForm({
               등록 상태
             </p>
             <p className="mt-1 text-sm font-semibold text-stone-800">
-              이번 정산월 입력이 이미 완료되었습니다.
+              {selectedHistory ? "선택한 정산 이력을 조회 중입니다." : "이번 정산월 입력이 이미 완료되었습니다."}
             </p>
           </div>
         </div>
@@ -179,10 +215,10 @@ export function AllocationForm({
       <div className="flex gap-4">
         <button
           type="submit"
-          disabled={saving || loading || Boolean(currentAllocation)}
+          disabled={saving || loading || Boolean(displayAllocation)}
           className="w-full rounded-md bg-brand-blue py-4 text-sm font-medium text-white transition-colors hover:bg-brand-blue-dk disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {currentAllocation ? "이번 정산월 등록 완료" : saving ? "저장 중..." : "이번 정산월 등록"}
+          {displayAllocation ? "등록 정보 조회 중" : saving ? "저장 중..." : "이번 정산월 등록"}
         </button>
       </div>
     </form>
