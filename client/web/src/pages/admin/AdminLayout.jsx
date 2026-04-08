@@ -35,7 +35,7 @@ export function AdminLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-stone-100 font-sans">
+    <div className="flex h-screen bg-stone-100 font-sans overflow-hidden overscroll-none">
       {/* Sidebar */}
       <aside className="w-64 bg-stone-800 text-white flex flex-col shrink-0">
         <div className="p-6 flex items-center gap-3 border-b border-white/10">
@@ -73,7 +73,7 @@ export function AdminLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden overscroll-none">
         {/* Header */}
         <header className="h-16 bg-white border-b border-stone-200 flex items-center justify-between px-8 shrink-0">
           <div className="flex items-center gap-4 bg-stone-200 px-4 py-2 rounded-xl w-96">
@@ -96,7 +96,7 @@ export function AdminLayout() {
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-8">
           <Outlet />
         </div>
       </main>
