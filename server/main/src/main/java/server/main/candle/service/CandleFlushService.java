@@ -1,0 +1,55 @@
+package server.main.candle.service;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import server.main.candle.dto.LiveCandle;
+import server.main.candle.entity.*;
+import server.main.candle.repository.*;
+import server.main.token.entity.Token;
+import server.main.token.repository.TokenRepository;
+
+@Service
+@RequiredArgsConstructor
+public class CandleFlushService {
+
+    private final CandleMinuteRepository candleMinuteRepository;
+    private final CandleHourRepository   candleHourRepository;
+    private final CandleDayRepository    candleDayRepository;
+    private final CandleMonthRepository  candleMonthRepository;
+    private final CandleYearRepository   candleYearRepository;
+    private final TokenRepository        tokenRepository;
+
+    @Transactional
+    public void saveToDB(LiveCandle candle, Long tokenId, CandleType type) {
+        Token token = tokenRepository.findById(tokenId).orElseThrow();
+        switch (type) {
+            case MINUTE -> candleMinuteRepository.save(CandleMinute.builder()
+                    .token(token).openPrice(candle.getOpenPrice()).highPrice(candle.getHighPrice())
+                    .lowPrice(candle.getLowPrice()).closePrice(candle.getClosePrice())
+                    .volume(candle.getVolume()).tradeCount(candle.getTradeCount())
+                    .candleTime(candle.getCandleTime()).build());
+            case HOUR -> candleHourRepository.save(CandleHour.builder()
+                    .token(token).openPrice(candle.getOpenPrice()).highPrice(candle.getHighPrice())
+                    .lowPrice(candle.getLowPrice()).closePrice(candle.getClosePrice())
+                    .volume(candle.getVolume()).tradeCount(candle.getTradeCount())
+                    .candleTime(candle.getCandleTime()).build());
+            case DAY -> candleDayRepository.save(CandleDay.builder()
+                    .token(token).openPrice(candle.getOpenPrice()).highPrice(candle.getHighPrice())
+                    .lowPrice(candle.getLowPrice()).closePrice(candle.getClosePrice())
+                    .volume(candle.getVolume()).tradeCount(candle.getTradeCount())
+                    .candleTime(candle.getCandleTime()).build());
+            case MONTH -> candleMonthRepository.save(CandleMonth.builder()
+                    .token(token).openPrice(candle.getOpenPrice()).highPrice(candle.getHighPrice())
+                    .lowPrice(candle.getLowPrice()).closePrice(candle.getClosePrice())
+                    .volume(candle.getVolume()).tradeCount(candle.getTradeCount())
+                    .candleTime(candle.getCandleTime()).build());
+            case YEAR -> candleYearRepository.save(CandleYear.builder()
+                    .token(token).openPrice(candle.getOpenPrice()).highPrice(candle.getHighPrice())
+                    .lowPrice(candle.getLowPrice()).closePrice(candle.getClosePrice())
+                    .volume(candle.getVolume()).tradeCount(candle.getTradeCount())
+                    .candleTime(candle.getCandleTime()).build());
+        }
+    }
+}
