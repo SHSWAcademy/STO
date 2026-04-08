@@ -10,11 +10,15 @@ import java.util.Optional;
 
 public interface TokenRepository extends JpaRepository<Token, Long> {
 
-    // fetch join 으로 asset 테이블 조인해서 데이터를 가져온다 + 해당 회원의 미체결 목록도 가져온다
+    // fetch join 으로 asset 테이블 조인해서 데이터를 가져온다
     @Query("SELECT t FROM Token t JOIN FETCH t.asset WHERE t.tokenId =:tokenId")
     Optional<Token> findByIdWithAsset(@Param("tokenId") Long tokenId);
 
     // 자산 ID 로 토큰 / 자산테이블 리스트 조회용
     @Query("SELECT t FROM Token t JOIN FETCH t.asset")
     List<Token> findAllTokensWithAsset();
+
+    // 자산 ID 로 토큰 / 자산테이블 배당 리스트 조회용
+    @Query("SELECT t FROM Token t JOIN FETCH t.asset a WHERE t.tokenStatus = 'TRADING' AND a.isAllocated = true")
+    List<Token> findAllTokensWithAssetAllocationList();
 }

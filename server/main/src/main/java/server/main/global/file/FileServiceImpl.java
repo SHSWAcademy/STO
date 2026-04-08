@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 @Service
 @Log4j2
@@ -33,41 +34,57 @@ public class FileServiceImpl implements FileService{
         new java.io.File(fileStore.getUploadDir(), storedName).delete();
     }
 
-    // 공시ID로 원본 파일명 조회
+    // 공시ID로 건물 소개 파일 조회
     @Override
-    public String getPdfName(Long disclosureId) {
-        File file = fileRepository.findByDisclosureId(disclosureId);
-        return file.getStored_name();
+    public File getAssetFile(Long disclosureId) {
+        return fileRepository.findByDisclosureId(disclosureId);
+    }
+
+    // 배당 스케줄 증빙 자료 조회
+    @Override
+    public List<File> getAllocationFile(List<Long> disclosureIds) {
+        return fileRepository.findAllByDisclosureIdIn(disclosureIds);
     }
 
     // pdf 파일 등록
     @Override
-    public  void savePdf(MultipartFile pdfFile, Long disclosureId) {
-        // 저장될 파일명 변수
-        String storedName = null;
-        // null 검증
+    public void saveOrUpdatePdf(MultipartFile pdfFile, Long disclosureId) {
         if (pdfFile == null || pdfFile.isEmpty()) return;
+        // 저장될 파일명 변수
+        String newStoredName = null;
+        // 저장되어있는 변수명
+        String oldStoredName = null;
         try {
-            // 기존 파일이 DB에 있다면 해당 레코드 삭제 / 디스크 파일도 삭제
+            // 기존 파일이 DB에 있는지 조회
             File checkFile = fileRepository.findByDisclosureId(disclosureId);
+            // 일단 파일먼저 저장 (db는 저장x)
+            newStoredName = fileStore.saveFile(pdfFile);
+
+            // 기존파일이 존재하면 수정하고 아니면 저장
             if (checkFile != null) {
-                deleteFile(checkFile.getStored_name());
-                fileRepository.delete(checkFile);
+                oldStoredName = checkFile.getStored_name();
+                checkFile.updateFile(
+                        pdfFile.getOriginalFilename(),
+                        newStoredName,
+                        pdfFile.getSize(),
+                        fileStore.getUploadDir()
+                );
+                log.info("파일 수정내역 확인 : {}", checkFile);
+            } else {
+                File file = File.builder()
+                        .disclosureId(disclosureId)
+                        .origin_name(pdfFile.getOriginalFilename())
+                        .stored_name(newStoredName)
+                        .path(fileStore.getUploadDir())
+                        .size(pdfFile.getSize())
+                        .build();
+                log.info("파일 저장내역 확인 : {}", file);
+                fileRepository.save(file);
             }
-            storedName = fileStore.saveFile(pdfFile);
-            File file = File.builder()
-                    .disclosureId(disclosureId)
-                    .origin_name(pdfFile.getOriginalFilename())
-                    .stored_name(storedName)
-                    .path(fileStore.getUploadDir())
-                    .size(pdfFile.getSize())
-                    .build();
-
-            log.info("파일 저장내역 확인 : {}", file);
-            fileRepository.save(file);
-
+            // 기존 파일내역 삭제 (신규파일이면 null이라 아무작업안함)
+            deleteFile(oldStoredName);
         } catch (Exception e) {
-            deleteFile(storedName);
+            deleteFile(newStoredName);
             throw new RuntimeException("PDF 파일 저장 실패: " + pdfFile.getOriginalFilename(), e);
         }
     }

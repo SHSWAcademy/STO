@@ -1,5 +1,15 @@
 package server.main.order.service;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import static server.main.global.error.ErrorCode.*;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -9,16 +19,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.MatchClient;
 import server.main.member.entity.Account;
 import server.main.member.entity.Member;
 import server.main.member.entity.MemberTokenHolding;
+import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
+import server.main.order.dto.UpdateOrderRequestDto;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.entity.OrderType;
@@ -27,30 +40,29 @@ import server.main.order.repository.OrderRepository;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 class OrderServiceImplTest {
 
-    @Mock OrderMapper orderMapper;
-    @Mock OrderRepository orderRepository;
-    @Mock TokenRepository tokenRepository;
-    @Mock MemberRepository memberRepository;
-    @Mock MemberTokenHoldingRepository memberTokenHoldingRepository;
-    @Mock MatchClient matchClient;
+    @Mock
+    OrderMapper orderMapper;
+    @Mock
+    OrderRepository orderRepository;
+    @Mock
+    TokenRepository tokenRepository;
+    @Mock
+    MemberRepository memberRepository;
+    @Mock
+    MemberTokenHoldingRepository memberTokenHoldingRepository;
+    @Mock
+    AccountRepository accountRepository;
+    @Mock
+    MatchClient matchClient;
 
     @InjectMocks
     OrderServiceImpl orderService;
 
     private final Long MEMBER_ID = 1L;
-    private final Long TOKEN_ID  = 10L;
+    private final Long TOKEN_ID = 10L;
 
     @BeforeEach
     void setSecurityContext() {
@@ -124,8 +136,8 @@ class OrderServiceImplTest {
         when(orderMapper.toPendingDtoList(List.of(partialOrder))).thenReturn(List.of(dto));
 
         // when
-        List<PendingOrderResponseDto> result = orderService.getPendingOrders(TOKEN_ID);
 
+        List<PendingOrderResponseDto> result = orderService.getPendingOrders(TOKEN_ID);
         // then
         assertThat(result.get(0).getOrderStatus()).isEqualTo(OrderStatus.PARTIAL);
         assertThat(result.get(0).getFilledQuantity()).isEqualTo(4L);
@@ -139,15 +151,15 @@ class OrderServiceImplTest {
         Member member = mock(Member.class);
         Token token = mock(Token.class);
 
-        when(member.getAccount()).thenReturn(account);
-        when(account.getAvailableBalance()).thenReturn(1_000_000L);  // 잔고 세팅
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(1_000_000L); // 잔고 세팅
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.BUY)
                 .orderPrice(12000L)
-                .orderQuantity(5L)   // 총 60000 < 잔고 1000000
+                .orderQuantity(5L) // 총 60000 < 잔고 1000000
                 .build();
 
         // when
@@ -162,18 +174,18 @@ class OrderServiceImplTest {
     void createOrder_매수_잔고부족_예외발생() {
         // given
         Account account = mock(Account.class);
-        Member member   = mock(Member.class);
-        Token token     = mock(Token.class);
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
 
-        when(member.getAccount()).thenReturn(account);
-        when(account.getAvailableBalance()).thenReturn(10_000L);  // 잔고 부족
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(10_000L); // 잔고 부족
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.BUY)
                 .orderPrice(12000L)
-                .orderQuantity(5L)   // 총 60000 > 잔고 10000
+                .orderQuantity(5L) // 총 60000 > 잔고 10000
                 .build();
 
         // when & then
@@ -187,7 +199,7 @@ class OrderServiceImplTest {
     void createOrder_매도_토큰미보유_예외발생() {
         // given
         Member member = mock(Member.class);
-        Token token   = mock(Token.class);
+        Token token = mock(Token.class);
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
@@ -210,20 +222,20 @@ class OrderServiceImplTest {
     @Test
     void createOrder_매도_수량부족_예외발생() {
         // given
-        Member member             = mock(Member.class);
-        Token token               = mock(Token.class);
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
         MemberTokenHolding holding = mock(MemberTokenHolding.class);
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
-        when(holding.getCurrentQuantity()).thenReturn(3L);  // 보유 3주
+        when(holding.getCurrentQuantity()).thenReturn(3L); // 보유 3주
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.SELL)
                 .orderPrice(12000L)
-                .orderQuantity(5L)   // 요청 5주 > 보유 3주
+                .orderQuantity(5L) // 요청 5주 > 보유 3주
                 .build();
 
         // when & then
@@ -236,20 +248,20 @@ class OrderServiceImplTest {
     @Test
     void createOrder_매도_정상접수() {
         // given
-        Member member             = mock(Member.class);
-        Token token               = mock(Token.class);
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
         MemberTokenHolding holding = mock(MemberTokenHolding.class);
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
-        when(holding.getCurrentQuantity()).thenReturn(10L);  // 보유 10주
+        when(holding.getCurrentQuantity()).thenReturn(10L); // 보유 10주
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.SELL)
                 .orderPrice(12000L)
-                .orderQuantity(5L)   // 요청 5주 <= 보유 10주
+                .orderQuantity(5L) // 요청 5주 <= 보유 10주
                 .build();
 
         // when
@@ -258,5 +270,127 @@ class OrderServiceImplTest {
         // then
         verify(orderRepository).save(any(Order.class));
         verify(matchClient).sendOrder(any());
+    }
+
+    @Test
+    void updateOrder_PENDING상태_수정불가_예외발생() {
+        // given
+        Long orderId = 1L;
+        Order order = mock(Order.class);
+        when(order.getOrderStatus()).thenReturn(OrderStatus.PENDING);
+        when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId))
+                .thenReturn(Optional.of(order));
+
+        UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
+                .updatePrice(12000L)
+                .updateQuantity(5L)
+                .build();
+
+        // when & then
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> orderService.updateOrder(orderId, dto));
+        assertThat(ex.getErrorCode()).isEqualTo(ORDER_NOT_MODIFIABLE);
+        verify(matchClient, never()).updateOrder(any());
+    }
+
+    @Test
+    void updateOrder_PARTIAL상태_수정수량이체결량이하_예외발생() {
+        // given
+        Long orderId = 1L;
+        Order order = mock(Order.class);
+        when(order.getOrderStatus()).thenReturn(OrderStatus.PARTIAL);
+        when(order.getFilledQuantity()).thenReturn(5L);
+        when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId))
+                .thenReturn(Optional.of(order));
+
+        UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
+                .updatePrice(12000L)
+                .updateQuantity(5L) // filledQuantity(5)와 같음 → 예외
+                .build();
+
+        // when & then
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> orderService.updateOrder(orderId, dto));
+        assertThat(ex.getErrorCode()).isEqualTo(INVALID_UPDATE_QUANTITY);
+        verify(matchClient, never()).updateOrder(any());
+    }
+
+    @Test
+    void updateOrder_PARTIAL_BUY_정상수정_남은수량기준_relockBalance검증() {
+        // given
+        Long orderId = 1L;
+        Order order = mock(Order.class);
+        Member member = mock(Member.class);
+        Account account = mock(Account.class);
+
+        when(order.getOrderStatus()).thenReturn(OrderStatus.PARTIAL);
+        when(order.getOrderType()).thenReturn(OrderType.BUY);
+        when(order.getFilledQuantity()).thenReturn(5L);
+        when(order.getRemainingQuantity()).thenReturn(5L);   // oldAmount = 100 * 5 = 500
+        when(order.getOrderPrice()).thenReturn(100L);
+        when(order.getMember()).thenReturn(member);
+        when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId)).thenReturn(Optional.of(order));
+        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(0L);  // availableBalance(0) + oldAmount(500) >= updateAmount(360)
+
+        UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
+                .updatePrice(120L)
+                .updateQuantity(8L)  // newRemaining = 8 - 5 = 3, updateAmount = 120 * 3 = 360
+                .build();
+
+        // when
+        orderService.updateOrder(orderId, dto);
+
+        // then: total 기준(120*8=960)이 아닌 remaining 기준(120*3=360)으로 호출되어야 한다
+        verify(account).relockBalance(500L, 360L);
+        verify(matchClient).updateOrder(any());
+    }
+
+    @Test
+    void updateOrder_PARTIAL_SELL_정상수정_남은수량기준_relockQuantity검증() {
+        // given
+        Long orderId = 1L;
+        Order order = mock(Order.class);
+        Member member = mock(Member.class);
+        MemberTokenHolding holding = mock(MemberTokenHolding.class);
+        Token token = mock(Token.class);
+
+        when(order.getOrderStatus()).thenReturn(OrderStatus.PARTIAL);
+        when(order.getOrderType()).thenReturn(OrderType.SELL);
+        when(order.getFilledQuantity()).thenReturn(5L);
+        when(order.getRemainingQuantity()).thenReturn(5L);   // oldQuantity = 5
+        when(order.getMember()).thenReturn(member);
+        when(order.getToken()).thenReturn(token);
+        when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId)).thenReturn(Optional.of(order));
+        when(memberTokenHoldingRepository.findByMemberAndToken(member, token)).thenReturn(Optional.of(holding));
+        when(holding.getCurrentQuantity()).thenReturn(0L);  // currentQuantity(0) + oldQuantity(5) >= updateQuantity(3)
+
+        UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
+                .updatePrice(120L)
+                .updateQuantity(8L)  // updateQuantity(remaining) = 8 - 5 = 3
+                .build();
+
+        // when
+        orderService.updateOrder(orderId, dto);
+
+        // then: total 기준(8)이 아닌 remaining 기준(3)으로 호출되어야 한다
+        verify(holding).relockQuantity(5L, 3L);
+        verify(matchClient).updateOrder(any());
+    }
+
+    @Test
+    void cancelOrder_PENDING상태_취소불가_예외발생() {
+        // given
+        Long orderId = 1L;
+        Order order = mock(Order.class);
+        when(order.getOrderStatus()).thenReturn(OrderStatus.PENDING);
+        when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId))
+                .thenReturn(Optional.of(order));
+
+        // when & then
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> orderService.cancelOrder(orderId));
+        assertThat(ex.getErrorCode()).isEqualTo(ORDER_CANNOT_CANCEL);
+        verify(matchClient, never()).cancelOrder(any());
     }
 }

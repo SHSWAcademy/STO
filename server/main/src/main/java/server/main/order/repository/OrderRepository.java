@@ -14,5 +14,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findPendingOrderByMemberAndToken(@Param("memberId") Long memberId, @Param("tokenId") Long tokenId);
 
     @Query("SELECT o FROM Order o WHERE o.member.memberId =:memberId AND o.orderId =:orderId")
-    Optional<Order> findByMemberIdAndOrderId(Long memberId, Long orderId);
+    Optional<Order> findByMemberIdAndOrderId(@Param("memberId") Long memberId, @Param("orderId") Long orderId);
 }

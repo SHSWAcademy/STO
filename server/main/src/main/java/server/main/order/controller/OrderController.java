@@ -11,8 +11,6 @@ import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.UpdateOrderRequestDto;
 import server.main.order.service.OrderService;
-import server.main.token.dto.TokenDetailDto;
-import server.main.token.service.TokenService;
 
 import java.util.List;
 
@@ -40,12 +38,12 @@ public class OrderController {
 
     // 호가 수정
     @PutMapping("/order/update/{orderId}")
-    public ResponseEntity<Void> orderUpdate(@PathVariable Long orderId, @RequestBody UpdateOrderRequestDto dto) {
+    public ResponseEntity<Void> orderUpdate(@PathVariable Long orderId, @Validated @RequestBody UpdateOrderRequestDto dto) {
         orderService.updateOrder(orderId, dto);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build(); // 204 No Content
     }
 
-    // 호가 삭제
+    // 호가 삭제 (soft delete)
     @DeleteMapping("/order/cancel/{orderId}")
     public ResponseEntity<Void> orderCancel(@PathVariable Long orderId) {
         orderService.cancelOrder(orderId);

@@ -28,6 +28,7 @@ public class MatchClient {
     }
 
 
+    // 주문 생성
     public void sendOrder(MatchOrderRequestDto dto) {
         restTemplate.postForObject(matchServerUrl + "/internal/orders", dto, Void.class);
     }
@@ -37,5 +38,11 @@ public class MatchClient {
     public void updateOrder(UpdateMatchOrderRequestDto dto) {
         String url = matchServerUrl + "/internal/orders/" + dto.getOrderId();
         restTemplate.put(url, dto);
+    }
+
+    // 주문 삭제 시 match 에게 전달, dto 말고 orderId만 던지는데 혹시 값 더 필요하다면 말씀해주세요!
+    public void cancelOrder(Long orderId) {
+        String url = matchServerUrl + "/internal/orders/" + orderId;
+        restTemplate.delete(url);
     }
 }

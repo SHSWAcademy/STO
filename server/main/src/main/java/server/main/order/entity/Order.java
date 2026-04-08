@@ -7,6 +7,8 @@ import server.main.global.util.BaseEntity;
 import server.main.member.entity.Member;
 import server.main.token.entity.Token;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @NoArgsConstructor
@@ -20,14 +22,18 @@ public class Order extends BaseEntity {
     @Column(name = "order_id")
     private Long orderId;
 
-    private Long orderSequence;         // 주문 순서
+    @Column(nullable = true)
+    private Long orderSequence;         // 주문 순서 (match 서버가 부여, 주문 생성 시 null)
 
     private Long orderPrice;            // 지정가 주문 가격 (호가)
 
     private Long orderQuantity;         // 처음 요청한 매도 / 매수 수량
 
-    private Long filledQuantity;        // 체결 수량
+    @Column(nullable = false)
+    @Builder.Default
+    private Long filledQuantity = 0L;   // 체결 수량
 
+    @Column(nullable = false)
     private Long remainingQuantity;     // 미체결 수량
 
     @Enumerated(EnumType.STRING)
@@ -49,6 +55,11 @@ public class Order extends BaseEntity {
     public void updateOrder(Long updatePrice, Long updateQuantity) {
         this.orderPrice = updatePrice;
         this.orderQuantity = updateQuantity;
-        this.remainingQuantity = updateQuantity;
+        this.remainingQuantity = updateQuantity - this.filledQuantity;
+    }
+
+    public void removeOrder() {
+        // updatedAd은 자동으로 값이 채워진다
+        this.orderStatus = OrderStatus.CANCELLED; // 주문 취소
     }
 }

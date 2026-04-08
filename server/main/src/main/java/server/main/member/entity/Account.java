@@ -37,23 +37,31 @@ public class Account extends BaseEntity {
 
     public static Account create(Member member, String accountNumber, String encodedAccountPassword) {
         Account account = new Account();
-        account.member =  member;
+        account.member = member;
         account.accountNumber = accountNumber;
         account.accountPassword = encodedAccountPassword;
         account.availableBalance = 0L;
-        account.lockedBalance  =0L;
+        account.lockedBalance = 0L;
         return account;
+    }
+
     // 매수 호가 시 구매력 차감
     public void lockBalance(Long amount) {
         this.availableBalance -= amount;
         this.lockedBalance += amount;
     }
 
+    // 매수 호가 수정 시 기존 주문 금액 복구 후 수정 주문 금액 반영
     public void relockBalance(Long oldAmount, Long updateAmount) {
         this.availableBalance += oldAmount;
         this.lockedBalance -= oldAmount;
 
         this.availableBalance -= updateAmount;
         this.lockedBalance += updateAmount;
+    }
+
+    public void cancelOrder(Long orderAmount) {
+        this.availableBalance += orderAmount;
+        this.lockedBalance -= orderAmount;
     }
 }

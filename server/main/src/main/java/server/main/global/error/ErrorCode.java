@@ -1,13 +1,13 @@
 package server.main.global.error;
 
+import org.springframework.http.HttpStatus;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.springframework.http.HttpStatus;
 
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {
-
 
     // 도연님 에러코드 확인해보시고 유동적으로 추가나 삭제 부탁드립니다 ! 아래는 예시라서
 
@@ -42,13 +42,15 @@ public enum ErrorCode {
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_NOT_FOUND", "주문을 찾을 수 없습니다."),
     ORDER_CANNOT_CANCEL(HttpStatus.BAD_REQUEST, "ORDER_CANNOT_CANCEL", "취소할 수 없는 주문 상태입니다."),
     ORDER_NOT_OWNED(HttpStatus.FORBIDDEN, "ORDER_NOT_OWNED", "본인의 주문이 아닙니다."),
-    ORDER_NOT_MODIFIABLE(HttpStatus.NOT_MODIFIED, "ORDER_CANNOT_UPDATE", "수정할 수 없는 주문 상태입니다."),
+    ORDER_NOT_MODIFIABLE(HttpStatus.BAD_REQUEST, "ORDER_NOT_MODIFIABLE", "수정할 수 없는 주문 상태입니다."),
+    INVALID_UPDATE_QUANTITY(HttpStatus.BAD_REQUEST, "INVALID_UPDATE_QUANTITY", "이미 체결된 수량보다 적은 수량으로 수정할 수 없습니다."),
 
     // ── 거래 시간 ────────────────────────────────────────────
     OUTSIDE_TRADING_HOURS(HttpStatus.BAD_REQUEST, "OUTSIDE_TRADING_HOURS", "거래 시간이 아닙니다. (09:00 ~ 15:30)"),
 
     // ── Match 서비스 ──────────────────────────────────────────
-    MATCH_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "MATCH_SERVICE_UNAVAILABLE", "체결 서비스에 연결할 수 없습니다. 주문은 접수되었으며 잠시 후 처리됩니다."),
+    MATCH_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "MATCH_SERVICE_UNAVAILABLE",
+            "체결 서비스에 연결할 수 없습니다. 주문은 접수되었으며 잠시 후 처리됩니다."),
 
     // ── 관심 종목 ─────────────────────────────────────────────
     WATCHLIST_ALREADY_EXISTS(HttpStatus.CONFLICT, "WATCHLIST_ALREADY_EXISTS", "이미 관심 종목에 추가된 토큰입니다."),
@@ -56,7 +58,9 @@ public enum ErrorCode {
 
     // ── 배당 ──────────────────────────────────────────────────
     DIVIDEND_NO_HOLDERS(HttpStatus.BAD_REQUEST, "DIVIDEND_NO_HOLDERS", "해당 토큰의 보유자가 없습니다."),
-    TOKEN_NOT_TRADING(HttpStatus.BAD_REQUEST, "TOKEN_NOT_TRADING", "거래 중인 토큰에만 배당을 지급할 수 있습니다.");
+    TOKEN_NOT_TRADING(HttpStatus.BAD_REQUEST, "TOKEN_NOT_TRADING", "거래 중인 토큰에만 배당을 지급할 수 있습니다."),
+    ALLOCATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "ALLOCATION_ALREADY_EXISTS", "이미 해당월에 배당이 등록되어 있습니다."),
+    ALLOCATION_UPDATE_NOT_ALLOWED(HttpStatus.CONFLICT, "ALLOCATION_UPDATE_NOT_ALLOWED", "이미 지급된 배당은 수정이 불가합니다.");
 
     private final HttpStatus httpStatus;
     private final String errorCode;

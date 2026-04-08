@@ -4,7 +4,10 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import server.main.allocation.entity.AllocationEvent;
 import server.main.global.util.BaseEntity;
+
+import java.util.List;
 
 
 @Entity
@@ -26,9 +29,10 @@ public class Asset extends BaseEntity {
     private Boolean isAllocated;
 
     // 자산 수정용 메서드 dto -> entity (bgchoi)
-    public void updateAsset(String assetName, String assetAddress, String imgUrl) {
+    public void updateAsset(String assetName, String assetAddress, String imgUrl, Boolean isAllocated) {
         if (assetAddress != null) this.assetAddress = assetAddress;
         if (assetName != null) this.assetName = assetName;
         if (imgUrl != null) this.imgUrl = imgUrl;
+        if (isAllocated != null) this.isAllocated = isAllocated;
     }
 }

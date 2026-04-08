@@ -1,11 +1,11 @@
 package server.main.admin.mapper;
 
 import org.springframework.stereotype.Component;
-import server.main.admin.dto.AssetDetailResponseDTO;
-import server.main.admin.dto.AssetListResponseDTO;
-import server.main.admin.dto.AssetRegisterRequestDTO;
+import server.main.admin.dto.*;
 import server.main.admin.entity.PlatformTokenHolding;
+import server.main.allocation.entity.AllocationEvent;
 import server.main.asset.entity.Asset;
+import server.main.global.file.File;
 import server.main.token.entity.Token;
 import server.main.token.entity.TokenStatus;
 
@@ -18,8 +18,8 @@ public class AdminMapper {
                 .totalSupply(dto.getTotalSupply())
                 .asset(asset)
                 .tokenName(dto.getAssetName())
-                .currentPrice(dto.getInitPrice())
-                .circulatingSupply(dto.getCirculatingSupply())
+                .currentPrice(Double.valueOf(dto.getInitPrice()))
+                .circulatingSupply(dto.getTotalSupply() - dto.getHoldingSupply())   // 전체개수 - 플랫폼 소유 갯수
                 .tokenSymbol(dto.getTokenSymbol())
                 .initPrice(dto.getInitPrice())
                 .tokenStatus(TokenStatus.ISSUED)
@@ -49,11 +49,12 @@ public class AdminMapper {
     }
 
     // 자산 상세조회 entity -> dto 변환
-    public AssetDetailResponseDTO toAssetDetailResponseDTO(PlatformTokenHolding holding, String pdfName) {
+    public AssetDetailResponseDTO toAssetDetailResponseDTO(PlatformTokenHolding holding, File file, Long disclosureId) {
         Token token = holding.getToken();
         Asset asset = token.getAsset();
         return AssetDetailResponseDTO.builder()
                 .assetId(asset.getAssetId())
+                .disclosureId(disclosureId)
                 .assetName(asset.getAssetName())
                 .assetAddress(asset.getAssetAddress())
                 .imgUrl(asset.getImgUrl())
@@ -68,7 +69,9 @@ public class AdminMapper {
                 .tokenStatus(token.getTokenStatus())
                 .issuedAt(token.getIssuedAt())
                 .holdingSupply(holding.getHoldingSupply())
-                .pdfName(pdfName)
+                .fileId(file.getFileId())
+                .originName(file.getOrigin_name())
+                .storedName(file.getStored_name())
                 .build();
     }
 
@@ -80,6 +83,36 @@ public class AdminMapper {
                 .totalValue(token.getAsset().getTotalValue())
                 .status(token.getTokenStatus())
                 .tokenSymbol(token.getTokenSymbol())
+                .imgUrl(token.getAsset().getImgUrl())
                 .build();
     }
+
+    // 베당 리스트 조회 (기존 자산리스트 + allocation 테이블 합쳐서)
+    public AllocationListResponseDTO toAllocationListResponseDTO(Token token, AllocationEvent allocationEvent) {
+        return AllocationListResponseDTO.builder()
+                .assetId(token.getAsset().getAssetId())
+                .assetName(token.getAsset().getAssetName())
+                .imgUrl(token.getAsset().getImgUrl())
+                .tokenSymbol(token.getTokenSymbol())
+                // null 검증 (배당등록이 안되어있으면 null임)
+                .monthlyDividendIncome(allocationEvent != null ? allocationEvent.getMonthlyDividendIncome() : null)
+                .allocationBatchStatus(allocationEvent != null ? allocationEvent.getAllocationBatchStatus() : null)
+                .build();
+    }
+
+    // 배당 상세내역 리스트 entity -> dto
+    public AllocationDetailResponseDTO toAllocationDetailResponseDTO(AllocationEvent dto, File file) {
+        return AllocationDetailResponseDTO.builder()
+                .allocationEventId(dto.getAllocationEventId())
+                .disclosureId(dto.getDisclosureId())
+                .allocationBatchStatus(dto.getAllocationBatchStatus())
+                .monthlyDividendIncome(dto.getMonthlyDividendIncome())
+                .settled_at(dto.getSettledAt())
+                .settlementMonth(dto.getSettlementMonth())
+                .settlementYear(dto.getSettlementYear())
+                .pdfName(file.getOrigin_name())
+                .build();
+    }
+
+
 }

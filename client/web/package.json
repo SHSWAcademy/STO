@@ -9,11 +9,14 @@
     "preview": "vite preview --port=4000 --host=0.0.0.0"
   },
   "dependencies": {
+    "@stomp/stompjs": "^7.3.0",
+    "axios": "^1.14.0",
     "lucide-react": "^0.546.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.13.2",
-    "recharts": "^3.8.0"
+    "recharts": "^3.8.0",
+    "sockjs-client": "^1.6.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.14",

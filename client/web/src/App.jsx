@@ -8,12 +8,13 @@ import { MyAccountPage }        from './pages/MyAccountPage.jsx';
 import { WatchlistPage }        from './pages/WatchlistPage.jsx';
 import { DisclosurePage }       from './pages/DisclosurePage.jsx';
 import { NoticePage }           from './pages/NoticePage.jsx';
+import { MockupPage }           from './pages/MockupPage.jsx';
 
 // Admin
 import { AdminLayout }          from './pages/admin/AdminLayout.jsx';
 import { AdminDashboard }       from './pages/admin/AdminDashboard.jsx';
 import { UserManagement }       from './pages/admin/UserManagement.jsx';
-import { AssetManagement }      from './pages/admin/AssetManagement.jsx';
+import { AssetManagement }      from './pages/admin/asset';
 import { PlatformRevenue }      from './pages/admin/PlatformRevenue.jsx';
 import { DividendManagement }   from './pages/admin/DividendManagement.jsx';
 import { ContentManagement }    from './pages/admin/ContentManagement.jsx';
@@ -41,16 +42,29 @@ function MainLayout() {
   );
 }
 
-// 로그인 상태에 따라 분기
-function AppContent() {
+// MockupPage 전용 독립 레이아웃 (비로그인 접근 가능)
+function MockupLayout() {
+  return (
+    <div className="min-h-screen bg-stone-100 text-stone-800">
+      <AppHeader />
+      <main>
+        <MockupPage />
+      </main>
+    </div>
+  );
+}
+
+// 비로그인 시 AuthPage 반환하는 가드
+function Auth({ children }) {
   const { user } = useApp();
+  return user ? children : <AuthPage />;
+}
 
-  if (!user) return <AuthPage />;
-
+function AppContent() {
   return (
     <Routes>
-      {/* 관리자 라우트 (AdminLayout 사용, AppHeader 없음) */}
-      <Route path="/admin" element={<AdminLayout />}>
+      {/* 관리자 라우트 */}
+      <Route path="/admin" element={<Auth><AdminLayout /></Auth>}>
         <Route index             element={<AdminDashboard />} />
         <Route path="users"     element={<UserManagement />} />
         <Route path="assets"    element={<AssetManagement />} />
@@ -61,15 +75,18 @@ function AppContent() {
         <Route path="settings"  element={<SystemSettings />} />
       </Route>
 
-      {/* 일반 유저 라우트 (MainLayout 사용) */}
+      {/* 비로그인 접근 가능 — 독립 최상위 라우트 */}
+      <Route path="/mockup/:tokenId" element={<MockupLayout />} />
+
+      {/* 로그인 필요 라우트 */}
       <Route element={<MainLayout />}>
-        <Route path="/"           element={<PageWrapper><DashboardPage /></PageWrapper>} />
-        <Route path="/trading"    element={<TradingPage />} />
-        <Route path="/portfolio"  element={<PageWrapper><MyAccountPage /></PageWrapper>} />
-        <Route path="/watchlist"  element={<PageWrapper><WatchlistPage /></PageWrapper>} />
-        <Route path="/disclosure" element={<PageWrapper><DisclosurePage /></PageWrapper>} />
-        <Route path="/notice"     element={<PageWrapper><NoticePage /></PageWrapper>} />
-        <Route path="*"           element={<Navigate to="/" replace />} />
+        <Route path="/"           element={<Auth><PageWrapper><DashboardPage /></PageWrapper></Auth>} />
+        <Route path="/trading"    element={<Auth><TradingPage /></Auth>} />
+        <Route path="/portfolio"  element={<Auth><PageWrapper><MyAccountPage /></PageWrapper></Auth>} />
+        <Route path="/watchlist"  element={<Auth><PageWrapper><WatchlistPage /></PageWrapper></Auth>} />
+        <Route path="/disclosure" element={<Auth><PageWrapper><DisclosurePage /></PageWrapper></Auth>} />
+        <Route path="/notice"     element={<Auth><PageWrapper><NoticePage /></PageWrapper></Auth>} />
+        <Route path="*"           element={<Auth><Navigate to="/" replace /></Auth>} />
       </Route>
     </Routes>
   );

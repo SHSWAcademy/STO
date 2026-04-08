@@ -3,6 +3,7 @@ package server.main.auth.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.*;
 
 import java.lang.reflect.Field;
 import java.util.Optional;
@@ -23,6 +24,7 @@ import server.main.auth.dto.MemberSignupResponse;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.security.JwtTokenProvider;
+import server.main.member.entity.Account;
 import server.main.member.entity.Member;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
@@ -65,7 +67,7 @@ class AuthServiceTest {
 
         // then
         verify(memberRepository).save(any(Member.class));
-        verify(accountRepository).save(any());
+        verify(accountRepository).save(any(Account.class));
         assertThat(response.getEmail()).isEqualTo("user@test.com");
         assertThat(response.getName()).isEqualTo("홍길동");
     }
