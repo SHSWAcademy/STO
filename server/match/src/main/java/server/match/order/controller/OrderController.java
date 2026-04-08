@@ -8,6 +8,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import server.match.order.dto.MatchOrderRequestDto;
 import server.match.order.dto.MatchResultDto;
+import server.match.order.entity.OrderStatus;
+import server.match.order.model.Order;
+import server.match.order.model.OrderBook;
+import server.match.order.service.OrderBookRegistry;
 
 import java.util.List;
 
@@ -16,16 +20,30 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderController {
 
-    // TODO: 매칭 서비스 주입 예정
+    private final OrderBookRegistry orderBookRegistry;
 
     @PostMapping
     public ResponseEntity<MatchResultDto> order(@RequestBody MatchOrderRequestDto dto) {
+        OrderBook orderBook = orderBookRegistry.getOrCreate(dto.getTokenId());
+
+        Order order = new Order(
+                dto.getOrderId(),
+                dto.getMemberId(),
+                dto.getTokenId(),
+                dto.getOrderType(),
+                dto.getOrderPrice(),
+                dto.getOrderQuantity()
+        );
+
+        synchronized (orderBook) {
+            orderBook.addOrder(order);
+        }
+
         // TODO: 실제 매칭 로직 구현 예정
-        // 현재는 계약 정의 단계이므로 체결 없음(OPEN) 상태로 반환
         MatchResultDto result = MatchResultDto.builder()
                 .orderId(dto.getOrderId())
                 .tokenId(dto.getTokenId())
-                .finalStatus(server.match.order.entity.OrderStatus.OPEN)
+                .finalStatus(OrderStatus.OPEN)
                 .filledQuantity(0L)
                 .remainingQuantity(dto.getOrderQuantity())
                 .executions(List.of())
