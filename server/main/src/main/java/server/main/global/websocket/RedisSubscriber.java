@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import server.main.candle.service.CandleLiveManager;
 import server.main.log.tradeLog.entity.TradeLog;
 import server.main.log.tradeLog.repository.TradeLogRepository;
+import server.main.log.tradeLog.service.TradeLogService;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 
@@ -22,7 +23,7 @@ import java.util.UUID;
 @Slf4j
 public class RedisSubscriber implements MessageListener {
 
-    private final TradeLogRepository tradeLogRepository;
+    private final TradeLogService tradeLogService;
     private final TokenRepository tokenRepository;
     private final SimpMessagingTemplate messagingTemplate; // 스프링이 메시지 브로커에게 메시지를 전달하도록 하는 템플릿(도구)
     private final CandleLiveManager candleLiveManager;
@@ -56,13 +57,7 @@ public class RedisSubscriber implements MessageListener {
                 Token token = tokenRepository.findByIdWithAsset(tokenId).orElseThrow();
                 String detail = String.format("건물 이름=%d 가격=%.0f 금액=%.0f",
                         token.getAsset().getAssetName(), (tradePrice * tradeQuantity), tradeQuantity);
-                tradeLogRepository.save(TradeLog.builder()
-                        .timeStamp(LocalDateTime.now())
-                        .identifier(String.valueOf(tokenId)) // 토큰 id로 임의로 넣어뒀는데 이건 매치 작업 다 되면 받는 데이터로 member name 넣어둘게요 ..
-                        .task("TRADE_EXECUTED")
-                        .detail(detail)
-                        .result(true)
-                        .build());
+                tradeLogService.save(String.valueOf(tokenId), detail, true);
 
             } catch (Exception e) {
                 log.error("캔들 갱신 실패 - body: {}", body, e);
