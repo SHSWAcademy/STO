@@ -16,7 +16,7 @@ import { AdminDashboard }       from './pages/admin/AdminDashboard.jsx';
 import { UserManagement }       from './pages/admin/UserManagement.jsx';
 import { AssetManagement }      from './pages/admin/asset';
 import { PlatformRevenue }      from './pages/admin/PlatformRevenue.jsx';
-import { DividendManagement }   from './pages/admin/DividendManagement.jsx';
+import { AllocationManagement } from './pages/admin/allocation/index.jsx';
 import { ContentManagement }    from './pages/admin/ContentManagement.jsx';
 import { SystemLogs }           from './pages/admin/SystemLogs.jsx';
 import { SystemSettings }       from './pages/admin/SystemSettings.jsx';
@@ -69,7 +69,7 @@ function AppContent() {
         <Route path="users"     element={<UserManagement />} />
         <Route path="assets"    element={<AssetManagement />} />
         <Route path="revenue"   element={<PlatformRevenue />} />
-        <Route path="dividends" element={<DividendManagement />} />
+        <Route path="dividends" element={<AllocationManagement />} />
         <Route path="content"   element={<ContentManagement />} />
         <Route path="logs"      element={<SystemLogs />} />
         <Route path="settings"  element={<SystemSettings />} />

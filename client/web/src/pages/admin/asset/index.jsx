@@ -24,16 +24,24 @@ export function AssetManagement() {
   // 신규 등록 여부
   const [isNew, setIsNew] = useState(false);
 
+  async function loadAssets() {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await api.get("/admin/asset");
+      setTokens(data);
+    } catch (err) {
+      console.error("[AssetManagement] 목록 조회 실패:", err.message);
+      setTokens([]);
+      setError("서버에서 목록을 불러오지 못했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // ── 목록 로드
   useEffect(() => {
-    api.get("/admin/asset")
-      .then(({ data }) => setTokens(data))
-      .catch((err) => {
-        console.error("[AssetManagement] 목록 조회 실패:", err.message);
-        setTokens([]);
-        setError("서버에서 목록을 불러오지 못했습니다.");
-      })
-      .finally(() => setLoading(false));
+    loadAssets();
   }, []);
 
   // ── 상세 열기
@@ -65,15 +73,31 @@ export function AssetManagement() {
   }
 
   // ── 저장 처리
-  function handleSave(payload) {
+  async function handleSave(payload) {
     if (isNew) {
-      // TODO: POST /admin/asset 연동
-      console.log("[AssetManagement] 신규 등록:", payload);
+      await api.post("/admin/asset", payload, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      await loadAssets();
+      setView(VIEW.LIST);
     } else {
-      // TODO: PUT /admin/asset/{assetId} 연동
-      console.log("[AssetManagement] 수정:", selectedItem?.assetId, payload);
+      await api.patch(`/admin/asset/${selectedItem?.assetId}`, payload, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      await loadAssets();
+
+      if (selectedItem?.assetId) {
+        const { data } = await api.get(`/admin/asset/${selectedItem.assetId}`);
+        setAssetDetail(data);
+        setSelectedItem((prev) => (prev ? { ...prev, ...data } : prev));
+      }
+
+      setView(VIEW.DETAIL);
     }
-    setView(VIEW.LIST);
   }
 
   // ── 뷰 라우팅

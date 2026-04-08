@@ -1,10 +1,19 @@
 import { Search, Filter, PlusCircle } from "lucide-react";
-import { imgSrc, StatusBadge } from "./assetUtils.jsx";
+import { formatDate, imgSrc, StatusBadge } from "./assetUtils.jsx";
 
-export function AssetList({ tokens, loading, error, searchTerm, onSearch, onSelect, onNew }) {
-  const filtered = tokens.filter((t) =>
-    (t.assetName ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (t.tokenSymbol ?? "").toLowerCase().includes(searchTerm.toLowerCase()),
+export function AssetList({
+  tokens,
+  loading,
+  error,
+  searchTerm,
+  onSearch,
+  onSelect,
+  onNew,
+}) {
+  const filtered = tokens.filter(
+    (t) =>
+      (t.assetName ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (t.tokenSymbol ?? "").toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   return (
@@ -51,19 +60,44 @@ export function AssetList({ tokens, loading, error, searchTerm, onSearch, onSele
           <table className="w-full text-left">
             <thead>
               <tr className="bg-stone-50 border-b border-stone-200">
-                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide">자산 정보</th>
-                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">자산 총 금액</th>
-                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-center">상태</th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide">
+                  자산 정보
+                </th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">
+                  자산 총 금액
+                </th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-right">
+                  총 발행량
+                </th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-center">
+                  배당 지급
+                </th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-center">
+                  등록일
+                </th>
+                <th className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide text-center">
+                  상태
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200">
               {loading ? (
                 <tr>
-                  <td colSpan={3} className="px-6 py-16 text-center text-sm text-stone-400">불러오는 중...</td>
+                  <td
+                    colSpan={6}
+                    className="px-6 py-16 text-center text-sm text-stone-400"
+                  >
+                    불러오는 중...
+                  </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-6 py-16 text-center text-sm text-stone-400">등록된 자산이 없습니다.</td>
+                  <td
+                    colSpan={6}
+                    className="px-6 py-16 text-center text-sm text-stone-400"
+                  >
+                    등록된 자산이 없습니다.
+                  </td>
                 </tr>
               ) : (
                 filtered.map((t) => (
@@ -86,13 +120,34 @@ export function AssetList({ tokens, loading, error, searchTerm, onSearch, onSele
                           </div>
                         )}
                         <div>
-                          <p className="text-sm font-semibold text-stone-800">{t.assetName}</p>
-                          <p className="text-[10px] font-mono font-bold text-stone-400">{t.tokenSymbol}</p>
+                          <p className="text-sm font-semibold text-stone-800">
+                            {t.assetName}
+                          </p>
+                          <p className="text-[10px] font-mono font-bold text-stone-400">
+                            {t.tokenSymbol}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right text-sm font-bold text-stone-800">
                       ₩{(t.totalValue ?? 0).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-right text-sm font-bold text-stone-800">
+                      {(t.totalSupply ?? 0).toLocaleString()} ST
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider ${
+                          t.isAllocated
+                            ? "bg-brand-green-light text-brand-green"
+                            : "bg-stone-100 text-stone-500"
+                        }`}
+                      >
+                        {t.isAllocated ? "지급" : "미지급"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center text-sm font-medium text-stone-500 whitespace-nowrap">
+                      {formatDate(t.issuedAt)}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <StatusBadge status={t.status} />

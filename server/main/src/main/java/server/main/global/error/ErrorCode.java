@@ -68,6 +68,7 @@ public enum ErrorCode {
     WALLET_ALREADY_EXISTS(HttpStatus.CONFLICT, "WALLET_ALREADY_EXISTS", "이미 지갑이 존재합니다."),
     WALLET_ENCRYPTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WALLET_ENCRYPTION_FAILED", "지갑 키 암호화에 실패했습니다.");
 
+    // ── 파일 ──────────────────────────────────────────────────
     private final HttpStatus httpStatus;
     private final String errorCode;
     private final String message;

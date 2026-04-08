@@ -78,7 +78,7 @@ public class AdminController {
         return ResponseEntity.ok(list);
     }
 
-    // 배당 수정
+    // 배당 수정 (미사용 수정금지)
     @PatchMapping("/allocationEvent/{allocationEventId}")
     public ResponseEntity<Void> updateAllocationEvent(@PathVariable Long allocationEventId,
                                                       @RequestPart AllocationUpdateRequestDTO dto,
