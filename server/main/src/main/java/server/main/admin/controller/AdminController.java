@@ -1,5 +1,6 @@
 package server.main.admin.controller;
 
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -7,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.*;
+import server.main.admin.entity.Common;
 import server.main.admin.service.AdminService;
 
 import java.io.IOException;
@@ -88,6 +90,18 @@ public class AdminController {
         return ResponseEntity.ok().build();
     }
 
+    // 플랫폼 기초 설정 등록 및 수정
+    @PostMapping("/common")
+    public ResponseEntity<Void> registerAndUpdateCommon(@RequestBody CommonDTO dto) {
+        adminService.registerCommon(dto);
+        return ResponseEntity.ok().build();
+    }
 
+    // 플랫폼 기초 설정 조회
+    @GetMapping("/common")
+    public ResponseEntity<CommonDTO> getCommon() {
+        CommonDTO dto = adminService.getCommon();
+        return ResponseEntity.ok(dto);
+    }
 
  }

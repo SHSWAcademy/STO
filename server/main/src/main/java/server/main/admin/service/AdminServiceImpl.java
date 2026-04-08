@@ -9,7 +9,7 @@ import server.main.admin.dto.*;
 import server.main.admin.entity.Common;
 import server.main.admin.entity.PlatformTokenHolding;
 import server.main.admin.mapper.AdminMapper;
-import server.main.admin.repository.CommonsRepository;
+import server.main.admin.repository.CommonRepository;
 import server.main.admin.repository.PlatformTokenHoldingsRepository;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
@@ -42,7 +42,7 @@ public class AdminServiceImpl implements AdminService {
     private final DisclosureService disclosureService;
     private final FileService fileService;
     private final AllocationEventRepository allocationEventRepository;
-    private final CommonsRepository commonsRepository;
+    private final CommonRepository commonsRepository;
 
     // 자산등록
     // 자산 이미지 등록 -> 자산 등록 ->  토큰 등록 -> 플랫폼 소유 토큰 등록 -> 자산 계좌 생성 및 입금 -> 공시 / 공지 등록 -> 첨부파일 등록
@@ -258,10 +258,43 @@ public class AdminServiceImpl implements AdminService {
         }
     }
 
+    // 플랫폼 기본설정 (최초 등록 및 수정)
+    @Override
+    public void registerCommon(CommonDTO dto) {
+        Common common = commonsRepository.findCommon();
+
+        // 최초 등록 시 save
+        if (common == null) {
+            Common saveCommon = Common.builder()
+                    .taxRate(dto.getTaxRate())
+                    .chargeRate(dto.getChargeRate())
+                    .allocateDate(dto.getAllocateDate())
+                    .allocateSetDate(dto.getAllocateSetDate())
+                    .build();
+
+            commonsRepository.save(saveCommon);
+        } else {
+            // 이미 등록되어있다면 update
+            common.update(dto.getTaxRate(), dto.getChargeRate(), dto.getAllocateDate(), dto.getAllocateSetDate());
+        }
+    }
+
+    // 플랫폼 기초설정 조회
+    @Override
+    public CommonDTO getCommon() {
+        Common common = commonsRepository.findCommon();
+        return CommonDTO.builder()
+                .taxRate(common.getTaxRate())
+                .chargeRate(common.getChargeRate())
+                .allocateDate(common.getAllocateDate())
+                .allocateSetDate(common.getAllocateSetDate())
+                .build();
+    }
+
     // 마감월 리턴 메서드
     // 플랫폼설정 테이블에서 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
     private YearMonth getTargetMonth() {
-        Common commons = commonsRepository.findAllocateDate();
+        Common commons = commonsRepository.findCommon();
         return LocalDate.now().getDayOfMonth() > commons.getAllocateDate()
                 ? YearMonth.now().plusMonths(1)
                 : YearMonth.now();
@@ -269,7 +302,7 @@ public class AdminServiceImpl implements AdminService {
 
     // 관리자 마감일 리턴
     private LocalDate getAdminTargetMonth() {
-        Common commons = commonsRepository.findAllocateDate();
+        Common commons = commonsRepository.findCommon();
         YearMonth targetMonth = LocalDate.now().getDayOfMonth() > commons.getAllocateSetDate()
                 ? YearMonth.now().plusMonths(1)
                 : YearMonth.now();
