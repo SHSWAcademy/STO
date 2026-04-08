@@ -15,7 +15,7 @@ const TABS = [
   { id: 'news',     label: '공시' },
 ];
 
-export function AssetHeader({ asset, currentPrice, activeTab, onTabChange, inWatchlist, onToggleWatchlist }) {
+export function AssetHeader({ asset, currentPrice, activeTab, onTabChange, inWatchlist, onToggleWatchlist, hideStats = false }) {
   const isUp = asset.change >= 0;
   const changeAmount = Math.abs(Math.round((currentPrice * asset.change) / 100));
 
@@ -57,24 +57,26 @@ export function AssetHeader({ asset, currentPrice, activeTab, onTabChange, inWat
 
         {/* 오른쪽: 통계 + 관심 버튼 */}
         <div className="flex items-center gap-8">
-          <div className="flex gap-6 text-[11px] font-bold text-stone-400 uppercase tracking-widest">
-            <div>
-              <p className="mb-1">1일 최고</p>
-              <p className="text-stone-800 font-mono">{asset.high.toLocaleString()}</p>
+          {!hideStats && (
+            <div className="flex gap-6 text-[11px] font-bold text-stone-400 uppercase tracking-widest">
+              <div>
+                <p className="mb-1">1일 최고</p>
+                <p className="text-stone-800 font-mono">{asset.high.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="mb-1">1일 최저</p>
+                <p className="text-stone-800 font-mono">{asset.low.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="mb-1">52주 최고</p>
+                <p className="text-stone-800 font-mono">{Math.round(asset.high * 1.2).toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="mb-1">52주 최저</p>
+                <p className="text-stone-800 font-mono">{Math.round(asset.low * 0.8).toLocaleString()}</p>
+              </div>
             </div>
-            <div>
-              <p className="mb-1">1일 최저</p>
-              <p className="text-stone-800 font-mono">{asset.low.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="mb-1">52주 최고</p>
-              <p className="text-stone-800 font-mono">{Math.round(asset.high * 1.2).toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="mb-1">52주 최저</p>
-              <p className="text-stone-800 font-mono">{Math.round(asset.low * 0.8).toLocaleString()}</p>
-            </div>
-          </div>
+          )}
 
           <button
             onClick={() => onToggleWatchlist?.(asset.id)}

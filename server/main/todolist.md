@@ -95,36 +95,71 @@
 - [x] `CandleController` — `GET /api/token/{tokenId}/candle?type={MINUTE|HOUR|DAY|MONTH|YEAR}`
   > 클라이언트가 상세 페이지 진입 시 이 API로 과거 봉 35개를 가져와 차트에 렌더링
   >
-  > **주의**: Batch Processor에서 openPrice/closePrice/volume/tradeCount를 NULL로 저장 중 → REST 응답에 해당 필드 NULL. Batch todolist의 Processor 버그 수정 후 정상 동작
+  > **주의**: Batch 방식 제거 예정 ([6-3] 참고). CandleLiveManager가 구간 경계에서 직접 DB 저장하는 방식으로 전환. 기존 Batch Processor의 NULL 버그는 더 이상 수정 불필요.
 
 #### [6-2] Batch Redis candle publish 제거 ✅ 완료 (2026-04-07)
 - [x] `RedisSubscriber` — `candle` 타입 케이스 삭제
 - [x] Batch Writer 5개 (Minute/Hour/Day/Month/Year) — Redis publish 코드 전부 제거
-  > Batch는 DB 적재만 담당. 과거 봉은 REST, 현재 봉은 trades 이벤트로 처리
 
-#### [6-3] 현재 봉 실시간 고가/저가 WebSocket ⬜ 미구현 (내일 작업)
+#### [6-3] 캔들 전면 재설계 — Batch 제거, Main 단독 관리 ⬜ 미구현
 
-> **설계**: match 서버 체결 완료 → Redis publish("trades:{tokenId}") → main RedisSubscriber 수신
-> → 현재 봉 고가/저가를 갱신해 WebSocket `/topic/candle/live/{tokenId}`으로 클라이언트에 push
+> **설계 확정 (2026-04-08)**
+>
+> 기존 Batch 방식을 제거하고 Main 서버가 캔들을 전담한다.
+>
+> - **Batch**: `CandleScheduler` `@Scheduled` 전부 주석 처리 → 캔들 배치 비활성화
+> - **CandleLiveManager** (메모리): 체결 이벤트 수신 시 5개 주기(분/시/일/월/년) 봉을 동시에 갱신
+> - **구간 경계 도달 시**: 확정 봉을 CandleLiveManager가 직접 DB에 저장 → 다음 봉으로 초기화
+> - **REST**: DB에 저장된 확정 봉 제공 (기존 동일)
+> - **WS**: 사용자 구독 시 현재 봉 스냅샷 즉시 전송 + 이후 체결마다 갱신 push
+>
+> **핵심**: 체결 1건 → 5개 주기 봉 동시 갱신 (실서비스 표준 방식)
 
 **구현 순서:**
-- [ ] `candle/CandleLiveManager.java` 생성 — 현재 봉 상태 in-memory 관리
-  - `ConcurrentHashMap<Long tokenId, LiveCandle>` 으로 관리
-  - `LiveCandle` 필드: `currentHigh`, `currentLow`, `openPrice`, `candleStartTime`
-  - 봉 기간(1분)이 바뀌면 자동 초기화
-- [ ] `RedisSubscriber` `trades` 케이스 확장
-  - 현재는 `/topic/trades/{tokenId}`로 relay만 함
-  - body에서 `tradePrice` 추출 → `CandleLiveManager.update(tokenId, tradePrice)` 호출
-  - 갱신된 현재 봉 데이터를 `/topic/candle/live/{tokenId}`로 추가 브로드캐스트
-- [ ] match 서버 팀원 공유: `trades:{tokenId}` payload에 `tradePrice` 필드 반드시 포함 필요
+
+**[Step 1] Batch 비활성화**
+- [ ] `CandleScheduler.java` — `@Scheduled` 5개 전부 주석 처리
+
+**[Step 2] LiveCandle 상태 클래스 생성**
+- [ ] `candle/LiveCandle.java` 생성
+  - 필드: `openPrice`, `highPrice`, `lowPrice`, `closePrice`, `volume`, `tradeCount`, `candleStartTime`
+
+**[Step 3] CandleLiveManager 생성**
+- [ ] `candle/CandleLiveManager.java` 생성 — `@Component`
+  - 5개 `ConcurrentHashMap<Long, LiveCandle>` (분/시/일/월/년별)
+  - `update(tokenId, tradePrice, tradeQuantity)`: 체결 수신 시 5개 주기 동시 갱신
+    - 각 주기별 `candleStartTime` 계산 (분: truncatedTo MINUTES, 시: HOURS, 일: DAYS, 월: 1일, 년: 1월1일)
+    - 구간이 바뀌었으면 → 이전 봉 DB 저장 → 새 봉 초기화
+    - 같은 구간이면 → high/low/close/volume/tradeCount 갱신
+  - `getSnapshot(tokenId, candleType)`: 구독 시 현재 봉 상태 반환
+  - 각 주기별 Repository 주입 필요 (CandleMinuteRepository ~ CandleYearRepository)
+
+**[Step 4] RedisSubscriber `trades` 케이스 확장**
+- [ ] body에서 `tradePrice`, `tradeQuantity` 추출
+- [ ] `CandleLiveManager.update(tokenId, tradePrice, tradeQuantity)` 호출
+- [ ] 갱신된 현재 봉을 `/topic/candle/live/{tokenId}` 로 브로드캐스트
+  - payload에 `candleType` 포함 (클라이언트가 어느 주기 봉인지 구분)
+
+**[Step 5] CandleLiveSubscribeHandler 생성**
+- [ ] `candle/CandleLiveSubscribeHandler.java` 생성
+  - `@EventListener(SessionSubscribeEvent)` — `/topic/candle/live/{tokenId}` 구독 감지
+  - `CandleLiveManager.getSnapshot(tokenId, candleType)` 조회
+  - 해당 세션에만 현재 봉 스냅샷 즉시 전송
+
+**[Step 6] match 서버 팀원 공유**
+- [ ] `trades:{tokenId}` payload에 `tradePrice`, `tradeQuantity` 필드 반드시 포함 필요
 
 **현재 봉 WebSocket 응답 예시 (main → 클라이언트):**
 ```json
 {
+  "candleType": "MINUTE",
+  "openPrice": 12100,
   "highPrice": 12200,
   "lowPrice": 12050,
-  "openPrice": 12100,
-  "candleTime": "2026-04-07T10:29:00"
+  "closePrice": 12150,
+  "volume": 340,
+  "tradeCount": 5,
+  "candleTime": "2026-04-08T09:27:00"
 }
 ```
 
@@ -245,16 +280,39 @@
   }
   ```
 
-#### [9-3] 캔들 차트 — `ChartPanel.jsx` 상단 (→ [6-4]에 상세 기술)
-- [ ] `CHART_DATA` mock → `GET /api/token/{tokenId}/candle?type=MINUTE` HTTP 호출로 교체
-- [ ] 차트 기간 버튼(`1분`, `시간`, `일`, `달`, `년`) 클릭 시 type 파라미터 변경 후 재조회
-- [ ] WebSocket `/topic/candle/live/{tokenId}` 구독 → 수신 시 현재 봉 고가/저가 실시간 업데이트
-  > ~~`/topic/candle/{type}/{tokenId}`~~ 변경됨 — Batch publish 제거로 인해 live topic으로 교체
+#### [9-3] 캔들 차트 — `MockupPage.jsx` (`/mockup/:tokenId`) ✅ 완료 (2026-04-07)
 
-#### [9-4] 주문창 — `OrderPanel.jsx`
-- [ ] 매수/매도 버튼 → `POST /api/token/{tokenId}/order` 호출로 교체
-- [ ] 대기탭 미체결 목록 → WebSocket 연동 (match 서버 완성 후)
-- [ ] 취소/수정 버튼 → `DELETE`, `PATCH /api/orders/{orderId}` 호출로 교체 (match 서버 완성 후)
+- [x] `CHART_DATA` mock → `GET /api/token/{tokenId}/candle?type={MINUTE|HOUR|DAY|MONTH|YEAR}` REST 호출로 교체
+  - URL 버그 수정: `/candles` → `/candle` (단수)
+- [x] 차트 기간 버튼 레이블 수정: `1분·일·주·월·년` → `분·시간·일·월·년` (CandleType enum 순서와 일치)
+  - 기본값: `분` (MINUTE)
+- [x] 기간 버튼 클릭 시 `type` 파라미터 변경 후 REST 재조회
+- [x] WebSocket `/topic/candle/live/{tokenId}` 구독 → 수신 시 현재(마지막) 봉 고가/저가 실시간 업데이트
+  - `useTradingSocket`에 `candleType='live'` 전달 → `/topic/candle/live/{tokenId}` 구독
+  - 현재 봉 시간(`time`)이 동일하면 마지막 봉 교체, 새 시간이면 봉 추가
+  - ※ 백엔드 [6-3] (`CandleLiveManager`) 구현 완료 후 실시간 동작
+
+> **현재 봉 WS 수신 payload 형식 (백엔드 [6-3] 구현 시 맞춰야 할 형식)**
+> ```json
+> { "highPrice": 12200, "lowPrice": 12050, "openPrice": 12100, "candleTime": "2026-04-07T10:29:00" }
+> ```
+
+#### [9-4] 주문창 — `MockupPage.jsx` (`LoginGateOrderPanel`) ✅ 완료 (2026-04-07)
+- [x] 매수/매도 버튼 → `POST /api/token/{tokenId}/order` 실제 API 호출로 교체
+  - 성공/실패 메시지 인라인 표시
+  - 비로그인 시 로그인 안내 팝업
+- [x] 대기탭 → `GET /api/token/{tokenId}/order/pending` 초기 스냅샷 조회
+- [x] 취소 버튼 → `DELETE /api/token/order/cancel/{orderId}` 호출
+- [ ] 대기탭 실시간 갱신 → WebSocket `pendingOrders:{tokenId}:{memberId}` (match 서버 완성 후)
+- [ ] 수정 버튼 → `PUT /api/token/order/update/{orderId}` (match 서버 완성 후)
+
+#### [9-5] 기타 상세 페이지 연동 ✅ 완료 (2026-04-07)
+- [x] 종목정보 탭 → `GET /api/token/{tokenId}/info` 호출 (발행가·총자산·주소·상장일)
+- [x] 배당금 탭 → `GET /api/token/{tokenId}/allocation` 호출 (테이블 렌더링)
+- [x] 공시 탭 → `GET /api/token/{tokenId}/disclosure` 호출 (아코디언 렌더링)
+- [x] 시세 섹션 '일별' 탭 제거 — 실시간 단일 표시로 변경
+- [x] 상단 헤더 1일최고/최저·52주 통계 제거 (`hideStats` prop)
+- [x] 주문창 항상 렌더링 (백엔드 미응답 시에도 매수/매도 탭 표시)
 
 
 #### [match 서버 팀원 공유] 실시간 체결 WebSocket 데이터 형식
