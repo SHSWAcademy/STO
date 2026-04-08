@@ -7,7 +7,7 @@ const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [user, setUser]               = useState(null);
-  const [watchlist, setWatchlist]     = useState(['SEOULST', 'SONGDORE']);
+  const [watchlist, setWatchlist]     = useState([]);
   const [tokens, setTokens]           = useState(INITIAL_TOKENS);
   const [disclosures, setDisclosures] = useState(ADMIN_DISCLOSURES);
   const [notices, setNotices]         = useState(ADMIN_NOTICES);
@@ -66,9 +66,9 @@ export function AppProvider({ children }) {
     setUser(null);
   }
 
-  function toggleWatchlist(id) {
+  function toggleWatchlist(assetId) {
     setWatchlist(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+      prev.includes(assetId) ? prev.filter(id => id !== assetId) : [...prev, assetId]
     );
   }
 
