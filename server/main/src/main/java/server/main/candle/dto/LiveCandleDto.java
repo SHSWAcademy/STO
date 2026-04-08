@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LiveCandle {
+public class LiveCandleDto {
     private Double openPrice;
     private Double highPrice;
     private Double lowPrice;
