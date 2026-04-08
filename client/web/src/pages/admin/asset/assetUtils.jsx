@@ -17,6 +17,25 @@ export function formatDate(value) {
   return date.toLocaleDateString("ko-KR");
 }
 
+export function toBoolean(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "true" || normalized === "y" || normalized === "yes" || normalized === "1";
+  }
+  return false;
+}
+
+export function resolveAllocationFlag(item) {
+  return toBoolean(
+    item?.isAllocated ??
+    item?.allocated ??
+    item?.allocationBatchStatus ??
+    item?.allocationStatus,
+  );
+}
+
 export const STATUS_LABEL = {
   ACTIVE:   { label: "상장",     className: "bg-green-100 text-green-600" },
   LISTED:   { label: "상장",     className: "bg-green-100 text-green-600" },

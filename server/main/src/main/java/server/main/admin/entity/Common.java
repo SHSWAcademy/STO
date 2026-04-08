@@ -2,9 +2,6 @@ package server.main.admin.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.cglib.core.Local;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -13,7 +10,7 @@ import java.time.LocalDateTime;
 @Builder
 @ToString
 @Table(name = "commons")
-public class Commons {
+public class Common {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long baseId;    // 기본ID

@@ -87,6 +87,7 @@ public class AdminController {
         adminService.updateAllocation(allocationEventId, dto, file);
         return ResponseEntity.ok().build();
     }
-    // 발행 -> 발행완료상태 -> 오전9시 발행완료 -> 거래 중
+
+
 
  }

@@ -21,4 +21,5 @@ public class AssetListResponseDTO {
     private String imgUrl;      // 이미지url
     private LocalDateTime issuedAt;    // 발행일자
     private Long totalSupply;       // 토큰 총 발행량
+    private Boolean isAllocated;    // 배당 지급 여부
 }

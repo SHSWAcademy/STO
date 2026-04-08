@@ -1,13 +1,12 @@
 package server.main.admin.service;
 
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.*;
-import server.main.admin.entity.Commons;
+import server.main.admin.entity.Common;
 import server.main.admin.entity.PlatformTokenHolding;
 import server.main.admin.mapper.AdminMapper;
 import server.main.admin.repository.CommonsRepository;
@@ -26,7 +25,6 @@ import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
@@ -263,7 +261,7 @@ public class AdminServiceImpl implements AdminService {
     // 마감월 리턴 메서드
     // 플랫폼설정 테이블에서 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
     private YearMonth getTargetMonth() {
-        Commons commons = commonsRepository.findAllocateDate();
+        Common commons = commonsRepository.findAllocateDate();
         return LocalDate.now().getDayOfMonth() > commons.getAllocateDate()
                 ? YearMonth.now().plusMonths(1)
                 : YearMonth.now();
@@ -271,7 +269,7 @@ public class AdminServiceImpl implements AdminService {
 
     // 관리자 마감일 리턴
     private LocalDate getAdminTargetMonth() {
-        Commons commons = commonsRepository.findAllocateDate();
+        Common commons = commonsRepository.findAllocateDate();
         YearMonth targetMonth = LocalDate.now().getDayOfMonth() > commons.getAllocateSetDate()
                 ? YearMonth.now().plusMonths(1)
                 : YearMonth.now();
