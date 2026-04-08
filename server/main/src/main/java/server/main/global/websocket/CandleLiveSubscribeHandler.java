@@ -7,7 +7,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 import server.main.candle.service.CandleLiveManager;
-import server.main.candle.dto.LiveCandle;
+import server.main.candle.dto.LiveCandleDto;
 import server.main.candle.entity.CandleType;
 import server.main.candle.mapper.CandleMapper;
 
@@ -31,7 +31,7 @@ public class CandleLiveSubscribeHandler {
 
         // 현재 봉 스냅샷 전부 전송
         for (CandleType type : CandleType.values()) {
-            LiveCandle snapshot = candleLiveManager.getSnapshot(tokenId, type);
+            LiveCandleDto snapshot = candleLiveManager.getSnapshot(tokenId, type);
             if (snapshot != null) {
                 template.convertAndSend(destination, candleMapper.toLiveDto(snapshot, type));
             }

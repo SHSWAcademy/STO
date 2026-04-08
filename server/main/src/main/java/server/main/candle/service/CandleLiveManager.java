@@ -5,7 +5,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import server.main.candle.dto.CandleResponseDto;
-import server.main.candle.dto.LiveCandle;
+import server.main.candle.dto.LiveCandleDto;
 import server.main.candle.entity.*;
 import server.main.candle.mapper.CandleMapper;
 
@@ -17,17 +17,18 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class CandleLiveManager {
 
-    // 5개 주기별 현재 봉 상태 (key가 tokenId)
-    private final ConcurrentHashMap<Long, LiveCandle> liveMinute = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, LiveCandle> liveHour   = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, LiveCandle> liveDay    = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, LiveCandle> liveMonth  = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, LiveCandle> liveYear   = new ConcurrentHashMap<>();
+    // 5개 주기별 현재 봉 상태 (key tokenId, value LiveCandle)
+    private final ConcurrentHashMap<Long, LiveCandleDto> liveMinute = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, LiveCandleDto> liveHour   = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, LiveCandleDto> liveDay    = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, LiveCandleDto> liveMonth  = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, LiveCandleDto> liveYear   = new ConcurrentHashMap<>();
 
     private final CandleFlushService     candleFlushService;
     private final SimpMessagingTemplate  messagingTemplate;
     private final CandleMapper           candleMapper;
 
+    // 토큰 ID 별로 락을 따로 구분 (key : tokenId, value : 락)
     private final ConcurrentHashMap<Long, Object> tokenLocks = new ConcurrentHashMap<>();
 
     // RedisSubscriber 에서 체결 수신 시 호출 — 5개 주기 동시 갱신
@@ -41,25 +42,33 @@ public class CandleLiveManager {
         updateCandle(liveYear, tokenId, tradePrice, tradeQuantity, now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS), CandleType.YEAR);
     }
 
-    private void updateCandle(ConcurrentHashMap<Long, LiveCandle> map,
+    private void updateCandle(ConcurrentHashMap<Long, LiveCandleDto> map,
                               Long tokenId, Double tradePrice, Double tradeQuantity,
                               LocalDateTime bucketStart, CandleType type) { // bucketStart : 현재 체결이 속하는 봉의 시작 시각
+        // 토큰 락 (토큰 id로 생성 또는 조회된다)
         Object lock = tokenLocks.computeIfAbsent(tokenId, k -> new Object());
 
-        LiveCandle candleToSend;
+        // 화면에 보낼 candle
+        LiveCandleDto candleToSend;
 
         synchronized (lock) {
-            LiveCandle candle = map.get(tokenId);
+            LiveCandleDto candle = map.get(tokenId); // 해당 캔들 구간
 
-            // 캔들 시작 구간이 바뀌었을 경우
+            // 기존 캔들의 시간이 방금 계산한 bucketStart와 다르면(ex : 1분이 지났으면) : 구간이 바뀌었다고 판단
+            // 새로운 체결이 들어왔을 때 캔들 기준 시간이 지났으면 이전 캔들을 닫고 saveToDB
+            // 문제 : 새로운 체결이 안들어오면 이전 캔들을 saveToDB에 하지 못한다
+            // 해결 : 스케줄 어노테이션 -> 1분마다 flush
             if (candle == null || !candle.getCandleTime().equals(bucketStart)) {
-                // 구간 바뀜 → 이전 봉 DB 저장
-                if (candle != null) {
+                if (candle != null) { // 구간이 바뀌어 새 봉일 경우 이전 봉 DB 저장
                     candleFlushService.saveToDB(candle, tokenId, type);
+                    // saveToDB 메서드를 같은 클래스에서 작성하면 @Transactional 동작 x
+                    // 별도 빈으로 분리하여 작성 -> 트랜잭션 aop 동작 o
                 }
 
-                // 새 봉 초기화
-                candle = LiveCandle.builder()
+                // 새 봉 생성
+                // 새로 들어온 체결가를 시가/고가/저가/종가로 세팅하여 메모리에 둔다
+                // 새로 들어온 체결가를 실제 금융권에서 시가, 고가, 저가, 종가로 할당하면서 시작
+                candle = LiveCandleDto.builder()
                         .openPrice(tradePrice)
                         .highPrice(tradePrice)
                         .lowPrice(tradePrice)
@@ -69,18 +78,19 @@ public class CandleLiveManager {
                         .candleTime(bucketStart)
                         .build();
             } else {
-                // 캔들 시작 구간이 같을 경우 (하나의 캔들 구간에서 여러 체결이 일어날 경우)
+                // 기존 캔들의 시간이 방금 계산한 bucketStart와 같으면
                 candle.update(tradePrice, tradeQuantity);
             }
 
             map.put(tokenId, candle);
             candleToSend = candle;
-        } // synchronized
-        pushToWebSocket(tokenId, candleToSend, type); // lock 밖에서 push
+        } // synchronized 종료 : 락 반납
+
+        pushToWebSocket(tokenId, candleToSend, type); // 캔들 적용하여 화면으로 실시간 push
     }
 
     // 구독 시 현재 봉 스냅샷 반환
-    public LiveCandle getSnapshot(Long tokenId, CandleType type) {
+    public LiveCandleDto getSnapshot(Long tokenId, CandleType type) {
         return switch (type) {
             case MINUTE -> liveMinute.get(tokenId);
             case HOUR   -> liveHour.get(tokenId);
@@ -91,7 +101,7 @@ public class CandleLiveManager {
     }
 
     // 체결이 발생할 때마다 현재 봉의 갱신된 상태를 차트 화면에 실시간으로 전송
-    private void pushToWebSocket(Long tokenId, LiveCandle candle, CandleType type) {
+    private void pushToWebSocket(Long tokenId, LiveCandleDto candle, CandleType type) {
         CandleResponseDto dto = candleMapper.toLiveDto(candle, type);
         messagingTemplate.convertAndSend("/topic/candle/live/" + tokenId, dto);
     }
@@ -107,13 +117,13 @@ public class CandleLiveManager {
         flushMap(liveYear,   CandleType.YEAR,   now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS));
     }
 
-    private void flushMap(ConcurrentHashMap<Long, LiveCandle> map, CandleType type, LocalDateTime currentBucket) {
+    private void flushMap(ConcurrentHashMap<Long, LiveCandleDto> map, CandleType type, LocalDateTime currentBucket) {
         map.forEach((tokenId, candle) -> {
             Object lock = tokenLocks.computeIfAbsent(tokenId, k -> new Object());
             synchronized (lock) {
                 if (!candle.getCandleTime().equals(currentBucket)) {
                     candleFlushService.saveToDB(candle, tokenId, type);
-                    map.remove(tokenId);
+                    map.remove(tokenId); // flush 후 map 에서 삭제
                 }
             }
         });
