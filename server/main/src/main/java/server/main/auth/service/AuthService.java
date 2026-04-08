@@ -22,7 +22,7 @@ import server.main.member.entity.Member;
 import server.main.member.entity.Wallet;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
-import server.main.member.service.CustodiaWalletService;
+import server.main.member.service.CustodialWalletService;
 
 @Slf4j
 @Service
@@ -37,7 +37,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AccountRepository accountRepository;
-    private final CustodiaWalletService custodiaWalletService;
+    private final CustodialWalletService custodialWalletService;
 
     @Transactional
     public MemberSignupResponse signup(MemberSignupRequest request) {
@@ -54,7 +54,7 @@ public class AuthService {
         Account account = Account.create(member, accountNumber, encodedAccountPassword);
         accountRepository.save(account);
 
-        Wallet wallet = custodiaWalletService.createMemberWallet(member);
+        Wallet wallet = custodialWalletService.createMemberWallet(member);
 
         return new MemberSignupResponse(member.getMemberId(), member.getEmail(), member.getMemberName(), wallet.getWalletAddress());
     }

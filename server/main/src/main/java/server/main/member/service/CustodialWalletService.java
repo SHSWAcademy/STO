@@ -13,12 +13,10 @@ import server.main.member.entity.Member;
 import server.main.member.entity.Wallet;
 import server.main.member.repository.WalletRepository;
 
-import java.security.Key;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CustodiaWalletService {
+public class CustodialWalletService {
 
     private final WalletRepository walletRepository;
     private final WalletEncryptionUtil walletEncryptionUtil;
