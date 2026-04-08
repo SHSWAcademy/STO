@@ -259,6 +259,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     // 플랫폼 기본설정 (최초 등록 및 수정)
+    @Transactional
     @Override
     public void registerCommon(CommonDTO dto) {
         Common common = commonsRepository.findCommon();

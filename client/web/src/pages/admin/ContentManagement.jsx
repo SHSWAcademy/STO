@@ -1,24 +1,19 @@
 import { useState } from 'react';
-import { FileText, PlusCircle, Filter, CheckCircle2, XCircle, AlertCircle, DollarSign, Edit3, Trash2 } from 'lucide-react';
+import { FileText, PlusCircle, Filter, AlertCircle, DollarSign, Edit3, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext.jsx';
 import { cn } from '../../lib/utils.js';
-import { TabSwitcher } from '../../components/ui/TabSwitcher.jsx';
 import { SearchInput } from '../../components/ui/SearchInput.jsx';
 import { Badge } from '../../components/ui/Badge.jsx';
 import { Modal } from '../../components/ui/Modal.jsx';
 
 export function ContentManagement() {
-  const { disclosures, setDisclosures, tokens, notices, setNotices } = useApp();
-  const [activeTab, setActiveTab]         = useState('notices');
+  const { disclosures, setDisclosures, tokens } = useApp();
   const [disclosureFilter, setDisclosureFilter] = useState('all');
   const [disclosureTypeTab, setDisclosureTypeTab] = useState('전체');
   const [editingDisclosure, setEditingDisclosure] = useState(null);
-  const [isAddingNotice, setIsAddingNotice]       = useState(false);
   const [isAddingDisclosure, setIsAddingDisclosure] = useState(false);
-  const [noticeSearchTerm, setNoticeSearchTerm]   = useState('');
   const [searchTerm, setSearchTerm]               = useState('');
   const [editForm, setEditForm] = useState({ title: '', file: '', status: '', asset: '', type: '일반' });
-  const [noticeForm, setNoticeForm] = useState({ title: '', category: '일반', important: false, content: '' });
 
   function handleEditDisclosure(d) {
     setEditingDisclosure(d);
@@ -29,21 +24,6 @@ export function ContentManagement() {
     if (!editingDisclosure) return;
     setDisclosures(prev => prev.map(d => d.id === editingDisclosure.id ? { ...d, ...editForm } : d));
     setEditingDisclosure(null);
-  }
-
-  function handleAddNotice() {
-    const newNotice = {
-      id: Date.now(),
-      title: noticeForm.title,
-      date: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\s/g, ''),
-      category: noticeForm.category,
-      important: noticeForm.important,
-      content: noticeForm.content,
-    };
-    setNotices(prev => [newNotice, ...prev]);
-    alert('신규 공지사항이 등록되었습니다.');
-    setIsAddingNotice(false);
-    setNoticeForm({ title: '', category: '일반', important: false, content: '' });
   }
 
   function handleAddDisclosure() {
@@ -73,75 +53,22 @@ export function ContentManagement() {
     return matchesFilter && matchesTypeTab && matchesSearch;
   });
 
-  const filteredNotices = notices.filter(n =>
-    n.title.toLowerCase().includes(noticeSearchTerm.toLowerCase()) ||
-    n.category.toLowerCase().includes(noticeSearchTerm.toLowerCase())
-  );
-
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-stone-800">공시/공지 관리</h1>
-          <p className="text-sm text-stone-400">플랫폼 공지사항 및 자산별 공시 내역을 관리합니다.</p>
+          <h1 className="text-2xl font-semibold text-stone-800">공시 관리</h1>
+          <p className="text-sm text-stone-400">자산별 공시 내역을 관리합니다.</p>
         </div>
         <button
-          onClick={() => activeTab === 'notices' ? setIsAddingNotice(true) : setIsAddingDisclosure(true)}
+          onClick={() => setIsAddingDisclosure(true)}
           className="flex items-center gap-2 px-6 py-3 bg-brand-blue text-white text-sm font-medium rounded-md hover:bg-brand-blue-dk transition-colors"
         >
           <PlusCircle className="w-5 h-5" />
-          {activeTab === 'notices' ? '신규 공지 등록' : '신규 공시 등록'}
+          신규 공시 등록
         </button>
       </div>
-
-      {/* Tabs */}
-      <TabSwitcher variant="light"
-        items={[{ id: 'notices', label: '공지사항' }, { id: 'disclosures', label: '공시 내역' }]}
-        active={activeTab}
-        onChange={setActiveTab}
-      />
-
-      {activeTab === 'notices' ? (
-        <div className="bg-white rounded-lg border border-stone-200 overflow-hidden">
-          <div className="p-6 border-b border-stone-200 flex items-center justify-between">
-            <SearchInput variant="light" value={noticeSearchTerm} onChange={setNoticeSearchTerm} placeholder="공지 제목 검색..." />
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-stone-100 border-b border-stone-200">
-                  {['제목','카테고리','작성일','중요','관리'].map(h => (
-                    <th key={h} className={`px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide ${h === '중요' || h === '관리' ? 'text-center' : ''}`}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-200">
-                {filteredNotices.map(n => (
-                  <tr key={n.id} className="hover:bg-stone-100 transition-all group">
-                    <td className="px-6 py-4"><p className="text-sm font-semibold text-stone-800">{n.title}</p></td>
-                    <td className="px-6 py-4">
-                      <Badge variant="warning">{n.category}</Badge>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-bold text-stone-400">{n.date}</td>
-                    <td className="px-6 py-4 text-center">
-                      {n.important
-                        ? <CheckCircle2 className="w-5 h-5 text-brand-red mx-auto" />
-                        : <XCircle className="w-5 h-5 text-stone-200 mx-auto" />}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                        <button className="p-2 text-brand-blue hover:bg-stone-100 rounded-lg transition-all"><Edit3 className="w-4 h-4" /></button>
-                        <button className="p-2 text-brand-red hover:bg-brand-red-light rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-6">
+      <div className="space-y-6">
           {/* Disclosure filter cards */}
           <div className="flex items-center gap-4 p-2 bg-stone-100 border border-stone-200 rounded-lg w-fit">
             {[
@@ -220,7 +147,6 @@ export function ContentManagement() {
             </div>
           </div>
         </div>
-      )}
 
       {/* Edit Disclosure Modal */}
       <Modal isOpen={!!editingDisclosure} onClose={() => setEditingDisclosure(null)} title="공시 정보 수정" maxWidth="max-w-lg">
@@ -253,48 +179,6 @@ export function ContentManagement() {
         <div className="p-6 bg-stone-100 border-t border-stone-200 flex gap-3">
           <button onClick={() => setEditingDisclosure(null)} className="flex-1 py-3 rounded-md bg-white border border-stone-200 text-stone-400 text-sm font-medium hover:bg-stone-200 transition-colors">취소</button>
           <button onClick={handleSaveDisclosure} className="flex-[2] py-3 rounded-md bg-brand-blue text-white text-sm font-medium hover:bg-brand-blue-dk transition-colors">저장하기</button>
-        </div>
-      </Modal>
-
-      {/* Add Notice Modal */}
-      <Modal isOpen={isAddingNotice} onClose={() => setIsAddingNotice(false)} title="신규 공지사항 등록" maxWidth="max-w-lg">
-        <div className="p-8 space-y-6">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공지 제목</label>
-            <input type="text" value={noticeForm.title} onChange={e => setNoticeForm({ ...noticeForm, title: e.target.value })}
-              placeholder="공지사항 제목을 입력하세요"
-              className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">카테고리</label>
-            <div className="flex gap-2 p-1 bg-stone-200 rounded-xl">
-              {['일반','시스템'].map(cat => (
-                <button key={cat} type="button" onClick={() => setNoticeForm({ ...noticeForm, category: cat })}
-                  className={cn('flex-1 py-2.5 rounded-lg text-sm font-semibold transition-colors',
-                    noticeForm.category === cat ? 'bg-white text-brand-blue shadow-sm' : 'text-stone-400 hover:text-stone-500'
-                  )}>
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">중요 공지 여부</label>
-            <div className="flex items-center gap-3 h-12 px-4 bg-stone-100 border border-stone-200 rounded-xl">
-              <input type="checkbox" checked={noticeForm.important} onChange={e => setNoticeForm({ ...noticeForm, important: e.target.checked })} className="w-4 h-4 rounded" />
-              <span className="text-xs font-bold text-stone-500">상단 고정</span>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest">공지 내용</label>
-            <textarea rows={6} value={noticeForm.content} onChange={e => setNoticeForm({ ...noticeForm, content: e.target.value })}
-              placeholder="공지사항 내용을 입력하세요"
-              className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none focus:border-brand-blue font-bold resize-none" />
-          </div>
-        </div>
-        <div className="p-6 bg-stone-100 border-t border-stone-200 flex gap-3">
-          <button onClick={() => setIsAddingNotice(false)} className="flex-1 py-3 rounded-md bg-white border border-stone-200 text-stone-400 text-sm font-medium hover:bg-stone-200 transition-colors">취소</button>
-          <button onClick={handleAddNotice} className="flex-[2] py-3 rounded-md bg-brand-blue text-white text-sm font-medium hover:bg-brand-blue-dk transition-colors">등록하기</button>
         </div>
       </Modal>
 

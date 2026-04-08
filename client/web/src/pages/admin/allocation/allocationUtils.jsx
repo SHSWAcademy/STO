@@ -33,6 +33,16 @@ export function formatDate(value) {
   return date.toLocaleDateString("ko-KR");
 }
 
+export function pdfViewUrl(storedName) {
+  if (!storedName) return null;
+  return `${PDF_VIEW_BASE}/${encodeURIComponent(storedName)}`;
+}
+
+export function pdfDownloadUrl(storedName) {
+  if (!storedName) return null;
+  return `${PDF_DOWNLOAD_BASE}/${encodeURIComponent(storedName)}`;
+}
+
 export function getAllocationDisplayStatus(item) {
   const adminDate = item?.allocateSetMonth;
   const targetMonth = item?.targetMonth;

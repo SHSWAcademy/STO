@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Download, Eye } from "lucide-react";
 import { AllocationForm } from "./AllocationForm.jsx";
 import {
@@ -8,8 +9,8 @@ import {
   formatSettlementLabel,
   formatYearMonth,
   imgSrc,
-  PDF_DOWNLOAD_BASE,
-  PDF_VIEW_BASE,
+  pdfDownloadUrl,
+  pdfViewUrl,
 } from "./allocationUtils.jsx";
 
 export function AllocationDetail({
@@ -22,6 +23,39 @@ export function AllocationDetail({
   onBack,
   onSubmit,
 }) {
+  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
+
+  const currentMonthAllocation = useMemo(() => {
+    const target = monthMeta?.targetMonth;
+    if (!target || details.length === 0) return null;
+    return (
+      details.find((detail) => {
+        const ym = `${detail.settlementYear}-${String(detail.settlementMonth).padStart(2, "0")}`;
+        return ym === target;
+      }) ?? null
+    );
+  }, [details, monthMeta]);
+
+  useEffect(() => {
+    if (currentMonthAllocation?.allocationEventId) {
+      setSelectedHistoryId(currentMonthAllocation.allocationEventId);
+      return;
+    }
+
+    if (details[0]?.allocationEventId) {
+      setSelectedHistoryId(details[0].allocationEventId);
+      return;
+    }
+
+    setSelectedHistoryId(null);
+  }, [currentMonthAllocation, details]);
+
+  const selectedHistory =
+    details.find((detail) => detail.allocationEventId === selectedHistoryId) ??
+    currentMonthAllocation ??
+    details[0] ??
+    null;
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -61,6 +95,7 @@ export function AllocationDetail({
             item={item}
             details={details}
             monthMeta={monthMeta}
+            selectedHistory={selectedHistory}
             loading={loading}
             saving={saving}
             submitError={submitError}
@@ -110,7 +145,15 @@ export function AllocationDetail({
                     {details.map((detail) => (
                       <tr
                         key={detail.allocationEventId}
-                        className="hover:bg-stone-50"
+                        onClick={() =>
+                          setSelectedHistoryId(detail.allocationEventId)
+                        }
+                        className={`cursor-pointer transition-colors hover:bg-stone-50 ${
+                          selectedHistory?.allocationEventId ===
+                          detail.allocationEventId
+                            ? "bg-brand-blue-light/40"
+                            : ""
+                        }`}
                       >
                         <td className="px-6 py-4 text-sm font-semibold text-stone-800">
                           {formatSettlementLabel(
@@ -119,7 +162,7 @@ export function AllocationDetail({
                           )}
                         </td>
                         <td className="px-6 py-4 text-sm text-stone-500">
-                          {formatDateTime(detail.settled_at)}
+                          {formatDateTime(detail.settledAt)}
                         </td>
                         <td className="px-6 py-4 text-right text-sm font-bold text-stone-800">
                           {formatCurrency(detail.monthlyDividendIncome)}
@@ -136,16 +179,21 @@ export function AllocationDetail({
                                 {detail.originName ?? detail.storedName}
                               </span>
                               <a
-                                href={`${PDF_VIEW_BASE}/${detail.storedName}`}
+                                href={pdfViewUrl(detail.storedName)}
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                onClick={(event) => event.stopPropagation()}
                                 className="rounded-md border border-stone-200 bg-white p-2 text-stone-500 transition-colors hover:border-brand-blue hover:text-brand-blue"
                                 title={detail.originName ?? "파일 보기"}
                               >
                                 <Eye className="h-4 w-4" />
                               </a>
                               <a
-                                href={`${PDF_DOWNLOAD_BASE}/${detail.storedName}`}
+                                href={pdfDownloadUrl(detail.storedName)}
+                                download={
+                                  detail.originName ?? detail.storedName
+                                }
+                                onClick={(event) => event.stopPropagation()}
                                 className="rounded-md border border-stone-200 bg-white p-2 text-stone-500 transition-colors hover:border-brand-blue hover:text-brand-blue"
                                 title={detail.originName ?? "파일 다운로드"}
                               >

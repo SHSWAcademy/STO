@@ -1,6 +1,6 @@
 package server.main.admin.controller;
 
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import org.springframework.web.bind.annotation.RequestBody;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -13,9 +13,10 @@ import server.main.admin.service.AdminService;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/admin/")
+@RequestMapping("/admin")
 @Log4j2
 @RequiredArgsConstructor
 public class AdminController {
@@ -93,6 +94,7 @@ public class AdminController {
     // 플랫폼 기초 설정 등록 및 수정
     @PostMapping("/common")
     public ResponseEntity<Void> registerAndUpdateCommon(@RequestBody CommonDTO dto) {
+        log.info("시스템 설정 파라미터: {}", dto);
         adminService.registerCommon(dto);
         return ResponseEntity.ok().build();
     }

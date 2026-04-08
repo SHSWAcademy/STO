@@ -2,7 +2,7 @@ package server.main.admin.dto;
 
 import lombok.*;
 
-@Getter
+@Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor

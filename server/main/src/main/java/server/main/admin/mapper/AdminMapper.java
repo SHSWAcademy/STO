@@ -116,10 +116,10 @@ public class AdminMapper {
                 .disclosureId(dto.getDisclosureId())
                 .allocationBatchStatus(dto.getAllocationBatchStatus())
                 .monthlyDividendIncome(dto.getMonthlyDividendIncome())
-                .settled_at(dto.getSettledAt())
+                .settledAt(dto.getSettledAt())
                 .settlementMonth(dto.getSettlementMonth())
                 .settlementYear(dto.getSettlementYear())
-                .storedName(file.getOrigin_name())
+                .storedName(file.getStored_name())
                 .originName(file.getOrigin_name())
                 .build();
     }
