@@ -9,7 +9,7 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
 import {
-  ChartLine, Filter, Settings, Maximize2, X, Target, CheckCircle,
+  ChartLine, Filter, Settings, Maximize2, X, Target, CheckCircle, MoreHorizontal, Edit3,
 } from 'lucide-react';
 
 import { useApp }            from '../context/AppContext.jsx';
@@ -26,19 +26,19 @@ import { cn } from '../lib/utils.js';
 const API = 'http://localhost:8080';
 
 const PERIOD_TO_TYPE = {
-  '1분': 'MINUTE',
+  '분':  'MINUTE',
+  '시간': 'HOUR',
   '일':  'DAY',
-  '주':  'HOUR',
   '월':  'MONTH',
   '년':  'YEAR',
 };
-const CHART_PERIODS = ['1분', '일', '주', '월', '년'];
+const CHART_PERIODS = ['분', '시간', '일', '월', '년'];
 
 // ── 유틸 ────────────────────────────────────────────────────────
 function formatCandleTime(candleTime, period) {
   if (!candleTime) return '';
   const d = new Date(candleTime);
-  if (period === '1분' || period === '주') return d.toTimeString().slice(0, 5);
+  if (period === '분' || period === '시간') return d.toTimeString().slice(0, 5);
   if (period === '일') return `${d.getMonth() + 1}/${d.getDate()}`;
   if (period === '월') return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
   if (period === '년') return `${d.getFullYear()}`;
@@ -120,11 +120,49 @@ export function MockupPage() {
   }, [TOKEN_ID, user?.accessToken]);
 
   // ── 차트 상태 ────────────────────────────────────────────────
-  const [chartPeriod, setChartPeriod]         = useState('1분');
-  const [chartData, setChartData]             = useState([]);
-  const [hoveredData, setHoveredData]         = useState(null);
-  const [loading, setLoading]                 = useState(false);
-  const [priceHistoryTab, setPriceHistoryTab] = useState('realtime');
+  const [chartPeriod, setChartPeriod] = useState('분');
+  const [chartData, setChartData]     = useState([]);
+  const [hoveredData, setHoveredData] = useState(null);
+  const [loading, setLoading]         = useState(false);
+
+  // ── 종목 정보 탭 데이터 ─────────────────────────────────────
+  const [tokenAssetInfo, setTokenAssetInfo] = useState(null);
+
+  useEffect(() => {
+    const headers = user?.accessToken
+      ? { Authorization: `Bearer ${user.accessToken}` }
+      : {};
+    fetch(`${API}/api/token/${TOKEN_ID}/info`, { headers })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => setTokenAssetInfo(data))
+      .catch(e => console.warn('[MockupPage] 종목정보 조회 실패:', e));
+  }, [TOKEN_ID, user?.accessToken]);
+
+  // ── 배당금 / 공시 탭 데이터 ──────────────────────────────────
+  const [allocations, setAllocations]   = useState(null);
+  const [disclosures, setDisclosures]   = useState(null);
+
+  useEffect(() => {
+    if (activeTab !== 'dividend' || allocations !== null) return;
+    const headers = user?.accessToken
+      ? { Authorization: `Bearer ${user.accessToken}` }
+      : {};
+    fetch(`${API}/api/token/${TOKEN_ID}/allocation`, { headers })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => setAllocations(data))
+      .catch(e => { console.warn('[MockupPage] 배당금 조회 실패:', e); setAllocations([]); });
+  }, [activeTab, TOKEN_ID, user?.accessToken]);
+
+  useEffect(() => {
+    if (activeTab !== 'news' || disclosures !== null) return;
+    const headers = user?.accessToken
+      ? { Authorization: `Bearer ${user.accessToken}` }
+      : {};
+    fetch(`${API}/api/token/${TOKEN_ID}/disclosure`, { headers })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => setDisclosures(data))
+      .catch(e => { console.warn('[MockupPage] 공시 조회 실패:', e); setDisclosures([]); });
+  }, [activeTab, TOKEN_ID, user?.accessToken]);
 
   // ── 호가 / 체결 상태 (match 서버 연동 전: mock 기본값) ────────
   const [asks, setAsks]             = useState(HOGA_ASKS);
@@ -146,20 +184,20 @@ export function MockupPage() {
   const maxAskAmount = Math.max(...asks.map(r => r.amount), 1);
   const maxBidAmount = Math.max(...bids.map(r => r.amount), 1);
 
-  // AssetHeader / OrderPanel 이 기대하는 asset 객체 형태로 변환
-  // TokenDetailDto: tokenId, totalSupply, tokenName, tokenSymbol, issuedAt, assetName, imgUrl
-  const asset = tokenInfo ? {
+  // AssetHeader 가 기대하는 asset 객체 형태로 변환
+  // tokenInfo 로드 전에도 탭이 보여야 하므로 항상 객체를 반환
+  const asset = {
     id:     TOKEN_ID,
-    name:   tokenInfo.tokenName  || tokenInfo.assetName || '-',
-    symbol: tokenInfo.tokenSymbol || '-',
+    name:   tokenInfo?.tokenName  || tokenInfo?.assetName || '-',
+    symbol: tokenInfo?.tokenSymbol || '-',
     change: 0,
     high:   dailyHigh || currentPrice || 0,
     low:    dailyLow  || currentPrice || 0,
     price:  currentPrice,
-    issued: tokenInfo.totalSupply || 0,
-    desc:   tokenInfo.assetName   || '',
+    issued: tokenInfo?.totalSupply || 0,
+    desc:   tokenInfo?.assetName   || '',
     pdfUrl: null,
-  } : null;
+  };
 
   const inWatchlist = watchlist.includes(TOKEN_ID);
 
@@ -172,7 +210,7 @@ export function MockupPage() {
         ? { Authorization: `Bearer ${user.accessToken}` }
         : {};
       const res = await fetch(
-        `${API}/api/token/${TOKEN_ID}/candles?type=${type}`,
+        `${API}/api/token/${TOKEN_ID}/candle?type=${type}`,
         { headers }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -188,9 +226,11 @@ export function MockupPage() {
   useEffect(() => { fetchCandles(); }, [fetchCandles]);
 
   // ── WebSocket 연동 ───────────────────────────────────────────
+  // candleType='live' → /topic/candle/live/{tokenId} 구독 (백엔드 [6-3] 설계와 일치)
+  // 과거 봉은 REST (fetchCandles), 현재 봉 고가/저가만 WS로 실시간 수신
   useTradingSocket({
     tokenId:    TOKEN_ID,
-    candleType: PERIOD_TO_TYPE[chartPeriod],
+    candleType: 'live',
     token:      user?.accessToken,
     onOrderBook: (data) => {
       if (data.asks) setAsks(data.asks);
@@ -231,31 +271,16 @@ export function MockupPage() {
         <LoginRequiredModal message={loginModal} onClose={() => setLoginModal(null)} />
       )}
 
-      {/* 상단: 종목 헤더 */}
-      {asset ? (
-        <AssetHeader
-          asset={asset}
-          currentPrice={currentPrice}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          inWatchlist={inWatchlist}
-          onToggleWatchlist={() => toggleWatchlist(TOKEN_ID)}
-        />
-      ) : (
-        /* 로딩 중 스켈레톤 */
-        <div className="px-8 py-6 border-b border-stone-200 bg-white flex items-center gap-4">
-          <div className="w-10 h-10 bg-stone-200 rounded-lg animate-pulse" />
-          <div className="space-y-2">
-            <div className="w-40 h-5 bg-stone-200 rounded animate-pulse" />
-            <div className="w-24 h-4 bg-stone-200 rounded animate-pulse" />
-          </div>
-          {loading && (
-            <span className="ml-auto text-xs text-stone-400 font-bold animate-pulse">
-              데이터 로딩 중...
-            </span>
-          )}
-        </div>
-      )}
+      {/* 상단: 종목 헤더 — tokenInfo 로드 여부와 관계없이 항상 렌더 (탭 접근 보장) */}
+      <AssetHeader
+        asset={asset}
+        currentPrice={currentPrice}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        inWatchlist={inWatchlist}
+        onToggleWatchlist={() => toggleWatchlist(TOKEN_ID)}
+        hideStats
+      />
 
       {/* 메인 콘텐츠 */}
       <div className="flex-1 flex overflow-hidden p-6 gap-6">
@@ -296,7 +321,7 @@ export function MockupPage() {
                   </button>
                 </div>
 
-                <div className="h-[360px] p-6 relative">
+                <div className="h-[400px] p-6 relative">
                   {/* OHLCV 인디케이터 */}
                   <div className="absolute top-6 left-6 z-10 flex items-center gap-3 pointer-events-none">
                     {[
@@ -364,29 +389,14 @@ export function MockupPage() {
               </div>
 
               {/* 시세 섹션 */}
-              <div className="flex-1 bg-white rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm">
+              <div className="flex-1 min-h-[240px] bg-white rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm">
                 <div className="p-4 border-b border-stone-200 flex items-center justify-between">
                   <h3 className="text-sm font-bold text-stone-800">시세</h3>
-                  <div className="flex bg-stone-200 p-1 rounded-lg">
-                    {[{ id: 'realtime', label: '실시간' }, { id: 'daily', label: '일별' }].map(t => (
-                      <button
-                        key={t.id}
-                        onClick={() => setPriceHistoryTab(t.id)}
-                        className={cn(
-                          'px-8 py-1 rounded-md text-[11px] font-bold transition-all',
-                          priceHistoryTab === t.id
-                            ? 'bg-white text-stone-800 shadow-sm'
-                            : 'text-stone-400'
-                        )}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
+                  <span className="text-xs font-bold text-stone-400">실시간</span>
                   <X size={14} className="text-stone-400 cursor-pointer" />
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                  <table className="w-full text-[11px]">
+                  <table className="w-full text-sm">
                     <thead className="text-stone-400 border-b border-stone-200 sticky top-0 bg-white">
                       <tr>
                         <th className="text-left p-4 font-bold">체결가</th>
@@ -568,28 +578,27 @@ export function MockupPage() {
         ) : (
           /* 차트·호가 외 탭 */
           <div className="flex-1 bg-white rounded-2xl border border-stone-200 p-8 overflow-y-auto shadow-sm">
-            {activeTab === 'info'     && <InfoTab tokenInfo={tokenInfo} />}
-            {activeTab === 'dividend' && <DividendTab />}
-            {activeTab === 'news'     && <NewsTab />}
+            {activeTab === 'info'     && <InfoTab tokenInfo={tokenInfo} tokenAssetInfo={tokenAssetInfo} />}
+            {activeTab === 'dividend' && <DividendTab allocations={allocations} />}
+            {activeTab === 'news'     && <NewsTab disclosures={disclosures} />}
           </div>
         )}
 
         {/* 주문창: 항상 오른쪽 고정 */}
-        {asset && (
-          <LoginGateOrderPanel
-            asset={asset}
-            currentPrice={currentPrice}
-            isLoggedIn={!!user}
-            onLoginRequired={setLoginModal}
-          />
-        )}
+        <LoginGateOrderPanel
+          currentPrice={currentPrice}
+          isLoggedIn={!!user}
+          onLoginRequired={setLoginModal}
+          tokenId={TOKEN_ID}
+          token={user?.accessToken}
+        />
       </div>
     </div>
   );
 }
 
 // ── 종목정보 탭 ─────────────────────────────────────────────────
-function InfoTab({ tokenInfo }) {
+function InfoTab({ tokenInfo, tokenAssetInfo }) {
   if (!tokenInfo) {
     return (
       <div className="flex items-center justify-center h-40 text-stone-400 font-bold text-sm">
@@ -599,16 +608,13 @@ function InfoTab({ tokenInfo }) {
   }
 
   const rows = [
-    { label: '토큰 이름',   value: tokenInfo.tokenName   ?? '-' },
-    { label: '토큰 심볼',   value: tokenInfo.tokenSymbol ?? '-' },
-    { label: '총 발행량',   value: tokenInfo.totalSupply != null ? `${tokenInfo.totalSupply.toLocaleString()}주` : '-' },
-    { label: '유통량',      value: tokenInfo.circulatingSupply != null ? `${tokenInfo.circulatingSupply.toLocaleString()}주` : '-' },
-    { label: '발행가',      value: tokenInfo.initPrice != null ? `${tokenInfo.initPrice.toLocaleString()}원` : '-' },
-    { label: '현재가',      value: tokenInfo.currentPrice != null ? `${Number(tokenInfo.currentPrice).toLocaleString()}원` : '-' },
-    { label: '자산 주소',   value: tokenInfo.assetAddress ?? '-' },
-    { label: '총 자산 가치', value: tokenInfo.totalValue != null ? `${tokenInfo.totalValue.toLocaleString()}원` : '-' },
-    { label: '상장일',      value: tokenInfo.issuedAt ? new Date(tokenInfo.issuedAt).toLocaleDateString('ko-KR') : '-' },
-    { label: '상태',        value: tokenInfo.tokenStatus ?? '-' },
+    { label: '토큰 이름',    value: tokenInfo.tokenName   ?? '-' },
+    { label: '토큰 심볼',    value: tokenInfo.tokenSymbol ?? '-' },
+    { label: '총 발행량',    value: (tokenAssetInfo?.totalSupply ?? tokenInfo.totalSupply) != null ? `${(tokenAssetInfo?.totalSupply ?? tokenInfo.totalSupply).toLocaleString()}주` : '-' },
+    { label: '발행가',       value: tokenAssetInfo?.initPrice != null ? `${tokenAssetInfo.initPrice.toLocaleString()}원` : '-' },
+    { label: '총 자산 가치', value: tokenAssetInfo?.totalValue != null ? `${tokenAssetInfo.totalValue.toLocaleString()}원` : '-' },
+    { label: '자산 주소',    value: tokenAssetInfo?.assetAddress ?? '-' },
+    { label: '상장일',       value: (tokenAssetInfo?.createdAt ?? tokenInfo.issuedAt) ? new Date(tokenAssetInfo?.createdAt ?? tokenInfo.issuedAt).toLocaleDateString('ko-KR') : '-' },
   ];
 
   return (
@@ -629,7 +635,8 @@ function InfoTab({ tokenInfo }) {
         <section>
           <h3 className="text-lg font-bold mb-4 text-stone-800">자산 개요</h3>
           <p className="text-stone-500 text-sm leading-relaxed">
-            {tokenInfo.assetName} — {tokenInfo.assetAddress}
+            {tokenInfo.assetName}
+            {tokenAssetInfo?.assetAddress ? ` — ${tokenAssetInfo.assetAddress}` : ''}
           </p>
         </section>
       )}
@@ -637,49 +644,181 @@ function InfoTab({ tokenInfo }) {
   );
 }
 
-// ── 배당금 탭 (mock) ────────────────────────────────────────────
-function DividendTab() {
+// ── 배당금 탭 ───────────────────────────────────────────────────
+function DividendTab({ allocations }) {
+  if (allocations === null) {
+    return (
+      <div className="flex items-center justify-center h-40 text-stone-400 font-bold text-sm">
+        배당금 내역을 불러오는 중...
+      </div>
+    );
+  }
+
+  const totalDividend = allocations.reduce((sum, a) => sum + (a.monthlyDividendIncome ?? 0), 0);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-stone-800">배당금 내역</h3>
         <div className="flex items-center gap-2 text-sm text-stone-400">
           <span>총 누적 배당금:</span>
-          <span className="text-stone-800 font-black">-</span>
+          <span className="text-stone-800 font-black">
+            {totalDividend > 0 ? `${totalDividend.toLocaleString()}원` : '-'}
+          </span>
         </div>
       </div>
-      <div className="py-16 flex flex-col items-center gap-3 text-center text-stone-400">
-        <p className="text-sm font-bold">배당금 내역이 없습니다</p>
-      </div>
+      {allocations.length === 0 ? (
+        <div className="py-16 flex flex-col items-center gap-3 text-center text-stone-400">
+          <p className="text-sm font-bold">배당금 내역이 없습니다</p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-stone-200">
+          <table className="w-full text-sm">
+            <thead className="bg-stone-100 text-stone-400 text-[11px] font-bold">
+              <tr>
+                <th className="text-left p-4">지급일</th>
+                <th className="text-right p-4">주당 배당금</th>
+                <th className="text-right p-4">총 배당금</th>
+                <th className="text-right p-4">배치 여부</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-200">
+              {allocations.map((a, i) => (
+                <tr key={i} className="hover:bg-stone-50">
+                  <td className="p-4 text-stone-600 font-bold">
+                    {a.settledAt ? new Date(a.settledAt).toLocaleDateString('ko-KR') : '-'}
+                  </td>
+                  <td className="p-4 text-right font-mono font-bold text-stone-800">
+                    {a.allocationPerToken != null ? `${a.allocationPerToken.toLocaleString()}원` : '-'}
+                  </td>
+                  <td className="p-4 text-right font-mono font-bold text-stone-800">
+                    {a.monthlyDividendIncome != null ? `${a.monthlyDividendIncome.toLocaleString()}원` : '-'}
+                  </td>
+                  <td className="p-4 text-right">
+                    <span className={cn(
+                      'px-2 py-0.5 rounded text-[10px] font-bold',
+                      a.allocationBatchStatus ? 'bg-green-100 text-green-700' : 'bg-stone-200 text-stone-500'
+                    )}>
+                      {a.allocationBatchStatus ? '완료' : '대기'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
 
-// ── 공시 탭 (mock) ──────────────────────────────────────────────
-function NewsTab() {
+// ── 공시 탭 ─────────────────────────────────────────────────────
+const DISCLOSURE_CATEGORY_LABEL = {
+  BUILDING:  '건물',
+  DIVIDEND:  '배당',
+  ETC:       '기타',
+};
+
+function NewsTab({ disclosures }) {
+  const [expanded, setExpanded] = useState(null);
+
+  if (disclosures === null) {
+    return (
+      <div className="flex items-center justify-center h-40 text-stone-400 font-bold text-sm">
+        공시 내역을 불러오는 중...
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-bold text-stone-800">공시</h3>
-      <div className="py-16 flex flex-col items-center gap-3 text-center text-stone-400">
-        <p className="text-sm font-bold">공시 내역이 없습니다</p>
-      </div>
+      {disclosures.length === 0 ? (
+        <div className="py-16 flex flex-col items-center gap-3 text-center text-stone-400">
+          <p className="text-sm font-bold">공시 내역이 없습니다</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {disclosures.map((d, i) => (
+            <div key={i} className="border border-stone-200 rounded-xl overflow-hidden">
+              <button
+                className="w-full flex items-center justify-between p-4 hover:bg-stone-50 transition-colors text-left"
+                onClick={() => setExpanded(expanded === i ? null : i)}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="px-2 py-0.5 bg-stone-200 rounded text-[10px] font-bold text-stone-500">
+                    {DISCLOSURE_CATEGORY_LABEL[d.disclosureCategory] ?? d.disclosureCategory}
+                  </span>
+                  <span className="text-sm font-bold text-stone-800">{d.disclosureTitle}</span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-[11px] text-stone-400 font-bold">
+                    {d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR') : '-'}
+                  </span>
+                  <span className="text-stone-400 text-xs">{expanded === i ? '▲' : '▼'}</span>
+                </div>
+              </button>
+              {expanded === i && (
+                <div className="px-4 pb-4 pt-2 border-t border-stone-100 bg-stone-50">
+                  <p className="text-sm text-stone-600 leading-relaxed whitespace-pre-wrap">
+                    {d.disclosureContent}
+                  </p>
+                  {d.OriginName && (
+                    <p className="mt-2 text-[11px] text-stone-400 font-bold">첨부: {d.OriginName}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 // ── 로그인 게이트 주문창 ────────────────────────────────────────
 // 비로그인 시 매수/매도/대기 버튼에 로그인 안내 처리
-function LoginGateOrderPanel({ asset, currentPrice, isLoggedIn, onLoginRequired }) {
+function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenId, token }) {
   const [orderSide, setOrderSide] = useState('buy');
-  const [orderType, setOrderType] = useState('limit');
   const [inputMode, setInputMode] = useState('qty');
-  const [price, setPrice]         = useState(String(currentPrice));
-  const [qty, setQty]             = useState('');
-  const [amount, setAmount]       = useState('');
+  const [price, setPrice]             = useState(currentPrice > 0 ? String(currentPrice) : '');
+  const [qty, setQty]                 = useState('');
+
+  // currentPrice 로드 완료 시 가격 필드 자동 세팅 (비어있을 때만)
+  useEffect(() => {
+    if (currentPrice > 0) setPrice(p => p === '' ? String(currentPrice) : p);
+  }, [currentPrice]);
+  const [amount, setAmount]           = useState('');
+  const [submitting, setSubmitting]   = useState(false);
+  const [orderMsg, setOrderMsg]       = useState(null); // { type: 'success'|'error', text }
+
+  // ── 대기 주문 목록 ───────────────────────────────────────────
+  const [pendingOrders, setPendingOrders] = useState([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+
+  const fetchPendingOrders = useCallback(async () => {
+    if (!isLoggedIn || !token) return;
+    setPendingLoading(true);
+    try {
+      const res = await fetch(`${API}/api/token/${tokenId}/order/pending`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setPendingOrders(data);
+    } catch (e) {
+      console.warn('[OrderPanel] 대기 주문 조회 실패:', e.message);
+    } finally {
+      setPendingLoading(false);
+    }
+  }, [isLoggedIn, token, tokenId]);
+
+  useEffect(() => {
+    if (orderSide === 'pending') fetchPendingOrders();
+  }, [orderSide, fetchPendingOrders]);
 
   const isBuy     = orderSide === 'buy';
   const isPending = orderSide === 'pending';
-  const isMarket  = orderType === 'market';
 
   const numPrice  = Number(price) || 0;
   const numQty    = inputMode === 'qty'
@@ -694,15 +833,61 @@ function LoginGateOrderPanel({ asset, currentPrice, isLoggedIn, onLoginRequired 
       onLoginRequired('로그인해야 볼 수 있습니다');
       return;
     }
+    setOrderMsg(null);
     setOrderSide(side);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!isLoggedIn) {
       onLoginRequired('매수/매도 주문을 하려면\n먼저 로그인해야 합니다');
       return;
     }
-    alert(`${isBuy ? '매수' : '매도'} 주문 (mock)\n가격: ${numPrice.toLocaleString()}원\n수량: ${numQty}주`);
+    if (numQty <= 0 || numPrice <= 0) {
+      setOrderMsg({ type: 'error', text: '가격과 수량을 올바르게 입력하세요.' });
+      return;
+    }
+    setSubmitting(true);
+    setOrderMsg(null);
+    try {
+      const body = {
+        orderPrice:    numPrice,
+        orderQuantity: numQty,
+        orderType:     isBuy ? 'BUY' : 'SELL',
+      };
+      const res = await fetch(`${API}/api/token/${tokenId}/order`, {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          Authorization:   `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      setOrderMsg({ type: 'success', text: `${isBuy ? '매수' : '매도'} 주문이 접수되었습니다.` });
+      setQty('');
+      setAmount('');
+    } catch (e) {
+      setOrderMsg({ type: 'error', text: e.message || '주문 접수에 실패했습니다.' });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleCancelOrder(orderId) {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/api/token/order/cancel/${orderId}`, {
+        method:  'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setPendingOrders(prev => prev.filter(o => o.orderId !== orderId));
+    } catch (e) {
+      console.warn('[OrderPanel] 주문 취소 실패:', e.message);
+    }
   }
 
   return (
@@ -730,26 +915,94 @@ function LoginGateOrderPanel({ asset, currentPrice, isLoggedIn, onLoginRequired 
 
       <div className="flex-1 overflow-y-auto p-5">
 
-        {/* 대기 탭: 로그인 필요 안내 (여기까지 오면 이미 로그인 상태) */}
+        {/* 대기 탭 */}
         {isPending ? (
-          <div className="py-16 flex flex-col items-center gap-3 text-center text-stone-400">
-            <p className="text-sm font-bold">대기 중인 주문이 없습니다</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-stone-400">미체결 주문</span>
+              <button
+                onClick={fetchPendingOrders}
+                disabled={pendingLoading}
+                className="text-[10px] font-bold text-stone-400 hover:text-stone-700 transition-colors"
+              >
+                {pendingLoading ? '조회 중...' : '새로고침'}
+              </button>
+            </div>
+            {pendingLoading && pendingOrders.length === 0 ? (
+              <div className="py-16 flex flex-col items-center gap-3 text-center">
+                <div className="w-12 h-12 bg-stone-200 rounded-lg flex items-center justify-center">
+                  <MoreHorizontal size={24} className="text-stone-400 animate-pulse" />
+                </div>
+                <p className="text-sm font-bold text-stone-400">조회 중...</p>
+              </div>
+            ) : pendingOrders.length === 0 ? (
+              <div className="py-16 flex flex-col items-center gap-3 text-center">
+                <div className="w-12 h-12 bg-stone-200 rounded-lg flex items-center justify-center">
+                  <MoreHorizontal size={24} className="text-stone-400" />
+                </div>
+                <p className="text-sm font-bold text-stone-400">대기 중인 주문이 없습니다</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pendingOrders.map(o => {
+                  const isBuy = o.orderType === 'BUY';
+                  const totalAmount = (o.orderPrice ?? 0) * (o.orderQuantity ?? 0);
+                  return (
+                    <div key={o.orderId} className="p-4 bg-stone-100 rounded-lg border border-stone-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            'text-[10px] font-black px-2 py-0.5 rounded-md',
+                            isBuy ? 'bg-brand-red-light text-brand-red' : 'bg-brand-blue-light text-brand-blue'
+                          )}>
+                            {isBuy ? '매수' : '매도'}
+                          </span>
+                          <span className="text-[10px] font-black bg-[#fef6dc] text-[#a07828] px-2 py-0.5 rounded-md">
+                            대기
+                          </span>
+                        </div>
+                        <span className="text-[9px] text-stone-400 font-bold">
+                          {o.createdAt ? new Date(o.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-[11px] font-bold">
+                        <div className="flex justify-between">
+                          <span className="text-stone-400">지정가격</span>
+                          <span className="font-mono text-stone-800">{o.orderPrice?.toLocaleString()}원</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-stone-400">미체결/전체</span>
+                          <span className="font-mono text-stone-800">{o.remainingQuantity} / {o.orderQuantity}주</span>
+                        </div>
+                        <div className="flex justify-between border-t border-stone-200 pt-1.5">
+                          <span className="text-stone-400">주문금액</span>
+                          <span className="font-mono font-black text-stone-800">{totalAmount.toLocaleString()}원</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button className="flex-1 py-2 bg-white border border-stone-200 rounded-md text-[11px] font-black text-stone-500 hover:bg-stone-200 transition-all flex items-center justify-center gap-1">
+                          <Edit3 size={12} /> 수정
+                        </button>
+                        <button
+                          onClick={() => handleCancelOrder(o.orderId)}
+                          className="flex-1 py-2 bg-brand-red-light border border-brand-red-light rounded-md text-[11px] font-black text-brand-red hover:bg-[#fccfcf] transition-all flex items-center justify-center gap-1"
+                        >
+                          <X size={12} /> 취소
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-5">
-            {/* 주문 유형 + 입력 모드 */}
+            {/* 주문 유형(지정가 고정) + 입력 모드 */}
             <div className="flex items-center justify-between">
-              <div className="flex bg-stone-200 p-1 rounded-lg">
-                {[{ id: 'limit', label: '지정가' }, { id: 'market', label: '시장가' }].map(t => (
-                  <button key={t.id} onClick={() => setOrderType(t.id)}
-                    className={cn(
-                      'px-3 py-1 rounded-md text-[10px] font-bold transition-all',
-                      orderType === t.id ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-400'
-                    )}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              <span className="px-3 py-1 bg-stone-200 rounded-lg text-[10px] font-bold text-stone-500">
+                지정가
+              </span>
               <div className="flex bg-stone-200 p-1 rounded-lg">
                 {[{ id: 'qty', label: '수량' }, { id: 'amount', label: '금액' }].map(m => (
                   <button key={m.id} onClick={() => setInputMode(m.id)}
@@ -771,10 +1024,9 @@ function LoginGateOrderPanel({ asset, currentPrice, isLoggedIn, onLoginRequired 
               <div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5">
                 <input
                   type="text"
-                  value={isMarket ? '' : price}
+                  value={price}
                   onChange={e => setPrice(e.target.value)}
-                  readOnly={isMarket}
-                  placeholder={isMarket ? '시장가 자동' : ''}
+                  placeholder="가격 입력"
                   className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800 placeholder-stone-400"
                 />
                 <span className="text-sm font-bold text-stone-400">원</span>
@@ -833,20 +1085,35 @@ function LoginGateOrderPanel({ asset, currentPrice, isLoggedIn, onLoginRequired 
                 <span className="text-stone-400">총 주문 금액</span>
                 <span className="text-stone-800">{numAmount.toLocaleString()}원</span>
               </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-[#a07828] font-bold bg-[#fef6dc] px-3 py-2 rounded-lg">
+                <MoreHorizontal size={12} />
+                지정가 주문은 체결 전까지 대기 상태로 유지됩니다
+              </div>
             </div>
 
             {/* 주문 버튼 */}
             <button
               onClick={handleSubmit}
+              disabled={submitting}
               className={cn(
-                'w-full py-3.5 text-white rounded-md font-black text-sm transition-colors',
+                'w-full py-3.5 text-white rounded-md font-black text-sm transition-colors disabled:opacity-50',
                 isBuy
                   ? 'bg-brand-red hover:bg-red-700'
                   : 'bg-brand-blue hover:bg-blue-700'
               )}
             >
-              {isBuy ? '매수하기' : '매도하기'}
+              {submitting ? '처리 중...' : (isBuy ? '매수하기' : '매도하기')}
             </button>
+
+            {/* 주문 결과 메시지 */}
+            {orderMsg && (
+              <p className={cn(
+                'text-center text-[10px] font-bold',
+                orderMsg.type === 'success' ? 'text-green-600' : 'text-red-500'
+              )}>
+                {orderMsg.text}
+              </p>
+            )}
 
             {/* 비로그인 안내 */}
             {!isLoggedIn && (

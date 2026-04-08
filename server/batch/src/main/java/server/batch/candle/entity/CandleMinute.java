@@ -1,8 +1,6 @@
 package server.batch.candle.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -11,7 +9,6 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @Table(name = "CANDLE_MINUTES")
 @NoArgsConstructor
-@AllArgsConstructor
 @SuperBuilder
 public class CandleMinute extends Candle {
     @Id

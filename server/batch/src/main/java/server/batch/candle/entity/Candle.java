@@ -17,7 +17,7 @@ public abstract class Candle {
     private Double lowPrice;
     private Double closePrice;
     private Double volume;              // 해당 구간 체결량 합계
-    private LocalDateTime candleTime;   // 1분 단위 타임 스탬프
+    private LocalDateTime candleTime;   // 1분, 1시간, 1일, 1달, 1년 단위 타임 스탬프
     private Integer tradeCount;         // 캔들 시간 구간 동안 실제로 거래가 체결된 횟수
     private Long tokenId;
 }
