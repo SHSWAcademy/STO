@@ -1,8 +1,10 @@
 package server.match.order.model;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import server.match.order.entity.OrderType;
 
+@EqualsAndHashCode(of = "orderId")
 @Getter
 public class Order {
     private final Long orderId;

@@ -35,9 +35,7 @@ public class OrderController {
                 dto.getOrderQuantity()
         );
 
-        synchronized (orderBook) {
-            orderBook.addOrder(order);
-        }
+        orderBook.addOrder(order);
 
         // TODO: 실제 매칭 로직 구현 예정
         MatchResultDto result = MatchResultDto.builder()
