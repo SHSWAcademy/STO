@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import server.main.order.dto.MatchOrderRequestDto;
+import server.main.order.dto.MatchResultDto;
 import server.main.order.dto.UpdateMatchOrderRequestDto;
 
 import java.util.Map;
@@ -29,8 +30,8 @@ public class MatchClient {
 
 
     // 주문 생성
-    public void sendOrder(MatchOrderRequestDto dto) {
-        restTemplate.postForObject(matchServerUrl + "/internal/orders", dto, Void.class);
+    public MatchResultDto sendOrder(MatchOrderRequestDto dto) {
+        return restTemplate.postForObject(matchServerUrl + "/internal/orders", dto, MatchResultDto.class);
     }
 
 
