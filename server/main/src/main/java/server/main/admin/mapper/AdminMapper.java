@@ -19,7 +19,7 @@ public class AdminMapper {
                 .asset(asset)
                 .tokenName(dto.getAssetName())
                 .currentPrice(Double.valueOf(dto.getInitPrice()))
-                .circulatingSupply(dto.getCirculatingSupply())
+                .circulatingSupply(dto.getTotalSupply() - dto.getHoldingSupply())   // 전체개수 - 플랫폼 소유 갯수
                 .tokenSymbol(dto.getTokenSymbol())
                 .initPrice(dto.getInitPrice())
                 .tokenStatus(TokenStatus.ISSUED)
