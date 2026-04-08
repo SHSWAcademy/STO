@@ -37,7 +37,7 @@ export function useTradingSocket({
           });
         }
         if (onCandle) {
-          client.subscribe(`/topic/candle/${candleType}/${tokenId}`, (msg) => {
+          client.subscribe(`/topic/candle/live/${tokenId}/${candleType}`, (msg) => {
             try { onCandle(JSON.parse(msg.body)); } catch (e) {}
           });
         }
