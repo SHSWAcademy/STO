@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.web3j.crypto.Keys;
 import org.web3j.utils.Numeric;
+import server.main.global.error.BusinessException;
+import server.main.global.error.ErrorCode;
 import server.main.global.util.WalletEncryptionUtil;
 import server.main.member.entity.Member;
 import server.main.member.entity.Wallet;
@@ -33,7 +35,7 @@ public class CustodiaWalletService {
             Wallet wallet = Wallet.createForMember(member, address, encryptedPrivateKey);
             return walletRepository.save(wallet);
         } catch (Exception e) {
-            throw new IllegalStateException("지갑 생성에 실패했습니다.", e);
+            throw new BusinessException(ErrorCode.WALLET_CREATION_FAILED);
         }
     }
 }

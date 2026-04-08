@@ -8,6 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
 import org.web3j.utils.Numeric;
+import server.main.global.error.BusinessException;
+import server.main.global.error.ErrorCode;
 import server.main.global.util.WalletEncryptionUtil;
 import server.main.member.entity.Wallet;
 import server.main.member.entity.WalletRole;
@@ -62,7 +64,7 @@ public class WalletAdminSetupService {
             walletRepository.save(Wallet.createForTreasury(address, encryptedPrivateKey));
             log.info("PLATFORM_TREASURY 지갑 생성: {}", address);
         } catch (Exception e) {
-            throw new IllegalStateException("Treasury 지갑 생성에 실패했습니다.", e);
+            throw new BusinessException(ErrorCode.WALLET_CREATION_FAILED);
         }
     }
 
