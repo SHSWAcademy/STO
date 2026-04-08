@@ -19,8 +19,10 @@ import server.main.global.error.ErrorCode;
 import server.main.global.security.JwtTokenProvider;
 import server.main.member.entity.Account;
 import server.main.member.entity.Member;
+import server.main.member.entity.Wallet;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
+import server.main.member.service.CustodialWalletService;
 
 @Slf4j
 @Service
@@ -35,6 +37,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AccountRepository accountRepository;
+    private final CustodialWalletService custodialWalletService;
 
     @Transactional
     public MemberSignupResponse signup(MemberSignupRequest request) {
@@ -51,7 +54,9 @@ public class AuthService {
         Account account = Account.create(member, accountNumber, encodedAccountPassword);
         accountRepository.save(account);
 
-        return new MemberSignupResponse(member.getMemberId(), member.getEmail(), member.getMemberName());
+        Wallet wallet = custodialWalletService.createMemberWallet(member);
+
+        return new MemberSignupResponse(member.getMemberId(), member.getEmail(), member.getMemberName(), wallet.getWalletAddress());
     }
 
     public LoginResponse memberLogin(MemberLoginRequest request) {
