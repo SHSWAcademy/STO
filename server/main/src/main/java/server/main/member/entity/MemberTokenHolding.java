@@ -2,6 +2,7 @@ package server.main.member.entity;
 
 import java.time.LocalDateTime;
 
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.Column;
@@ -29,7 +30,8 @@ public class MemberTokenHolding {
     @Column(name = "token_holding_id")
     private Long tokenHoldingId;
 
-    private LocalDateTime updatedAt; // DB 에서 NOW()로 들어간다
+    @LastModifiedDate
+    private LocalDateTime updatedAt; // AuditingEntityListener 가 insert/update 시 자동 세팅
 
     private Long currentQuantity;     // 현재 회원이 가지고 있는 토큰 보유량
     private Long lockedQuantity;      // 매도 주문으로 묶인 수량

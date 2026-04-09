@@ -173,8 +173,12 @@ public class OrderServiceImpl implements OrderService {
             Account sellerAccount = accountRepository.findByMember(seller)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-            buyerAccount.settleBuyTrade(tradeAmount);   // 매수자 lockedBalance 차감
-            sellerAccount.settleSellTrade(tradeAmount); // 매도자 availableBalance 증가
+            // 매수자가 주문 시 잠근 금액 (주문가 기준)
+            long buyerOrderPrice = isBuy ? createOrder.getOrderPrice() : counterOrder.getOrderPrice();
+            long lockedAmount = buyerOrderPrice * execution.getTradeQuantity();
+
+            buyerAccount.settleBuyTrade(tradeAmount, lockedAmount); // lockedBalance 차감 + 차액 availableBalance 환급
+            sellerAccount.settleSellTrade(tradeAmount);              // 매도자 availableBalance 증가
 
             // 매수자 보유수량 반영
             MemberTokenHolding buyerHolding = memberTokenHoldingRepository

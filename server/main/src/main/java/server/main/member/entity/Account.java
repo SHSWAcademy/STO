@@ -65,9 +65,10 @@ public class Account extends BaseEntity {
         this.lockedBalance -= orderAmount;
     }
 
-    // 매수 체결 시 묶인 금액 차감
-    public void settleBuyTrade(Long amount) {
-        this.lockedBalance -= amount;
+    // 매수 체결 시 묶인 금액 차감 + 차액 환급 (주문가 > 체결가인 경우)
+    public void settleBuyTrade(Long tradeAmount, Long lockedAmount) {
+        this.lockedBalance -= lockedAmount;
+        this.availableBalance += (lockedAmount - tradeAmount);
     }
 
     // 매도 체결 시 매도 대금 수령
