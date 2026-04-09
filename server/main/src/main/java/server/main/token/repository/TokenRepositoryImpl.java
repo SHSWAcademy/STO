@@ -50,7 +50,6 @@ public class TokenRepositoryImpl implements TokenRepositoryCustom {
                 .select(token.tokenId)
                 .from(token)
                 .leftJoin(trade).on(trade.token.eq(token))
-                .where(token.tokenStatus.eq(TokenStatus.TRADING))
                 .groupBy(token.tokenId)
                 .orderBy(orderSpecifier)
                 .offset((long) page * 10)
