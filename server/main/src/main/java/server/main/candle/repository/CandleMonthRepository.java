@@ -15,4 +15,7 @@ public interface CandleMonthRepository extends JpaRepository<CandleMonth, Long> 
 
     @Query("SELECT c FROM CandleMonth c WHERE c.token.tokenId IN :tokenIds AND YEAR(c.candleTime) = YEAR(CURRENT_DATE) AND MONTH(c.candleTime) = MONTH(CURRENT_DATE)")
     List<CandleMonth> findThisMonthByTokenIds(@Param("tokenIds") List<Long> tokenIds);
+
+    @Query("SELECT c FROM CandleMonth c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :since ORDER BY c.token.tokenId ASC, c.candleTime ASC")
+    List<CandleMonth> findRecentByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("since") LocalDateTime since);
 }

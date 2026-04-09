@@ -15,4 +15,7 @@ public interface CandleYearRepository extends JpaRepository<CandleYear, Long> {
 
     @Query("SELECT c FROM CandleYear c WHERE c.token.tokenId IN :tokenIds AND YEAR(c.candleTime) = YEAR(CURRENT_DATE)")
     List<CandleYear> findThisYearByTokenIds(@Param("tokenIds") List<Long> tokenIds);
+
+    @Query("SELECT c FROM CandleYear c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :since ORDER BY c.token.tokenId ASC, c.candleTime ASC")
+    List<CandleYear> findRecentByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("since") LocalDateTime since);
 }

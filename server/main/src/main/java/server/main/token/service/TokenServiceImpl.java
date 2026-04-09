@@ -22,6 +22,7 @@ import server.main.token.mapper.TokenMapper;
 import server.main.token.repository.TokenRepository;
 import server.main.trade.repository.TradeRepository;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -152,6 +153,9 @@ public class TokenServiceImpl implements TokenService{
                         row -> new long[]{ ((Number) row[1]).longValue(), ((Number) row[2]).longValue() }
                 ));
 
+        // 스파크라인 조회, Map<tokenId, List<closePrice>>
+        Map<Long, List<Long>> sparklineMap = getSparklineMap(tokenIds, periodType);
+
         // dto 로 만들어서 전달
         return tokens.stream().map(t -> {
             Long tokenId = t.getTokenId();
@@ -168,13 +172,33 @@ public class TokenServiceImpl implements TokenService{
                     .fluctuationRate(Math.round(fluctuationRate * 100.0) / 100.0)
                     .totalTradeValue(agg[0])
                     .totalTradeQuantity(agg[1])
+                    .sparkLine(sparklineMap.getOrDefault(tokenId, List.of()))
                     .build();
         }).collect(Collectors.toList());
     }
 
+    private Map<Long, List<Long>> getSparklineMap(List<Long> tokenIds, PeriodType periodType) {
+        LocalDateTime since = switch (periodType) {
+            case DAY   -> LocalDateTime.now().minusDays(7);
+            case MONTH -> LocalDateTime.now().minusMonths(7);
+            case YEAR  -> LocalDateTime.now().minusYears(7);
+        };
+
+        var candles = switch (periodType) {
+            case DAY   -> candleDayRepository.findRecentByTokenIds(tokenIds, since);
+            case MONTH -> candleMonthRepository.findRecentByTokenIds(tokenIds, since);
+            case YEAR  -> candleYearRepository.findRecentByTokenIds(tokenIds, since);
+        };
+
+        return candles.stream().collect(Collectors.groupingBy(
+                c -> c.getToken().getTokenId(),
+                Collectors.mapping(c -> c.getClosePrice().longValue(), Collectors.toList())
+        ));
+    }
+
     private Map<Long, Double> getBasePriceMap(List<Long> tokenIds, PeriodType periodType) {
         return switch (periodType) {
-            // A 자산의 시작가, B 자산의 시작가, C 자산의 시작가 등이 들어간다.
+            // A 자산의 시작가, B 자산의 시작가, C 자산의 시작가 들이 들어간다.
             case DAY -> candleDayRepository.findTodayByTokenIds(tokenIds)
                     .stream().collect(Collectors.toMap(
                             c -> c.getToken().getTokenId(),

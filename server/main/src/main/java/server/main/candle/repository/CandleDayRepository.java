@@ -15,4 +15,7 @@ public interface CandleDayRepository extends JpaRepository<CandleDay, Long> {
 
     @Query("SELECT c FROM CandleDay c WHERE c.token.tokenId IN :tokenIds AND DATE(c.candleTime) = CURRENT_DATE")
     List<CandleDay> findTodayByTokenIds(@Param("tokenIds") List<Long> tokenIds);
+
+    @Query("SELECT c FROM CandleDay c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :since ORDER BY c.token.tokenId ASC, c.candleTime ASC")
+    List<CandleDay> findRecentByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("since") LocalDateTime since);
 }
