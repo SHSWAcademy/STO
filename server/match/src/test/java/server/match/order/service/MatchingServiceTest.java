@@ -1,20 +1,16 @@
-package server.match.service;
+package server.match.order.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import server.match.order.dto.MatchResultDto;
 import server.match.order.entity.OrderStatus;
 import server.match.order.entity.OrderType;
 import server.match.order.model.Order;
 import server.match.order.model.OrderBook;
-import server.match.order.service.MatchingService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@ExtendWith(MockitoExtension.class)
 class MatchingServiceTest {
 
     private MatchingService matchingService;
@@ -38,7 +34,7 @@ class MatchingServiceTest {
         // 매수 주문 - 가격 1000원, 수량 5
         Order buyOrder = new Order(3L, 20L, 100L, OrderType.BUY, 1000L, 5L);
 
-        //when
+        // When
         MatchResultDto result = matchingService.match(buyOrder, orderBook);
 
         // Then
@@ -127,20 +123,20 @@ class MatchingServiceTest {
     }
 
     @Test
-    void differentTokenId_ordersDoNotMatch() {
-        // Given: tokenId가 다른 두 OrderBook — 서로 독립적이어야 함
+    void separateOrderBooks_doNotInteract() {
+        // Given: 서로 다른 두 OrderBook 인스턴스는 독립적이어야 함
         OrderBook orderBookA = new OrderBook(100L); // 토큰 A
         OrderBook orderBookB = new OrderBook(200L); // 토큰 B
 
         Order sellOrder = new Order(1L, 10L, 100L, OrderType.SELL, 1000L, 5L);
         orderBookA.addOrder(sellOrder); // 토큰 A의 오더북에만 등록
 
-        Order buyOrder = new Order(2L, 20L, 200L, OrderType.BUY, 1000L, 5L); // 토큰 B로 매수 시도
+        Order buyOrder = new Order(2L, 20L, 200L, OrderType.BUY, 1000L, 5L);
 
         // When: 토큰 B의 오더북으로 매칭
         MatchResultDto result = matchingService.match(buyOrder, orderBookB);
 
-        // Then: 토큰 A의 매도 주문과 체결되지 않아야 함
+        // Then: 오더북 A의 매도 주문과 체결되지 않아야 함
         assertThat(result.getFilledQuantity()).isEqualTo(0L);
         assertThat(result.getFinalStatus()).isEqualTo(OrderStatus.OPEN);
     }
