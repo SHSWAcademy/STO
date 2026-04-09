@@ -26,8 +26,15 @@ const API = 'http://localhost:8080';
 function parseJwtMemberId(token) {
   if (!token) return null;
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub ? Number(payload.sub) : null;
+    const payloadPart = token.split('.')[1];
+    if (!payloadPart) return null;
+    const base64 = payloadPart
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(payloadPart.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(base64));
+    const memberId = Number(payload?.sub);
+    return Number.isFinite(memberId) && Number.isInteger(memberId) ? memberId : null;
   } catch {
     return null;
   }
