@@ -69,33 +69,36 @@ public class OrderServiceImpl implements OrderService {
         Token findToken = tokenRepository.findById(tokenId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
+        // findMember Account/Holding — 주문 유형에 따라 조회 후 체결 루프에서 재사용
+        Account findMemberAccount = null;
+        MemberTokenHolding findMemberHolding = null;
+
         // 매수일 경우
         if (OrderType.BUY.equals(dto.getOrderType())) {
-            Account findAccount = accountRepository.findByMember(findMember)
+            findMemberAccount = accountRepository.findByMember(findMember)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
             // 원화 잔고 >= 총 주문 금액 검증
-            if (findAccount.getAvailableBalance() < dto.getOrderPrice() * dto.getOrderQuantity())
+            if (findMemberAccount.getAvailableBalance() < dto.getOrderPrice() * dto.getOrderQuantity())
                 throw new BusinessException(INSUFFICIENT_BALANCE);
 
             // 매수 주문일 경우 구매력 차감 (current quantity 감소, locked quantity 증가)
             else
-                findAccount.lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도
-                                                                                       // 된다)
+                findMemberAccount.lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹
         }
 
         // 매도일 경우
         if (OrderType.SELL.equals(dto.getOrderType())) {
             // 보유 수량 >= 요청 수량 검증
-            MemberTokenHolding tokenHolding = memberTokenHoldingRepository
+            findMemberHolding = memberTokenHoldingRepository
                     .findByMemberAndToken(findMember, findToken)
                     .orElseThrow(() -> new BusinessException(INSUFFICIENT_TOKEN_BALANCE));
 
-            if (tokenHolding.getCurrentQuantity() < dto.getOrderQuantity())
+            if (findMemberHolding.getCurrentQuantity() < dto.getOrderQuantity())
                 throw new BusinessException(INSUFFICIENT_TOKEN_BALANCE);
 
             // 매도 주문일 경우 보유 토큰 감소 (current quantity 감소, locked quantity 증가)
-            tokenHolding.lockQuantity(dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도 된다)
+            findMemberHolding.lockQuantity(dto.getOrderQuantity()); // 더티 체킹
         }
 
         // 주문 생성 (매도, 매수)
@@ -143,15 +146,17 @@ public class OrderServiceImpl implements OrderService {
         // TRADES 테이블 저장 — 체결 건별로 레코드 생성
         boolean isBuy = OrderType.BUY.equals(dto.getOrderType());
 
-        // findMember Account/Holding — executions 가 있을 때만 1회 조회 후 루프 전체에서 재사용
-        Account findMemberAccount = null;
-        MemberTokenHolding findMemberHolding = null;
+        // findMember Account/Holding — 체결 건이 있을 때만 미조회 항목 보완
         if (!matchResult.getExecutions().isEmpty()) {
-            findMemberAccount = accountRepository.findByMember(findMember)
-                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-            findMemberHolding = memberTokenHoldingRepository
-                    .findByMemberAndToken(findMember, findToken)
-                    .orElse(null);
+            if (findMemberAccount == null) {
+                findMemberAccount = accountRepository.findByMember(findMember)
+                        .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            }
+            if (findMemberHolding == null) {
+                findMemberHolding = memberTokenHoldingRepository
+                        .findByMemberAndToken(findMember, findToken)
+                        .orElse(null);
+            }
         }
 
         // counterMember Account/Holding — memberId 기준 캐시 (동일인 반복 조회 방지)
@@ -167,7 +172,7 @@ public class OrderServiceImpl implements OrderService {
             Trade trade = Trade.builder()
                     .tradePrice(execution.getTradePrice())
                     .tradeQuantity(execution.getTradeQuantity())
-                    .totalTradePrice(execution.getTradePrice() * execution.getTradeQuantity())
+                    .totalTradePrice(Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity()))
                     .feeAmount(0L)
                     .settlementStatus(SettlementStatus.ON_CHAIN_PENDING)
                     .executedAt(LocalDateTime.now())
