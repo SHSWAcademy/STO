@@ -50,7 +50,7 @@ public enum ErrorCode {
 
     // ── Match 서비스 ──────────────────────────────────────────
     MATCH_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "MATCH_SERVICE_UNAVAILABLE",
-            "체결 서비스에 연결할 수 없습니다. 주문은 접수되었으며 잠시 후 처리됩니다."),
+            "체결 서비스 연결 실패로 주문이 처리되지 않았습니다."),
 
     // ── 관심 종목 ─────────────────────────────────────────────
     WATCHLIST_ALREADY_EXISTS(HttpStatus.CONFLICT, "WATCHLIST_ALREADY_EXISTS", "이미 관심 종목에 추가된 토큰입니다."),
