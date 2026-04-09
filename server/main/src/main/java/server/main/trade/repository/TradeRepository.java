@@ -13,4 +13,7 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
 
     @Query("SELECT COALESCE(SUM(t.tradeQuantity), 0) FROM Trade t WHERE t.token.tokenId = :tokenId AND t.createdAt >= CURRENT_DATE AND t.createdAt < CURRENT_DATE + 1 DAY")
     Long sumDailyVolume(Long tokenId);
+
+    @Query("SELECT t.token.tokenId, SUM(t.totalTradePrice), SUM(t.tradeQuantity) FROM Trade t WHERE t.token.tokenId IN :tokenIds GROUP BY t.token.tokenId")
+    List<Object[]> findAggregatesByTokenIds(@Param("tokenIds") List<Long> tokenIds);
 }

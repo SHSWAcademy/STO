@@ -23,5 +23,4 @@ public class CandleController {
 
         return ResponseEntity.ok(dtos);
     }
-
 }
