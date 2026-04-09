@@ -66,7 +66,10 @@ public enum ErrorCode {
     WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "지갑을 찾을 수 없습니다."),
     WALLET_CREATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WALLET_CREATION_FAILED", "지갑 생성에 실패했습니다."),
     WALLET_ALREADY_EXISTS(HttpStatus.CONFLICT, "WALLET_ALREADY_EXISTS", "이미 지갑이 존재합니다."),
-    WALLET_ENCRYPTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WALLET_ENCRYPTION_FAILED", "지갑 키 암호화에 실패했습니다.");
+    WALLET_ENCRYPTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WALLET_ENCRYPTION_FAILED", "지갑 키 암호화에 실패했습니다."),
+
+    // ── 블록체인 ──────────────────────────────────────────────────
+    CONTRACT_DEPLOY_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CONTRACT_DEPLOY_FAILED", "컨트랙트 배포에 실패했습니다.");
 
     // ── 파일 ──────────────────────────────────────────────────
     private final HttpStatus httpStatus;
