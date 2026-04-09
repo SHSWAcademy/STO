@@ -64,4 +64,14 @@ public class Account extends BaseEntity {
         this.availableBalance += orderAmount;
         this.lockedBalance -= orderAmount;
     }
+
+    // 매수 체결 시 묶인 금액 차감
+    public void settleBuyTrade(Long amount) {
+        this.lockedBalance -= amount;
+    }
+
+    // 매도 체결 시 매도 대금 수령
+    public void settleSellTrade(Long amount) {
+        this.availableBalance += amount;
+    }
 }

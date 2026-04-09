@@ -40,6 +40,8 @@ import server.main.order.mapper.OrderMapper;
 import server.main.order.repository.OrderRepository;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
+import server.main.log.orderLog.service.OrderLogService;
+import server.main.order.dto.TradeExecutionDto;
 import server.main.trade.repository.TradeRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,6 +63,8 @@ class OrderServiceImplTest {
     TradeRepository tradeRepository;
     @Mock
     MatchClient matchClient;
+    @Mock
+    OrderLogService orderLogService;
 
     @InjectMocks
     OrderServiceImpl orderService;
@@ -412,5 +416,178 @@ class OrderServiceImplTest {
                 () -> orderService.cancelOrder(orderId));
         assertThat(ex.getErrorCode()).isEqualTo(ORDER_CANNOT_CANCEL);
         verify(matchClient, never()).cancelOrder(any());
+    }
+
+    @Test
+    void createOrder_매수_체결발생_잔고및수량반영() {
+        // given
+        Long counterMemberId = 2L;
+        Long counterOrderId = 99L;
+
+        Account account = mock(Account.class);
+        Account counterAccount = mock(Account.class);
+        Member member = mock(Member.class);
+        Member counterMember = mock(Member.class);
+        Token token = mock(Token.class);
+        Order counterOrder = mock(Order.class);
+        MemberTokenHolding buyerHolding = mock(MemberTokenHolding.class);
+        MemberTokenHolding sellerHolding = mock(MemberTokenHolding.class);
+
+        when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+        when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
+        when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(account.getAvailableBalance()).thenReturn(1_000_000L);
+        when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
+        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+                .thenReturn(Optional.of(buyerHolding));
+        when(memberTokenHoldingRepository.findByMemberAndToken(counterMember, token))
+                .thenReturn(Optional.of(sellerHolding));
+
+        TradeExecutionDto execution = TradeExecutionDto.builder()
+                .counterMemberId(counterMemberId)
+                .counterOrderId(counterOrderId)
+                .tradePrice(12000L)
+                .tradeQuantity(5L)
+                .build();
+
+        when(matchClient.sendOrder(any())).thenReturn(MatchResultDto.builder()
+                .orderId(1L)
+                .tokenId(TOKEN_ID)
+                .finalStatus(OrderStatus.FILLED)
+                .filledQuantity(5L)
+                .remainingQuantity(0L)
+                .executions(List.of(execution))
+                .build());
+
+        OrderRequestDto dto = OrderRequestDto.builder()
+                .orderType(OrderType.BUY)
+                .orderPrice(12000L)
+                .orderQuantity(5L)
+                .build();
+
+        // when
+        orderService.createOrder(TOKEN_ID, dto);
+
+        // then
+        verify(account).settleBuyTrade(60_000L);         // 매수자 lockedBalance -= 60000 (12000 * 5)
+        verify(counterAccount).settleSellTrade(60_000L); // 매도자 availableBalance += 60000
+        verify(buyerHolding).settleBuyTrade(5L, 12000L); // 매수자 토큰 수령 + 평균 매수가 갱신
+        verify(sellerHolding).settleSellTrade(5L);        // 매도자 lockedQuantity 차감
+    }
+
+    @Test
+    void createOrder_매수_처음토큰_보유레코드생성() {
+        // given — 매수자가 이 토큰을 처음 받는 상황 (TOKEN_HOLDINGS 레코드 없음)
+        Long counterMemberId = 2L;
+        Long counterOrderId = 99L;
+
+        Account account = mock(Account.class);
+        Account counterAccount = mock(Account.class);
+        Member member = mock(Member.class);
+        Member counterMember = mock(Member.class);
+        Token token = mock(Token.class);
+        Order counterOrder = mock(Order.class);
+        MemberTokenHolding sellerHolding = mock(MemberTokenHolding.class);
+
+        when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+        when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
+        when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(account.getAvailableBalance()).thenReturn(1_000_000L);
+        when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
+        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+                .thenReturn(Optional.empty()); // 처음 받는 토큰 — 레코드 없음
+        when(memberTokenHoldingRepository.findByMemberAndToken(counterMember, token))
+                .thenReturn(Optional.of(sellerHolding));
+
+        TradeExecutionDto execution = TradeExecutionDto.builder()
+                .counterMemberId(counterMemberId)
+                .counterOrderId(counterOrderId)
+                .tradePrice(12000L)
+                .tradeQuantity(5L)
+                .build();
+
+        when(matchClient.sendOrder(any())).thenReturn(MatchResultDto.builder()
+                .orderId(1L)
+                .tokenId(TOKEN_ID)
+                .finalStatus(OrderStatus.FILLED)
+                .filledQuantity(5L)
+                .remainingQuantity(0L)
+                .executions(List.of(execution))
+                .build());
+
+        OrderRequestDto dto = OrderRequestDto.builder()
+                .orderType(OrderType.BUY)
+                .orderPrice(12000L)
+                .orderQuantity(5L)
+                .build();
+
+        // when
+        orderService.createOrder(TOKEN_ID, dto);
+
+        // then — 새 TOKEN_HOLDINGS 레코드가 save() 되어야 한다
+        verify(memberTokenHoldingRepository).save(any(MemberTokenHolding.class));
+    }
+
+    @Test
+    void createOrder_매도_체결발생_잔고및수량반영() {
+        // given
+        Long counterMemberId = 2L;
+        Long counterOrderId = 99L;
+
+        Account sellerAccount = mock(Account.class);
+        Account counterAccount = mock(Account.class);
+        Member member = mock(Member.class);
+        Member counterMember = mock(Member.class);
+        Token token = mock(Token.class);
+        Order counterOrder = mock(Order.class);
+        MemberTokenHolding sellerHolding = mock(MemberTokenHolding.class);
+        MemberTokenHolding buyerHolding = mock(MemberTokenHolding.class);
+
+        when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
+        when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
+        when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+                .thenReturn(Optional.of(sellerHolding));
+        when(sellerHolding.getCurrentQuantity()).thenReturn(10L); // 보유 10주 >= 주문 5주
+        when(accountRepository.findByMember(member)).thenReturn(Optional.of(sellerAccount));
+        when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
+        when(memberTokenHoldingRepository.findByMemberAndToken(counterMember, token))
+                .thenReturn(Optional.of(buyerHolding));
+
+        TradeExecutionDto execution = TradeExecutionDto.builder()
+                .counterMemberId(counterMemberId)
+                .counterOrderId(counterOrderId)
+                .tradePrice(12000L)
+                .tradeQuantity(5L)
+                .build();
+
+        when(matchClient.sendOrder(any())).thenReturn(MatchResultDto.builder()
+                .orderId(1L)
+                .tokenId(TOKEN_ID)
+                .finalStatus(OrderStatus.FILLED)
+                .filledQuantity(5L)
+                .remainingQuantity(0L)
+                .executions(List.of(execution))
+                .build());
+
+        OrderRequestDto dto = OrderRequestDto.builder()
+                .orderType(OrderType.SELL)
+                .orderPrice(12000L)
+                .orderQuantity(5L)
+                .build();
+
+        // when
+        orderService.createOrder(TOKEN_ID, dto);
+
+        // then
+        verify(counterAccount).settleBuyTrade(60_000L);  // 매수자(counterMember) lockedBalance -= 60000
+        verify(sellerAccount).settleSellTrade(60_000L);  // 매도자(findMember) availableBalance += 60000
+        verify(buyerHolding).settleBuyTrade(5L, 12000L); // 매수자 토큰 수령
+        verify(sellerHolding).settleSellTrade(5L);        // 매도자 lockedQuantity 차감
     }
 }

@@ -89,7 +89,7 @@ class TokenServiceImplTest {
         File file = File.builder()
                 .fileId(100L)
                 .disclosureId(10L)
-                .origin_name("건물_소개서.pdf")
+                .originName("건물_소개서.pdf")
                 .build();
 
         when(tokenRepository.findByIdWithAsset(1L)).thenReturn(Optional.of(token));
@@ -221,7 +221,7 @@ class TokenServiceImplTest {
         File file = File.builder()
                 .fileId(100L)
                 .disclosureId(10L)
-                .origin_name("공시문서.pdf")
+                .originName("공시문서.pdf")
                 .build();
 
         when(tokenRepository.findByIdWithAsset(1L)).thenReturn(Optional.of(token));

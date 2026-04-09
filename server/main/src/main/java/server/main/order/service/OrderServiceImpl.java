@@ -160,6 +160,43 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             tradeRepository.save(trade);
+
+            long tradeAmount = execution.getTradePrice() * execution.getTradeQuantity();
+            boolean isBuy = OrderType.BUY.equals(dto.getOrderType());
+
+            // 잔고 반영
+            Member buyer  = isBuy ? findMember : counterMember;
+            Member seller = isBuy ? counterMember : findMember;
+
+            Account buyerAccount = accountRepository.findByMember(buyer)
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            Account sellerAccount = accountRepository.findByMember(seller)
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+            buyerAccount.settleBuyTrade(tradeAmount);   // 매수자 lockedBalance 차감
+            sellerAccount.settleSellTrade(tradeAmount); // 매도자 availableBalance 증가
+
+            // 매수자 보유수량 반영
+            MemberTokenHolding buyerHolding = memberTokenHoldingRepository
+                    .findByMemberAndToken(buyer, findToken)
+                    .orElse(null);
+
+            if (buyerHolding == null) {
+                // 처음 받는 토큰 — 새 레코드 생성
+                buyerHolding = MemberTokenHolding.createForBuyer(
+                        buyer, findToken,
+                        execution.getTradeQuantity(),
+                        execution.getTradePrice());
+                memberTokenHoldingRepository.save(buyerHolding);
+            } else {
+                buyerHolding.settleBuyTrade(execution.getTradeQuantity(), execution.getTradePrice());
+            }
+
+            // 매도자 보유수량 반영
+            MemberTokenHolding sellerHolding = memberTokenHoldingRepository
+                    .findByMemberAndToken(seller, findToken)
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            sellerHolding.settleSellTrade(execution.getTradeQuantity());
         }
 
         // 로그 저장

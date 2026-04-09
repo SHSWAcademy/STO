@@ -1,12 +1,22 @@
 package server.main.member.entity;
 
-import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import server.main.token.entity.Token;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -37,6 +47,17 @@ public class MemberTokenHolding {
     @JoinColumn(name = "wallet_id")
     private Wallet wallet;
 
+    // 매수 체결로 토큰을 처음 받는 경우 — 새 보유 레코드 생성
+    public static MemberTokenHolding createForBuyer(Member member, Token token, Long quantity, Long tradePrice) {
+        MemberTokenHolding holding = new MemberTokenHolding();
+        holding.member = member;
+        holding.token = token;
+        holding.currentQuantity = quantity;
+        holding.lockedQuantity = 0L;
+        holding.avgBuyPrice = tradePrice.doubleValue();
+        return holding;
+    }
+
     // 매도 호가 시 보유 토큰 감소
     public void lockQuantity(Long amount) {
         this.currentQuantity -= amount;
@@ -56,5 +77,19 @@ public class MemberTokenHolding {
     public void cancelOrder(Long orderQuantity) {
         this.currentQuantity += orderQuantity;
         this.lockedQuantity -= orderQuantity;
+    }
+    
+    // 매도 체결 시 묶인 수량 차감
+    public void settleSellTrade(Long quantity) {
+        this.lockedQuantity -= quantity;
+    }
+
+    // 매수 체결 시 토큰 수령 + 평균 매수가 갱신
+    public void settleBuyTrade(Long quantity, Long tradePrice) {
+        double newAvg = (
+            (this.currentQuantity * this.avgBuyPrice) + (quantity * tradePrice)) 
+            / (this.currentQuantity + quantity);
+        this.currentQuantity += quantity;
+        this.avgBuyPrice = newAvg;
     }
 }
