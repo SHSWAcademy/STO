@@ -338,3 +338,13 @@
 > - `percentageChange` — (현재 체결가 - 이전 체결가) / 이전 체결가 * 100 (match에서 계산)
 > - `totalVolume` — 당일 누적 체결 수량 (match에서 계산)
 > main 서버는 그대로 relay만 함
+> 
+
+
+#### 캔들차트 구현 
+// 변경 전
+stompClient.subscribe(`/topic/candle/live/${tokenId}`, callback);
+
+// 변경 후 (현재 선택된 타입만 구독)
+stompClient.subscribe(`/topic/candle/live/${tokenId}/${candleType}`, callback);
+// 예: /topic/candle/live/1/MINUTE
