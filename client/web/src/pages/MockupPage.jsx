@@ -9,7 +9,7 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
 import {
-  ChartLine, Filter, Settings, Maximize2, X, Target, CheckCircle, MoreHorizontal, Edit3,
+  Maximize2, X, Target, MoreHorizontal, Edit3,
 } from 'lucide-react';
 
 import { useApp }            from '../context/AppContext.jsx';
@@ -136,10 +136,11 @@ export function MockupPage() {
   }, [TOKEN_ID, user?.accessToken]);
 
   // ── 차트 상태 ────────────────────────────────────────────────
-  const [chartPeriod, setChartPeriod] = useState('분');
-  const [chartData, setChartData]     = useState([]);
-  const [hoveredData, setHoveredData] = useState(null);
-  const [loading, setLoading]         = useState(false);
+  const [chartPeriod, setChartPeriod]   = useState('분');
+  const [chartData, setChartData]       = useState([]);
+  const [hoveredData, setHoveredData]   = useState(null);
+  const [loading, setLoading]           = useState(false);
+  const [chartModalOpen, setChartModalOpen] = useState(false);
 
   // ── 종목 정보 탭 데이터 ─────────────────────────────────────
   const [tokenAssetInfo, setTokenAssetInfo] = useState(null);
@@ -356,13 +357,11 @@ export function MockupPage() {
                         </button>
                       ))}
                     </div>
-                    <div className="flex gap-3 text-stone-400">
-                      <ChartLine size={16} className="cursor-pointer hover:text-stone-800" />
-                      <Filter    size={16} className="cursor-pointer hover:text-stone-800" />
-                      <Settings  size={16} className="cursor-pointer hover:text-stone-800" />
-                    </div>
                   </div>
-                  <button className="flex items-center gap-1 text-[11px] font-bold text-stone-400 hover:text-stone-800 transition-colors">
+                  <button
+                    onClick={() => setChartModalOpen(true)}
+                    className="flex items-center gap-1 text-[11px] font-bold text-stone-400 hover:text-stone-800 transition-colors"
+                  >
                     차트 크게보기 <Maximize2 size={14} />
                   </button>
                 </div>
@@ -467,9 +466,6 @@ export function MockupPage() {
               <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-stone-100">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-black text-stone-800">호가</h3>
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-stone-200 rounded text-[9px] font-bold text-stone-400">
-                    <CheckCircle size={10} className="text-brand-blue" /> 빠른 주문
-                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button className="p-1 hover:text-stone-800 text-stone-400">
@@ -640,6 +636,116 @@ export function MockupPage() {
           wsPendingData={wsPendingData}
         />
       </div>
+
+      {/* ── 차트 크게보기 모달 ─────────────────────────────────── */}
+      {chartModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setChartModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-[90vw] max-w-[1200px] h-[80vh] flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="p-4 border-b border-stone-200 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-black text-stone-800">
+                  {tokenInfo?.assetName ?? '차트'}
+                </span>
+                <div className="flex bg-stone-200 p-1 rounded-lg">
+                  {CHART_PERIODS.map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setChartPeriod(p)}
+                      className={cn(
+                        'px-3 py-1 rounded-md text-[11px] font-bold transition-all',
+                        chartPeriod === p
+                          ? 'bg-white text-stone-800 shadow-sm'
+                          : 'text-stone-400 hover:text-stone-500'
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={() => setChartModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-stone-100 transition-colors"
+              >
+                <X size={18} className="text-stone-500" />
+              </button>
+            </div>
+
+            {/* 모달 차트 */}
+            <div className="flex-1 p-6 relative">
+              <div className="absolute top-6 left-6 z-10 flex items-center gap-3 pointer-events-none">
+                {[
+                  { label: '시', val: displayData?.open },
+                  { label: '고', val: displayData?.high, color: 'var(--color-brand-red)' },
+                  { label: '저', val: displayData?.low,  color: 'var(--color-brand-blue)' },
+                  { label: '종', val: displayData?.close },
+                ].map(({ label, val, color }) => (
+                  <div key={label} className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-stone-400">{label}</span>
+                    <span className="text-[11px] font-mono font-bold text-stone-800"
+                      style={color ? { color } : {}}>
+                      {val?.toLocaleString() ?? '-'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {chartData.length === 0 ? (
+                <div className="w-full h-full flex items-center justify-center text-stone-400 text-sm font-bold">
+                  {loading ? '데이터 로딩 중...' : '캔들 데이터 없음'}
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart
+                    data={chartData}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                    onMouseMove={e => {
+                      if (e?.activePayload?.length > 0) setHoveredData(e.activePayload[0].payload);
+                    }}
+                    onMouseLeave={() => setHoveredData(null)}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-stone-200)" vertical={false} />
+                    <XAxis dataKey="time" axisLine={false} tickLine={false}
+                      tick={{ fontSize: 10, fill: 'var(--color-stone-400)' }} minTickGap={30} />
+                    <YAxis yAxisId="price" domain={['auto', 'auto']} orientation="right"
+                      tick={{ fontSize: 10, fill: 'var(--color-stone-400)', fontWeight: 'bold' }}
+                      axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="vol" orientation="left"
+                      domain={[0, dataMax => dataMax * 4]}
+                      tick={{ fontSize: 9, fill: 'var(--color-stone-400)' }}
+                      axisLine={false} tickLine={false}
+                      tickFormatter={val => `${(val / 10000).toFixed(0)}만`} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'var(--color-stone-100)',
+                        border: '1px solid var(--color-stone-200)',
+                        borderRadius: '12px', fontSize: '11px',
+                        color: 'var(--color-stone-800)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                      }}
+                      formatter={(value, name) => {
+                        if (name === 'vol') return [`${value.toLocaleString()}주`, '거래량'];
+                        return [`${value.toLocaleString()}원`, '가격'];
+                      }}
+                    />
+                    <Bar yAxisId="vol" dataKey="vol" name="vol"
+                      fill="var(--color-stone-400)" opacity={0.1} radius={[2, 2, 0, 0]} />
+                    <Bar yAxisId="price" dataKey={d => [d.open, d.close]}
+                      shape={<CandlestickShape />} animationDuration={0} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
