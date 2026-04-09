@@ -136,9 +136,15 @@ class MatchingServiceTest {
         // When: 토큰 B의 오더북으로 매칭
         MatchResultDto result = matchingService.match(buyOrder, orderBookB);
 
-        // Then: 오더북 A의 매도 주문과 체결되지 않아야 함
+        // Then: 체결 없음
         assertThat(result.getFilledQuantity()).isEqualTo(0L);
         assertThat(result.getFinalStatus()).isEqualTo(OrderStatus.OPEN);
+
+        // 오더북 격리 검증 — A와 B가 서로의 주문을 공유하지 않아야 함
+        assertThat(orderBookA.findById(1L)).isNotNull(); // A의 매도 주문은 A에 그대로
+        assertThat(orderBookB.findById(1L)).isNull();    // A의 매도 주문이 B에 없어야 함
+        assertThat(orderBookB.findById(2L)).isNotNull(); // 미체결 buyOrder는 B에 등록됨
+        assertThat(orderBookA.findById(2L)).isNull();    // buyOrder가 A에는 없어야 함
     }
 
     @Test
