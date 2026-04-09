@@ -61,7 +61,7 @@ public class AdminController {
 
     // 배당 스케줄 등록
     @PostMapping("/allocationEvent")
-    public ResponseEntity<Void> RegisterAllocationEvent(@RequestPart AllocationRegisterRequestDTO dto,
+    public ResponseEntity<Void> registerAllocationEvent(@RequestPart AllocationRegisterRequestDTO dto,
                                     @RequestPart MultipartFile file) {
         adminService.registerAllocation(dto, file);
         return ResponseEntity.status(HttpStatus.CREATED).build();

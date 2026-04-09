@@ -55,7 +55,7 @@ public class AdminServiceImpl implements AdminService {
 
         try {
             // 자산 정보 먼저 등록
-            Asset saveAsset = assetService.AssetRegister(adminMapper.toAsset(dto, storedImageName));
+            Asset saveAsset = assetService.registerAsset(adminMapper.toAsset(dto, storedImageName));
             log.info("부동산 저장 : {} ", saveAsset);
 
             // 자산ID도 토큰 엔터티에 넣기
@@ -72,7 +72,7 @@ public class AdminServiceImpl implements AdminService {
             platformTokenHoldingsRepository.save(platformTokenHoldings);
 
             // 자산 계좌 생성
-            assetService.AssetAccountRegister(saveToken);
+            assetService.registerAssetAccount(saveToken);
 
             // 공지 등록 메서드 호출
             noticeService.registerAssetNotice(dto);
@@ -205,7 +205,7 @@ public class AdminServiceImpl implements AdminService {
         log.info("배당 이벤트 저장 : {}", saveAllocationEvent);
 
         // 배당 월수익 입금처리
-        assetService.AllocationAccountDeposit(saveAllocationEvent.getMonthlyDividendIncome(), saveAllocationEvent.getAssetId());
+        assetService.depositAllocationAmount(saveAllocationEvent.getMonthlyDividendIncome(), saveAllocationEvent.getAssetId());
 
         // 파일저장
         fileService.saveOrUpdatePdf(file, disclosureId);

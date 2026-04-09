@@ -73,9 +73,9 @@ public class AdminMapper {
                 .tokenStatus(token.getTokenStatus())
                 .issuedAt(token.getIssuedAt())
                 .holdingSupply(holding.getHoldingSupply())
-                .fileId(file.getFileId())
-                .originName(file.getOrigin_name())
-                .storedName(file.getStored_name())
+                .fileId(file != null ? file.getFileId() : null)
+                .originName(file != null ? file.getOriginName() : null)
+                .storedName(file != null ? file.getStoredName() : null)
                 .build();
     }
 
@@ -119,8 +119,8 @@ public class AdminMapper {
                 .settledAt(dto.getSettledAt())
                 .settlementMonth(dto.getSettlementMonth())
                 .settlementYear(dto.getSettlementYear())
-                .storedName(file.getStored_name())
-                .originName(file.getOrigin_name())
+                .storedName(file != null ? file.getStoredName() : null)
+                .originName(file != null ? file.getOriginName() : null)
                 .build();
     }
 

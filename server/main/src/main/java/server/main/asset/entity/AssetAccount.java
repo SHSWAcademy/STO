@@ -28,6 +28,9 @@ public class AssetAccount extends BaseEntity {
 
     // 계좌 입금
     public void deposit(Long assetAccountBalance) {
+        if (assetAccountBalance == null || assetAccountBalance <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_AMOUNT);
+        }
         this.assetAccountBalance += assetAccountBalance;
     }
 
