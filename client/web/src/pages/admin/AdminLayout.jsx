@@ -13,7 +13,8 @@ const MENU_ITEMS = [
   { icon: TrendingUp,      label: '자산 관리',        path: '/admin/assets' },
   { icon: BarChart3,       label: '플랫폼 수익/보유', path: '/admin/revenue' },
   { icon: DollarSign,      label: '배당 관리',        path: '/admin/dividends' },
-  { icon: FileText,        label: '공시/공지 관리',   path: '/admin/content' },
+  { icon: FileText,        label: '공지사항 관리',    path: '/admin/notices' },
+  { icon: FileText,        label: '공시 관리',        path: '/admin/content' },
   { icon: Database,        label: '로그 관리',        path: '/admin/logs' },
   { icon: Settings,        label: '시스템 설정',      path: '/admin/settings' },
 ];

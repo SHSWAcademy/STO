@@ -14,4 +14,6 @@ public interface AdminService {
     void registerAllocation(AllocationRegisterRequestDTO dto, MultipartFile file); // 배당 등록
     List<AllocationDetailResponseDTO> getAllocationDetailList(Long assetId);        // 배당 스케줄내역 상세조회 리스트
     void updateAllocation(Long allocationEventId, AllocationUpdateRequestDTO dto, MultipartFile file);    // 배당 스케줄 수정
+    void registerCommon(CommonDTO dto);  // 플랫폼 기초설정
+    CommonDTO getCommon();  // 플랫폼 기초설정 조회
 }

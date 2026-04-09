@@ -58,7 +58,6 @@ public class FileController {
     private Resource getResource(String storedName) {
         // UrlResource 대신 FileSystemResource 사용
         Path filePath = Paths.get(fileStore.getUploadDir()).resolve(storedName).normalize();
-        System.out.println("===== 파일 경로: " + filePath); // 확인용 로그
         Resource resource = new FileSystemResource(filePath);
         if (!resource.exists() || !resource.isReadable()) {
             throw new RuntimeException("파일을 찾을 수 없습니다: " + storedName);

@@ -61,6 +61,7 @@ public class AdminMapper {
                 .assetName(asset.getAssetName())
                 .assetAddress(asset.getAssetAddress())
                 .imgUrl(asset.getImgUrl())
+                .isAllocated(asset.getIsAllocated())
                 .totalValue(asset.getTotalValue())
                 .totalSupply(asset.getTotalSupply())
                 .tokenId(token.getTokenId())
@@ -72,9 +73,9 @@ public class AdminMapper {
                 .tokenStatus(token.getTokenStatus())
                 .issuedAt(token.getIssuedAt())
                 .holdingSupply(holding.getHoldingSupply())
-                .fileId(file.getFileId())
-                .originName(file.getOrigin_name())
-                .storedName(file.getStored_name())
+                .fileId(file != null ? file.getFileId() : null)
+                .originName(file != null ? file.getOriginName() : null)
+                .storedName(file != null ? file.getStoredName() : null)
                 .build();
     }
 
@@ -85,6 +86,7 @@ public class AdminMapper {
                 .assetName(token.getAsset().getAssetName())
                 .totalValue(token.getAsset().getTotalValue())
                 .status(token.getTokenStatus())
+                .isAllocated(token.getAsset().getIsAllocated())
                 .tokenSymbol(token.getTokenSymbol())
                 .imgUrl(token.getAsset().getImgUrl())
                 .issuedAt(token.getIssuedAt())
@@ -114,11 +116,11 @@ public class AdminMapper {
                 .disclosureId(dto.getDisclosureId())
                 .allocationBatchStatus(dto.getAllocationBatchStatus())
                 .monthlyDividendIncome(dto.getMonthlyDividendIncome())
-                .settled_at(dto.getSettledAt())
+                .settledAt(dto.getSettledAt())
                 .settlementMonth(dto.getSettlementMonth())
                 .settlementYear(dto.getSettlementYear())
-                .storedName(file.getOrigin_name())
-                .originName(file.getOrigin_name())
+                .storedName(file != null ? file.getStoredName() : null)
+                .originName(file != null ? file.getOriginName() : null)
                 .build();
     }
 
