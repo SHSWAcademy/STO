@@ -951,7 +951,7 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   function handleEditStart(o) {
     setEditingOrderId(o.orderId);
     setEditPrice(String(o.orderPrice ?? ''));
-    setEditQty(String(o.remainingQuantity ?? o.orderQuantity ?? ''));
+    setEditQty(String(o.orderQuantity ?? ''));
     setUpdateMsg(null);
   }
 
@@ -983,10 +983,12 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
         throw new Error(err.message || `HTTP ${res.status}`);
       }
       setPendingOrders(prev =>
-        prev.map(o => o.orderId === orderId
-          ? { ...o, orderPrice: p, remainingQuantity: q, orderQuantity: q }
-          : o
-        )
+        prev.map(o => {
+          if (o.orderId !== orderId) return o;
+          const filledQuantity = Number(o.filledQuantity) || 0;
+          const remainingQuantity = Math.max(q - filledQuantity, 0);
+          return { ...o, orderPrice: p, remainingQuantity, orderQuantity: q };
+        })
       );
       setEditingOrderId(null);
       setUpdateMsg(null);
