@@ -8,6 +8,7 @@ import server.main.asset.entity.QAsset;
 import server.main.token.dto.SelectType;
 import server.main.token.entity.QToken;
 import server.main.token.entity.Token;
+import server.main.token.entity.TokenStatus;
 import server.main.trade.entity.QTrade;
 
 import java.util.List;
@@ -31,6 +32,7 @@ public class TokenRepositoryImpl implements TokenRepositoryCustom {
             return queryFactory
                     .selectFrom(token)
                     .join(token.asset, asset).fetchJoin()
+                    .where(token.tokenStatus.eq(TokenStatus.TRADING))
                     .orderBy(token.currentPrice.desc())
                     .offset((long) page * 10)
                     .limit(10)

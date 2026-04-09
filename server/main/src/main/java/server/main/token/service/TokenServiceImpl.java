@@ -159,16 +159,16 @@ public class TokenServiceImpl implements TokenService{
         // dto 로 만들어서 전달
         return tokens.stream().map(t -> {
             Long tokenId = t.getTokenId();
-            Double currentPrice = t.getCurrentPrice();
+            double currentPrice = t.getCurrentPrice() != null ? t.getCurrentPrice() : 0.0;
             Double basePrice = basePriceMap.get(tokenId);
             long[] agg = tradeAggMap.getOrDefault(tokenId, new long[]{0L, 0L});
 
-            Double fluctuationRate = (basePrice != null && basePrice > 0) ? (currentPrice - basePrice) / basePrice * 100 : 0.0;
+            double fluctuationRate = (basePrice != null && basePrice > 0) ? (currentPrice - basePrice) / basePrice * 100 : 0.0;
 
             return TokenMainResponseDto.builder()
-                    .token(tokenId)
+                    .tokenId(tokenId)
                     .assetName(t.getAsset().getAssetName())
-                    .currentPrice(currentPrice.longValue())
+                    .currentPrice((long) currentPrice)
                     .fluctuationRate(Math.round(fluctuationRate * 100.0) / 100.0)
                     .totalTradeValue(agg[0])
                     .totalTradeQuantity(agg[1])
