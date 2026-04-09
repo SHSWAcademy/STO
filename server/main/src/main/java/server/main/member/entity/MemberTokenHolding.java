@@ -88,9 +88,9 @@ public class MemberTokenHolding {
 
     // 매수 체결 시 토큰 수령 + 평균 매수가 갱신
     public void settleBuyTrade(Long quantity, Long tradePrice) {
-        double newAvg = (
-            (this.currentQuantity * this.avgBuyPrice) + (quantity * tradePrice)) 
-            / (this.currentQuantity + quantity);
+        long totalQuantity = this.currentQuantity + this.lockedQuantity;
+        double newAvg = ((totalQuantity * this.avgBuyPrice) + (quantity * tradePrice))
+                / (totalQuantity + quantity);
         this.currentQuantity += quantity;
         this.avgBuyPrice = newAvg;
     }
