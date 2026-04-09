@@ -60,10 +60,17 @@ public class BlockchainWorkerService {
                 ).send();
 
                 boolean isSuccess = "0x1".equals(receipt.getStatus());
+                LocalDateTime now = LocalDateTime.now();
+
                 if (isSuccess) {
                     blockchainOutboxQ.markConfirmed();
                 } else {
-                    blockchainOutboxQ.markFailed("Transaction reverted on-chain");
+                    blockchainOutboxQ.incrementRetry();
+                    if (blockchainOutboxQ.isMaxRetryExceeded()) {
+                        blockchainOutboxQ.markAbandoned("Transaction reverted on-chain");
+                    } else {
+                        blockchainOutboxQ.markFailed("Transaction reverted on-chain");
+                    }
                 }
 
                 BlockchainTx blockchainTx = BlockchainTx.builder()
@@ -76,10 +83,10 @@ public class BlockchainWorkerService {
                         .contractAddress(payload.getContractAddress())
                         .gasUsed(receipt.getGasUsed().longValue())
                         .blockNumber(receipt.getBlockNumber().longValue())
-                        .txStatus(BlockchainTxStatus.CONFIRMED)
+                        .txStatus(isSuccess ? BlockchainTxStatus.CONFIRMED : BlockchainTxStatus.REVERTED)
                         .txType(BlockchainTxType.TRADE)
-                        .submittedAt(LocalDateTime.now())
-                        .confirmedAt(LocalDateTime.now())
+                        .submittedAt(now)
+                        .confirmedAt(isSuccess ? now : null)
                         .build();
 
                 blockchainTxRepository.save(blockchainTx);
