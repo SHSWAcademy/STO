@@ -32,7 +32,7 @@ public class BlockchainWorkerService {
 
     @Transactional
     public void processPending() {
-        List<BlockchainOutboxQ> pendingList = blockchainOutboxQRepository.findByStatusIn(List.of(QueueStatus.PENDING, QueueStatus.FAILED));
+        List<BlockchainOutboxQ> pendingList = blockchainOutboxQRepository.findByStatusInWithFetch(List.of(QueueStatus.PENDING, QueueStatus.FAILED));
 
         for (BlockchainOutboxQ blockchainOutboxQ : pendingList) {
             try {

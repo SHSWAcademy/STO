@@ -12,6 +12,7 @@ import org.springframework.web.client.RestClientException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import server.main.blockchain.service.BlockchainOutboxService;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.MatchClient;
@@ -55,6 +56,7 @@ public class OrderServiceImpl implements OrderService {
     private final AccountRepository accountRepository;
     private final TradeRepository tradeRepository;
     private final MatchClient matchClient;
+    private final BlockchainOutboxService blockchainOutboxService;
 
     @Transactional
     @Override
@@ -160,6 +162,7 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             tradeRepository.save(trade);
+            blockchainOutboxService.saveTradeOutbox(trade, findToken);
         }
 
         // 로그 저장
