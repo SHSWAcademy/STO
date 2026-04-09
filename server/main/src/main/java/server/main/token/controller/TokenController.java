@@ -24,7 +24,7 @@ public class TokenController {
     public ResponseEntity<List<TokenMainResponseDto>> getAssets(@RequestParam(defaultValue = "0") int page,                     // 페이징 처리
                                                                 @RequestParam(defaultValue = "BASIC") SelectType selectType,    // 조회 타입 : 기본값 '전체'
                                                                 @RequestParam(defaultValue = "DAY") PeriodType periodType) {    // 기간 타입 : 기본값 '1일'
-        List<TokenMainResponseDto> dtos = tokenService.getTokenAssetsWith10Paging(page, selectType, periodType);
+        List<TokenMainResponseDto> dtos = tokenService.getTokenAssetsWith10Paging(Math.max(page, 0), selectType, periodType);
         return ResponseEntity.ok(dtos);
     }
 

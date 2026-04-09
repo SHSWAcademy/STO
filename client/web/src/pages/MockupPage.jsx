@@ -281,12 +281,12 @@ export function MockupPage() {
     },
     onTrades: (data) => {
       setExecutions(prev =>
-        [{ price: data.price, qty: data.quantity, isBuy: data.isBuy }, ...prev].slice(0, 15)
+        [{ price: data.tradePrice, qty: data.tradeQuantity, isBuy: data.isBuy }, ...prev].slice(0, 15)
       );
       setTrades(prev =>
         [{
-          price:      data.price,
-          qty:        data.quantity,
+          price:      data.tradePrice,
+          qty:        data.tradeQuantity,
           changeRate: data.percentageChange ?? 0,
           vol:        data.totalVolume ?? 0,
           time:       data.tradeTime ?? '',
@@ -633,7 +633,7 @@ export function MockupPage() {
         {/* 주문창: 항상 오른쪽 고정 */}
         <LoginGateOrderPanel
           currentPrice={currentPrice}
-          isLoggedIn={!!user}
+          isLoggedIn={!!user?.accessToken}
           onLoginRequired={setLoginModal}
           tokenId={TOKEN_ID}
           token={user?.accessToken}
@@ -911,7 +911,7 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   const numQty    = inputMode === 'qty'
     ? (Number(qty) || 0)
     : (numPrice > 0 ? Math.floor((Number(amount) || 0) / numPrice) : 0);
-  const numAmount = inputMode === 'amt'
+  const numAmount = inputMode === 'amount'
     ? (Number(amount) || 0)
     : numPrice * numQty;
 

@@ -27,13 +27,13 @@ public class TokenRepositoryImpl implements TokenRepositoryCustom {
         QAsset asset = QAsset.asset;
         QTrade trade = QTrade.trade;
 
-        // BASIC: current_price 정렬 — 단순 페이징
+        // BASIC: current_price 정렬 — 단순 페이징 (2차 정렬 tokenId로 순서 고정)
         if (selectType == SelectType.BASIC) {
             return queryFactory
                     .selectFrom(token)
                     .join(token.asset, asset).fetchJoin()
                     .where(token.tokenStatus.eq(TokenStatus.TRADING))
-                    .orderBy(token.currentPrice.desc())
+                    .orderBy(token.currentPrice.desc(), token.tokenId.asc())
                     .offset((long) page * 10)
                     .limit(10)
                     .fetch();
@@ -50,8 +50,9 @@ public class TokenRepositoryImpl implements TokenRepositoryCustom {
                 .select(token.tokenId)
                 .from(token)
                 .leftJoin(trade).on(trade.token.eq(token))
+                .where(token.tokenStatus.eq(TokenStatus.TRADING))
                 .groupBy(token.tokenId)
-                .orderBy(orderSpecifier)
+                .orderBy(orderSpecifier, token.tokenId.asc())
                 .offset((long) page * 10)
                 .limit(10)
                 .fetch();
