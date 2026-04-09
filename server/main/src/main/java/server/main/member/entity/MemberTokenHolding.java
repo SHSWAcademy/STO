@@ -1,5 +1,7 @@
 package server.main.member.entity;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 import org.springframework.data.annotation.LastModifiedDate;
@@ -35,7 +37,7 @@ public class MemberTokenHolding {
 
     private Long currentQuantity;     // 현재 회원이 가지고 있는 토큰 보유량
     private Long lockedQuantity;      // 매도 주문으로 묶인 수량
-    private Double avgBuyPrice;       // 평균 매수가 (수익률, 평가 손익 계산)
+    private BigDecimal avgBuyPrice;    // 평균 매수가 (수익률, 평가 손익 계산)
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id")
@@ -56,7 +58,7 @@ public class MemberTokenHolding {
         holding.token = token;
         holding.currentQuantity = quantity;
         holding.lockedQuantity = 0L;
-        holding.avgBuyPrice = tradePrice.doubleValue();
+        holding.avgBuyPrice = BigDecimal.valueOf(tradePrice);
         return holding;
     }
 
@@ -89,8 +91,9 @@ public class MemberTokenHolding {
     // 매수 체결 시 토큰 수령 + 평균 매수가 갱신
     public void settleBuyTrade(Long quantity, Long tradePrice) {
         long totalQuantity = this.currentQuantity + this.lockedQuantity;
-        double newAvg = ((totalQuantity * this.avgBuyPrice) + (quantity * tradePrice))
-                / (totalQuantity + quantity);
+        BigDecimal newAvg = this.avgBuyPrice.multiply(BigDecimal.valueOf(totalQuantity))
+                .add(BigDecimal.valueOf(tradePrice).multiply(BigDecimal.valueOf(quantity)))
+                .divide(BigDecimal.valueOf(totalQuantity + quantity), 4, RoundingMode.HALF_UP);
         this.currentQuantity += quantity;
         this.avgBuyPrice = newAvg;
     }
