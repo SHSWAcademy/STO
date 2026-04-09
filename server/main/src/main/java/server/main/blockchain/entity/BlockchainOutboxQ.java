@@ -21,7 +21,7 @@ public class BlockchainOutboxQ extends BaseEntity {
     private Long queueId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trade_id", nullable = true)
+    @JoinColumn(name = "trade_id", nullable = false)
     private Trade trade;
 
     @ManyToOne(fetch = FetchType.LAZY)

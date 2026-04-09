@@ -40,7 +40,7 @@ public class ContractGatewayService {
                     .getWalletAddress();
 
             String treasuryAddress = walletRepository.findByWalletRole(WalletRole.PLATFORM_TREASURY)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.BUYER_WALLET_NOT_FOUND))
+                    .orElseThrow(() -> new BusinessException(ErrorCode.TREASURY_WALLET_NOT_FOUND))
                     .getWalletAddress();
 
             StoToken stoToken = StoToken.deploy(
@@ -77,6 +77,8 @@ public class ContractGatewayService {
                     .submittedAt(now)
                     .confirmedAt(now)
                     .build();
+
+            blockchainTxRepository.save(blockchainTx);
             return contractAddress;
         } catch (Exception e) {
             log.error("컨트랙트 배포 실패", e);
