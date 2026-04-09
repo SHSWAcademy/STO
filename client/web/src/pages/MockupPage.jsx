@@ -958,8 +958,8 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   async function handleUpdateOrder(orderId) {
     const p = Number(editPrice);
     const q = Number(editQty);
-    if (!p || !q || p <= 0 || q <= 0) {
-      setUpdateMsg({ orderId, type: 'error', text: '가격과 수량을 올바르게 입력하세요.' });
+    if (!Number.isInteger(p) || !Number.isInteger(q) || p <= 0 || q <= 0) {
+      setUpdateMsg({ orderId, type: 'error', text: '가격과 수량은 양의 정수만 입력하세요.' });
       return;
     }
     try {
@@ -1084,6 +1084,8 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
                             <div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2">
                               <input
                                 type="number"
+                                min="1"
+                                step="1"
                                 value={editPrice}
                                 onChange={e => setEditPrice(e.target.value)}
                                 className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800"
@@ -1096,6 +1098,8 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
                             <div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2">
                               <input
                                 type="number"
+                                min="1"
+                                step="1"
                                 value={editQty}
                                 onChange={e => setEditQty(e.target.value)}
                                 className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800"
