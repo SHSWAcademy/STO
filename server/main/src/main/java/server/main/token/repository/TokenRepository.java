@@ -15,10 +15,10 @@ public interface TokenRepository extends JpaRepository<Token, Long> {
     Optional<Token> findByIdWithAsset(@Param("tokenId") Long tokenId);
 
     // 자산 ID 로 토큰 / 자산테이블 리스트 조회용
-    @Query("SELECT t FROM Token t JOIN FETCH t.asset")
+    @Query("SELECT t FROM Token t JOIN FETCH t.asset ORDER BY CASE WHEN t.tokenStatus = 'TRADING' THEN 0 ELSE 1 END ASC, t.createdAt DESC")
     List<Token> findAllTokensWithAsset();
 
     // 자산 ID 로 토큰 / 자산테이블 배당 리스트 조회용
-    @Query("SELECT t FROM Token t JOIN FETCH t.asset a WHERE t.tokenStatus = 'TRADING' AND a.isAllocated = true")
+    @Query("SELECT t FROM Token t JOIN FETCH t.asset a WHERE t.tokenStatus = 'TRADING' AND a.isAllocated = true ")
     List<Token> findAllTokensWithAssetAllocationList();
 }

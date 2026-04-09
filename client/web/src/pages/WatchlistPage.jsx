@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, ArrowUp, ArrowDown, LayoutGrid, List, ChevronRight } from 'lucide-react';
-import { TOKENS, MINI_CHART_DATA } from '../data/mock.js';
+import { MINI_CHART_DATA } from '../data/mock.js';
 import { useApp } from '../context/AppContext.jsx';
 import { cn } from '../lib/utils.js';
 import { SearchInput } from '../components/ui/SearchInput.jsx';
@@ -10,19 +10,19 @@ import { MiniChart } from '../components/ui/MiniChart.jsx';
 
 export function WatchlistPage() {
   const navigate = useNavigate();
-  const { watchlist, toggleWatchlist } = useApp();
+  const { watchlist, toggleWatchlist, tokens } = useApp();
   const [viewMode, setViewMode]     = useState('list');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredTokens = TOKENS.filter(token => {
+  const filteredTokens = tokens.filter(token => {
     const matchesSearch = token.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          token.symbol.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch && watchlist.includes(token.id);
+    return matchesSearch && watchlist.includes(token.assetId);
   });
 
-  function handleToggle(id, e) {
+  function handleToggle(assetId, e) {
     e.stopPropagation();
-    toggleWatchlist(id);
+    toggleWatchlist(assetId);
   }
 
   function getMiniChart(id) {
@@ -83,10 +83,10 @@ export function WatchlistPage() {
                   >
                     <td className="px-8 py-6">
                       <button
-                        onClick={e => handleToggle(token.id, e)}
-                        className={cn('transition-colors', watchlist.includes(token.id) ? 'text-brand-red' : 'text-stone-300 hover:text-brand-red')}
+                        onClick={e => handleToggle(token.assetId, e)}
+                        className={cn('transition-colors', watchlist.includes(token.assetId) ? 'text-brand-red' : 'text-stone-300 hover:text-brand-red')}
                       >
-                        <Heart size={20} fill={watchlist.includes(token.id) ? 'currentColor' : 'none'} />
+                        <Heart size={20} fill={watchlist.includes(token.assetId) ? 'currentColor' : 'none'} />
                       </button>
                     </td>
                     <td className="px-4 py-6">
@@ -133,10 +133,10 @@ export function WatchlistPage() {
                 className="bg-white rounded-[32px] border border-stone-200 p-6 hover:shadow-xl transition-all cursor-pointer group relative overflow-hidden"
               >
                 <button
-                  onClick={e => handleToggle(token.id, e)}
-                  className={cn('absolute top-6 right-6 z-10 transition-colors', watchlist.includes(token.id) ? 'text-brand-red' : 'text-stone-300 hover:text-brand-red')}
+                  onClick={e => handleToggle(token.assetId, e)}
+                  className={cn('absolute top-6 right-6 z-10 transition-colors', watchlist.includes(token.assetId) ? 'text-brand-red' : 'text-stone-300 hover:text-brand-red')}
                 >
-                  <Heart size={20} fill={watchlist.includes(token.id) ? 'currentColor' : 'none'} />
+                  <Heart size={20} fill={watchlist.includes(token.assetId) ? 'currentColor' : 'none'} />
                 </button>
 
                 <div className="flex items-center gap-4 mb-6">

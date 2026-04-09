@@ -101,7 +101,7 @@
 - [x] `RedisSubscriber` — `candle` 타입 케이스 삭제
 - [x] Batch Writer 5개 (Minute/Hour/Day/Month/Year) — Redis publish 코드 전부 제거
 
-#### [6-3] 캔들 전면 재설계 — Batch 제거, Main 단독 관리 ⬜ 미구현
+#### [6-3] 캔들 전면 재설계 — Batch 제거, Main 단독 관리 ✅ 완료 (2026-04-08)
 
 > **설계 확정 (2026-04-08)**
 >
@@ -112,6 +112,8 @@
 > - **구간 경계 도달 시**: 확정 봉을 CandleLiveManager가 직접 DB에 저장 → 다음 봉으로 초기화
 > - **REST**: DB에 저장된 확정 봉 제공 (기존 동일)
 > - **WS**: 사용자 구독 시 현재 봉 스냅샷 즉시 전송 + 이후 체결마다 갱신 push
+> - **스냅샷 전송 방식**: 상세 페이지 진입 시 분/시/일/월/년 5개 주기 스냅샷을 한꺼번에 전송
+>   → 사용자가 버튼 클릭으로 주기 전환 시 이미 데이터가 있어 즉시 표시 가능
 >
 > **핵심**: 체결 1건 → 5개 주기 봉 동시 갱신 (실서비스 표준 방식)
 
@@ -149,6 +151,15 @@
 **[Step 6] match 서버 팀원 공유**
 - [ ] `trades:{tokenId}` payload에 `tradePrice`, `tradeQuantity` 필드 반드시 포함 필요
 
+#### [6-3 설계 노트] CandleFlushService 별도 Bean 분리 이유
+> **배경**: `CandleLiveManager`의 `saveToDB()`에 `@Transactional`을 붙여도 동작하지 않아 `CandleFlushService`로 분리함.
+>
+> **이유**: Spring의 `@Transactional`은 AOP 프록시 기반으로 동작한다. 같은 클래스 내부에서 `this.saveToDB()`를 호출하면 프록시를 거치지 않고 실제 객체를 직접 호출하기 때문에 `@Transactional`이 무시된다. 클래스 레벨이든 메서드 레벨이든 동일하다.
+>
+> **해결**: `CandleFlushService`를 별도 Bean으로 분리하면 Spring이 주입 시 프록시 객체를 주입하므로, `candleFlushService.saveToDB()` 호출이 프록시를 거쳐 `@Transactional`이 정상 적용된다.
+>
+> **트랜잭션 전파**: `CandleLiveManager`에는 `@Transactional`이 없으므로 `saveToDB()` 호출 시점에 활성 트랜잭션이 없다. 따라서 기본값 `REQUIRED`로 충분하며, 호출마다 독립적인 트랜잭션이 생성된다 → `flushExpiredCandles()`의 forEach 루프에서 tokenId별로 독립 커밋/롤백 보장.
+
 **현재 봉 WebSocket 응답 예시 (main → 클라이언트):**
 ```json
 {
@@ -164,6 +175,12 @@
 ```
 
 #### [6-4] 프론트엔드 캔들 차트 연동 ⬜ 미구현 (내일 작업, [9-3]과 동일)
+
+> **[설계 이슈] CandleLiveSubscribeHandler 구독 시 모든 타입 스냅샷 일괄 전송**
+>
+> 현재 `/topic/candle/live/{tokenId}` 구독 시 MINUTE/HOUR/DAY/MONTH/YEAR 5개 타입 스냅샷을 한꺼번에 전송함.
+> 클라이언트가 1분봉만 보고 있어도 나머지 4개를 함께 수신하게 됨. `CandleResponseDto`의 `candleType` 필드로 구분은 가능하므로 기능 상 문제는 없음.
+> 추후 트래픽이 증가하면 타입별 토픽(`/topic/candle/live/{tokenId}/{type}`)으로 분리하는 것을 고려.
 - [ ] 상세 페이지 진입 시 `GET /api/token/{tokenId}/candle?type=MINUTE` 호출 → 과거 봉 35개 렌더링
 - [ ] 차트 기간 버튼(`1분`, `시간`, `일`, `달`, `년`) 클릭 시 type 파라미터 변경 후 재조회
 - [ ] WebSocket `/topic/candle/live/{tokenId}` 구독 → 수신 시 현재(마지막) 봉의 고가/저가 실시간 업데이트
@@ -305,6 +322,7 @@
 - [x] 취소 버튼 → `DELETE /api/token/order/cancel/{orderId}` 호출
 - [ ] 대기탭 실시간 갱신 → WebSocket `pendingOrders:{tokenId}:{memberId}` (match 서버 완성 후)
 - [ ] 수정 버튼 → `PUT /api/token/order/update/{orderId}` (match 서버 완성 후)
+- [ ] **PENDING 상태 UX 처리** — 백엔드에서 PENDING(match 처리 중) 상태 주문은 수정/취소 불가 (의도적 설계). 대기탭에서 orderStatus가 PENDING인 주문의 취소/수정 버튼 비활성화 처리 필요.
 
 #### [9-5] 기타 상세 페이지 연동 ✅ 완료 (2026-04-07)
 - [x] 종목정보 탭 → `GET /api/token/{tokenId}/info` 호출 (발행가·총자산·주소·상장일)
@@ -320,3 +338,13 @@
 > - `percentageChange` — (현재 체결가 - 이전 체결가) / 이전 체결가 * 100 (match에서 계산)
 > - `totalVolume` — 당일 누적 체결 수량 (match에서 계산)
 > main 서버는 그대로 relay만 함
+> 
+
+
+#### 캔들차트 구현 
+// 변경 전
+stompClient.subscribe(`/topic/candle/live/${tokenId}`, callback);
+
+// 변경 후 (현재 선택된 타입만 구독)
+stompClient.subscribe(`/topic/candle/live/${tokenId}/${candleType}`, callback);
+// 예: /topic/candle/live/1/MINUTE

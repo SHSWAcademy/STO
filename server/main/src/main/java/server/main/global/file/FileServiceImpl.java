@@ -62,7 +62,7 @@ public class FileServiceImpl implements FileService{
 
             // 기존파일이 존재하면 수정하고 아니면 저장
             if (checkFile != null) {
-                oldStoredName = checkFile.getStored_name();
+                oldStoredName = checkFile.getStoredName();
                 checkFile.updateFile(
                         pdfFile.getOriginalFilename(),
                         newStoredName,
@@ -73,8 +73,8 @@ public class FileServiceImpl implements FileService{
             } else {
                 File file = File.builder()
                         .disclosureId(disclosureId)
-                        .origin_name(pdfFile.getOriginalFilename())
-                        .stored_name(newStoredName)
+                        .originName(pdfFile.getOriginalFilename())
+                        .storedName(newStoredName)
                         .path(fileStore.getUploadDir())
                         .size(pdfFile.getSize())
                         .build();
@@ -83,9 +83,12 @@ public class FileServiceImpl implements FileService{
             }
             // 기존 파일내역 삭제 (신규파일이면 null이라 아무작업안함)
             deleteFile(oldStoredName);
-        } catch (Exception e) {
+        } catch (IOException e) {
             deleteFile(newStoredName);
             throw new RuntimeException("PDF 파일 저장 실패: " + pdfFile.getOriginalFilename(), e);
+        } catch (RuntimeException e) {
+            deleteFile(newStoredName);
+            throw e;
         }
     }
 }

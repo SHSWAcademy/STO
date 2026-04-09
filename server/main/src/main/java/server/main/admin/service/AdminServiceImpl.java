@@ -1,15 +1,15 @@
 package server.main.admin.service;
 
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.*;
+import server.main.admin.entity.Common;
 import server.main.admin.entity.PlatformTokenHolding;
 import server.main.admin.mapper.AdminMapper;
-import server.main.admin.repository.CommonsRepository;
+import server.main.admin.repository.CommonRepository;
 import server.main.admin.repository.PlatformTokenHoldingsRepository;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
@@ -42,7 +42,7 @@ public class AdminServiceImpl implements AdminService {
     private final DisclosureService disclosureService;
     private final FileService fileService;
     private final AllocationEventRepository allocationEventRepository;
-    private final CommonsRepository commonsRepository;
+    private final CommonRepository commonsRepository;
 
     // 자산등록
     // 자산 이미지 등록 -> 자산 등록 ->  토큰 등록 -> 플랫폼 소유 토큰 등록 -> 자산 계좌 생성 및 입금 -> 공시 / 공지 등록 -> 첨부파일 등록
@@ -55,7 +55,7 @@ public class AdminServiceImpl implements AdminService {
 
         try {
             // 자산 정보 먼저 등록
-            Asset saveAsset = assetService.AssetRegister(adminMapper.toAsset(dto, storedImageName));
+            Asset saveAsset = assetService.registerAsset(adminMapper.toAsset(dto, storedImageName));
             log.info("부동산 저장 : {} ", saveAsset);
 
             // 자산ID도 토큰 엔터티에 넣기
@@ -72,7 +72,7 @@ public class AdminServiceImpl implements AdminService {
             platformTokenHoldingsRepository.save(platformTokenHoldings);
 
             // 자산 계좌 생성
-            assetService.AssetAccountRegister(saveToken);
+            assetService.registerAssetAccount(saveToken);
 
             // 공지 등록 메서드 호출
             noticeService.registerAssetNotice(dto);
@@ -153,7 +153,9 @@ public class AdminServiceImpl implements AdminService {
 
         // 마감월 확인
         YearMonth targetMonth = getTargetMonth();
-
+        // 관리자 마감일
+        LocalDate adminTargetMonth = getAdminTargetMonth();
+        log.info("관리자 마감일 : {}", adminTargetMonth );
         // 배당 이벤트내역 조회
         // 자산ID를 MAP의 키값으로 설정
         Map<Long, AllocationEvent> allocationEventMap = allocationEventRepository
@@ -165,7 +167,7 @@ public class AdminServiceImpl implements AdminService {
         return tokens.stream()
                 .map(token -> {
                     AllocationEvent event = allocationEventMap.get(token.getAsset().getAssetId());
-                    return adminMapper.toAllocationListResponseDTO(token, event);
+                    return adminMapper.toAllocationListResponseDTO(token, event, targetMonth, adminTargetMonth);
                 }).collect(Collectors.toList());
     }
 
@@ -203,7 +205,7 @@ public class AdminServiceImpl implements AdminService {
         log.info("배당 이벤트 저장 : {}", saveAllocationEvent);
 
         // 배당 월수익 입금처리
-        assetService.AllocationAccountDeposit(saveAllocationEvent.getMonthlyDividendIncome(), saveAllocationEvent.getAssetId());
+        assetService.depositAllocationAmount(saveAllocationEvent.getMonthlyDividendIncome(), saveAllocationEvent.getAssetId());
 
         // 파일저장
         fileService.saveOrUpdatePdf(file, disclosureId);
@@ -256,13 +258,55 @@ public class AdminServiceImpl implements AdminService {
         }
     }
 
+    // 플랫폼 기본설정 (최초 등록 및 수정)
+    @Transactional
+    @Override
+    public void registerCommon(CommonDTO dto) {
+        Common common = commonsRepository.findCommon();
+
+        // 최초 등록 시 save
+        if (common == null) {
+            Common saveCommon = Common.builder()
+                    .taxRate(dto.getTaxRate())
+                    .chargeRate(dto.getChargeRate())
+                    .allocateDate(dto.getAllocateDate())
+                    .allocateSetDate(dto.getAllocateSetDate())
+                    .build();
+
+            commonsRepository.save(saveCommon);
+        } else {
+            // 이미 등록되어있다면 update
+            common.update(dto.getTaxRate(), dto.getChargeRate(), dto.getAllocateDate(), dto.getAllocateSetDate());
+        }
+    }
+
+    // 플랫폼 기초설정 조회
+    @Override
+    public CommonDTO getCommon() {
+        Common common = commonsRepository.findCommon();
+        return CommonDTO.builder()
+                .taxRate(common.getTaxRate())
+                .chargeRate(common.getChargeRate())
+                .allocateDate(common.getAllocateDate())
+                .allocateSetDate(common.getAllocateSetDate())
+                .build();
+    }
+
     // 마감월 리턴 메서드
     // 플랫폼설정 테이블에서 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
     private YearMonth getTargetMonth() {
-        int settlementDay = commonsRepository.findAllocateDate();
-        log.info("배당 지급일 확인 : {} ", settlementDay);
-        return LocalDate.now().getDayOfMonth() > settlementDay
+        Common commons = commonsRepository.findCommon();
+        return LocalDate.now().getDayOfMonth() > commons.getAllocateDate()
                 ? YearMonth.now().plusMonths(1)
                 : YearMonth.now();
+    }
+
+    // 관리자 마감일 리턴
+    private LocalDate getAdminTargetMonth() {
+        Common commons = commonsRepository.findCommon();
+        YearMonth targetMonth = LocalDate.now().getDayOfMonth() > commons.getAllocateSetDate()
+                ? YearMonth.now().plusMonths(1)
+                : YearMonth.now();
+        return targetMonth.atDay(commons.getAllocateSetDate());
     }
 }

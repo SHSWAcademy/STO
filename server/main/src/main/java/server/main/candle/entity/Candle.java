@@ -2,12 +2,16 @@ package server.main.candle.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import server.main.token.entity.Token;
 
 import java.time.LocalDateTime;
 
 @Getter
 @MappedSuperclass
+@NoArgsConstructor
+@SuperBuilder
 public abstract class Candle {
     private Double openPrice;
     private Double highPrice;

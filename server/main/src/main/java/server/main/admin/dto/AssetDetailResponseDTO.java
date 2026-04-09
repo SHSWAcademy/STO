@@ -18,7 +18,7 @@ public class AssetDetailResponseDTO {
     private String imgUrl;
     private Long totalValue;
     private Long totalSupply;
-
+    private Boolean isAllocated;
     // Token
     private Long tokenId;
     private String tokenName;
@@ -28,6 +28,8 @@ public class AssetDetailResponseDTO {
     private Long circulatingSupply;
     private TokenStatus tokenStatus;
     private LocalDateTime issuedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
     // platform_token_holdings
     private Long holdingSupply;

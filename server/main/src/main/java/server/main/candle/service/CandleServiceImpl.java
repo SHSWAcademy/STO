@@ -29,23 +29,28 @@ public class CandleServiceImpl implements CandleService {
         LocalDateTime now = LocalDateTime.now();
         return switch (type) {
             case MINUTE -> candleMinuteRepository.findTop35Before(tokenId, now.truncatedTo(ChronoUnit.MINUTES))
+                    .reversed()
                     .stream()
                     .map(c -> candleMapper.toDto(c))
                     .toList();
             case HOUR -> candleHourRepository.findTop35Before(tokenId, now.truncatedTo(ChronoUnit.HOURS))
+                    .reversed()
                     .stream()
                     .map(candleMapper::toDto)
                     .toList();
             case DAY -> candleDayRepository.findTop35Before(tokenId, now.truncatedTo(ChronoUnit.DAYS))
+                    .reversed()
                     .stream()
                     .map(candleMapper::toDto)
                     .toList();
             case MONTH -> candleMonthRepository.findTop35Before(tokenId, now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS))
+                    .reversed()
                     .stream()
                     .map(c -> candleMapper.toDto(c))
                     .toList();
 
             case YEAR ->  candleYearRepository.findTop35Before(tokenId, now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS))
+                    .reversed()
                     .stream()
                     .map(c -> candleMapper.toDto(c))
                     .toList();

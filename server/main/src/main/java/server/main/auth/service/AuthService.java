@@ -17,10 +17,13 @@ import server.main.auth.dto.MemberSignupResponse;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.security.JwtTokenProvider;
+import server.main.log.loginLog.service.LoginLogService;
 import server.main.member.entity.Account;
 import server.main.member.entity.Member;
+import server.main.member.entity.Wallet;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
+import server.main.member.service.CustodialWalletService;
 
 @Slf4j
 @Service
@@ -35,6 +38,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AccountRepository accountRepository;
+    private final LoginLogService loginLogService;
+    private final CustodialWalletService custodialWalletService;
 
     @Transactional
     public MemberSignupResponse signup(MemberSignupRequest request) {
@@ -51,7 +56,9 @@ public class AuthService {
         Account account = Account.create(member, accountNumber, encodedAccountPassword);
         accountRepository.save(account);
 
-        return new MemberSignupResponse(member.getMemberId(), member.getEmail(), member.getMemberName());
+        Wallet wallet = custodialWalletService.createMemberWallet(member);
+
+        return new MemberSignupResponse(member.getMemberId(), member.getEmail(), member.getMemberName(), wallet.getWalletAddress());
     }
 
     public LoginResponse memberLogin(MemberLoginRequest request) {
@@ -67,6 +74,9 @@ public class AuthService {
             log.warn("[AUTH] 회원 로그인 실패 - 비밀번호 불일치: memberId={}", member.getMemberId());
             throw new BusinessException(ErrorCode.LOGIN_FAILED);
         }
+
+        // 회원 로그 저장
+        loginLogService.save(maskEmail(request.getEmail()), "MEMBER_LOGIN", "로그인 성공", true);
 
         String token = jwtTokenProvider.createMemberToken(member.getMemberId(), member.getEmail());
         return new LoginResponse(token, "MEMBER");
@@ -90,6 +100,8 @@ public class AuthService {
         String token = jwtTokenProvider.createAdminToken(admin.getAdminId(), admin.getAdminLoginId());
         return new LoginResponse(token, "ADMIN");
     }
+
+
 
     private String generateUniqueAccountNumber() {
         for (int i =0; i < 10; i++) {

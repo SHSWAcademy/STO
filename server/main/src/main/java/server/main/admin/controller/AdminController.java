@@ -1,5 +1,6 @@
 package server.main.admin.controller;
 
+import org.springframework.web.bind.annotation.RequestBody;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -7,13 +8,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.*;
+import server.main.admin.entity.Common;
 import server.main.admin.service.AdminService;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/admin/")
+@RequestMapping("/admin")
 @Log4j2
 @RequiredArgsConstructor
 public class AdminController {
@@ -58,7 +61,7 @@ public class AdminController {
 
     // 배당 스케줄 등록
     @PostMapping("/allocationEvent")
-    public ResponseEntity<Void> RegisterAllocationEvent(@RequestPart AllocationRegisterRequestDTO dto,
+    public ResponseEntity<Void> registerAllocationEvent(@RequestPart AllocationRegisterRequestDTO dto,
                                     @RequestPart MultipartFile file) {
         adminService.registerAllocation(dto, file);
         return ResponseEntity.status(HttpStatus.CREATED).build();
@@ -78,7 +81,7 @@ public class AdminController {
         return ResponseEntity.ok(list);
     }
 
-    // 배당 수정
+    // 배당 수정 (미사용 수정금지)
     @PatchMapping("/allocationEvent/{allocationEventId}")
     public ResponseEntity<Void> updateAllocationEvent(@PathVariable Long allocationEventId,
                                                       @RequestPart AllocationUpdateRequestDTO dto,
@@ -87,6 +90,20 @@ public class AdminController {
         adminService.updateAllocation(allocationEventId, dto, file);
         return ResponseEntity.ok().build();
     }
-    // 발행 -> 발행완료상태 -> 오전9시 발행완료 -> 거래 중
+
+    // 플랫폼 기초 설정 등록 및 수정
+    @PostMapping("/common")
+    public ResponseEntity<Void> registerAndUpdateCommon(@RequestBody CommonDTO dto) {
+        log.info("시스템 설정 파라미터: {}", dto);
+        adminService.registerCommon(dto);
+        return ResponseEntity.ok().build();
+    }
+
+    // 플랫폼 기초 설정 조회
+    @GetMapping("/common")
+    public ResponseEntity<CommonDTO> getCommon() {
+        CommonDTO dto = adminService.getCommon();
+        return ResponseEntity.ok(dto);
+    }
 
  }
