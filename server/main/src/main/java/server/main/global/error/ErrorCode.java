@@ -63,10 +63,18 @@ public enum ErrorCode {
     ALLOCATION_UPDATE_NOT_ALLOWED(HttpStatus.CONFLICT, "ALLOCATION_UPDATE_NOT_ALLOWED", "이미 지급된 배당은 수정이 불가합니다."),
 
     // ── 지갑 ──────────────────────────────────────────────────
-    WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "WALLET_NOT_FOUND", "지갑을 찾을 수 없습니다."),
+    ISSUER_WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "ISSUER_WALLET_NOT_FOUND", "ISSUER 지갑을 찾을 수 없습니다."),
+    TREASURY_WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "TREASURY_WALLET_NOT_FOUND", "TREASURY 지갑을 찾을 수 없습니다."),
+    SELLER_WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "SELLER_WALLET_NOT_FOUND", "SELLER 지갑을 찾을 수 없습니다."),
+    BUYER_WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "BUYER_WALLET_NOT_FOUND", "BUYER 지갑을 찾을 수 없습니다."),
     WALLET_CREATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WALLET_CREATION_FAILED", "지갑 생성에 실패했습니다."),
     WALLET_ALREADY_EXISTS(HttpStatus.CONFLICT, "WALLET_ALREADY_EXISTS", "이미 지갑이 존재합니다."),
-    WALLET_ENCRYPTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WALLET_ENCRYPTION_FAILED", "지갑 키 암호화에 실패했습니다.");
+    WALLET_ENCRYPTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WALLET_ENCRYPTION_FAILED", "지갑 키 암호화에 실패했습니다."),
+
+    // ── 블록체인 ──────────────────────────────────────────────────
+    CONTRACT_DEPLOY_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CONTRACT_DEPLOY_FAILED", "컨트랙트 배포에 실패했습니다."),
+    ONCHAIN_TRANSACTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ONCHAIN_TRANSACTION_FAILED", "온체인 거래 기록에 실패했습니다.");
+
 
     // ── 파일 ──────────────────────────────────────────────────
     private final HttpStatus httpStatus;

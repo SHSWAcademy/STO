@@ -51,4 +51,8 @@ public class Token extends BaseEntity {
         if (tokenStatus != null) this.tokenStatus = tokenStatus;
         if (tokenSymbol != null) this.tokenSymbol = tokenSymbol;
     }
+
+    public void updateContractAddress(String contractAddress) {
+        this.contractAddress = contractAddress;
+    }
 }

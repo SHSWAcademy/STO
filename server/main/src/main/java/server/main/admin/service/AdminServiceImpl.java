@@ -1,5 +1,6 @@
 package server.main.admin.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -15,6 +16,7 @@ import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
 import server.main.asset.entity.Asset;
 import server.main.asset.service.AssetService;
+import server.main.blockchain.service.ContractGatewayService;
 import server.main.disclosure.service.DisclosureService;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
@@ -25,6 +27,7 @@ import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +46,7 @@ public class AdminServiceImpl implements AdminService {
     private final FileService fileService;
     private final AllocationEventRepository allocationEventRepository;
     private final CommonRepository commonsRepository;
+    private final ContractGatewayService contractGatewayService;
 
     // 자산등록
     // 자산 이미지 등록 -> 자산 등록 ->  토큰 등록 -> 플랫폼 소유 토큰 등록 -> 자산 계좌 생성 및 입금 -> 공시 / 공지 등록 -> 첨부파일 등록
@@ -70,6 +74,9 @@ public class AdminServiceImpl implements AdminService {
 
             // 플랫폼 보유 테이블 SAVE
             platformTokenHoldingsRepository.save(platformTokenHoldings);
+
+            String contractAddress = contractGatewayService.deployToken(saveToken, platformTokenHoldings);
+            saveToken.updateContractAddress(contractAddress);
 
             // 자산 계좌 생성
             assetService.registerAssetAccount(saveToken);
