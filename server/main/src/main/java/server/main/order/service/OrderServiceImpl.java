@@ -4,18 +4,17 @@ import static server.main.global.error.ErrorCode.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.MatchClient;
-import server.main.log.orderLog.repository.OrderLogRepository;
 import server.main.log.orderLog.service.OrderLogService;
 import server.main.member.entity.Account;
 import server.main.member.entity.Member;
@@ -24,8 +23,10 @@ import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.MatchOrderRequestDto;
+import server.main.order.dto.MatchResultDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
+import server.main.order.dto.TradeExecutionDto;
 import server.main.order.dto.UpdateMatchOrderRequestDto;
 import server.main.order.dto.UpdateOrderRequestDto;
 import server.main.order.entity.Order;
@@ -35,6 +36,9 @@ import server.main.order.mapper.OrderMapper;
 import server.main.order.repository.OrderRepository;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
+import server.main.trade.entity.SettlementStatus;
+import server.main.trade.entity.Trade;
+import server.main.trade.repository.TradeRepository;
 
 @Service
 @Transactional(readOnly = true)
@@ -49,15 +53,19 @@ public class OrderServiceImpl implements OrderService {
     private final MemberRepository memberRepository;
     private final MemberTokenHoldingRepository memberTokenHoldingRepository;
     private final AccountRepository accountRepository;
+    private final TradeRepository tradeRepository;
     private final MatchClient matchClient;
 
     @Transactional
     @Override
     public void createOrder(Long tokenId, OrderRequestDto dto) {
-        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
+                .getPrincipal();
         Long memberId = principal.getId();
-        Member findMember = memberRepository.findById(memberId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-        Token findToken = tokenRepository.findById(tokenId).orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        Member findMember = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        Token findToken = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         // 매수일 경우
         if (OrderType.BUY.equals(dto.getOrderType())) {
@@ -69,7 +77,9 @@ public class OrderServiceImpl implements OrderService {
                 throw new BusinessException(INSUFFICIENT_BALANCE);
 
             // 매수 주문일 경우 구매력 차감 (current quantity 감소, locked quantity 증가)
-            else findAccount.lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도 된다)
+            else
+                findAccount.lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹 (별도 update 쿼리 날리지 않아도
+                                                                                       // 된다)
         }
 
         // 매도일 경우
@@ -113,8 +123,44 @@ public class OrderServiceImpl implements OrderService {
                 .orderQuantity(createOrder.getOrderQuantity())
                 .orderType(createOrder.getOrderType())
                 .build();
-        matchClient.sendOrder(matchDto); // sendOrder 실패 시 모두 롤백
+        // match 서버 호출 — 실패 시 트랜잭션 전체 롤백
+        MatchResultDto matchResult;
+        try {
+            matchResult = matchClient.sendOrder(matchDto);
+        } catch (RestClientException e) {
+            log.error("match 서버 호출 실패. orderId={}, tokenId={}", createOrder.getOrderId(), tokenId, e);
+            throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
+        }
 
+        // ORDERS 테이블 업데이트 (더티 체킹)
+        createOrder.applyMatchResult(
+                matchResult.getFilledQuantity(),
+                matchResult.getRemainingQuantity(),
+                matchResult.getFinalStatus());
+
+        // TRADES 테이블 저장 — 체결 건별로 레코드 생성
+        for (TradeExecutionDto execution : matchResult.getExecutions()) {
+            Member counterMember = memberRepository.findById(execution.getCounterMemberId())
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            Order counterOrder = orderRepository.findById(execution.getCounterOrderId())
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+            Trade trade = Trade.builder()
+                    .tradePrice(execution.getTradePrice())
+                    .tradeQuantity(execution.getTradeQuantity())
+                    .totalTradePrice(execution.getTradePrice() * execution.getTradeQuantity())
+                    .feeAmount(0L)
+                    .settlementStatus(SettlementStatus.ON_CHAIN_PENDING)
+                    .executedAt(LocalDateTime.now())
+                    .token(findToken)
+                    .buyer(OrderType.BUY.equals(dto.getOrderType()) ? findMember : counterMember)
+                    .seller(OrderType.SELL.equals(dto.getOrderType()) ? findMember : counterMember)
+                    .buyOrder(OrderType.BUY.equals(dto.getOrderType()) ? createOrder : counterOrder)
+                    .sellOrder(OrderType.SELL.equals(dto.getOrderType()) ? createOrder : counterOrder)
+                    .build();
+
+            tradeRepository.save(trade);
+        }
 
         // 로그 저장
         String detail = String.format("토큰 ID=%d 매수매도=%s 가격=%d 수량=%d",
@@ -125,7 +171,8 @@ public class OrderServiceImpl implements OrderService {
     // 상세 화면의 '대기' : 소켓 필요
     @Override
     public List<PendingOrderResponseDto> getPendingOrders(Long tokenId) {
-        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
+                .getPrincipal();
         Long memberId = principal.getId();
 
         List<Order> pendingOrders = orderRepository.findPendingOrderByMemberAndToken(memberId, tokenId);

@@ -8,7 +8,7 @@ import server.main.log.LogBaseEntity;
 
 @Entity
 @Getter
-@Table(name = "TRADE_LOGS")
+@Table(name = "LOGIN_LOGS")
 @NoArgsConstructor
 @SuperBuilder
 public class LoginLog extends LogBaseEntity {

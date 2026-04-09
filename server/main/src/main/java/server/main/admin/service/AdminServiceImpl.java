@@ -1,5 +1,6 @@
 package server.main.admin.service;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -15,6 +16,7 @@ import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
 import server.main.asset.entity.Asset;
 import server.main.asset.service.AssetService;
+import server.main.blockchain.service.ContractGatewayService;
 import server.main.disclosure.service.DisclosureService;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
@@ -25,6 +27,7 @@ import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +46,7 @@ public class AdminServiceImpl implements AdminService {
     private final FileService fileService;
     private final AllocationEventRepository allocationEventRepository;
     private final CommonRepository commonsRepository;
+    private final ContractGatewayService contractGatewayService;
 
     // 자산등록
     // 자산 이미지 등록 -> 자산 등록 ->  토큰 등록 -> 플랫폼 소유 토큰 등록 -> 자산 계좌 생성 및 입금 -> 공시 / 공지 등록 -> 첨부파일 등록
@@ -55,7 +59,7 @@ public class AdminServiceImpl implements AdminService {
 
         try {
             // 자산 정보 먼저 등록
-            Asset saveAsset = assetService.AssetRegister(adminMapper.toAsset(dto, storedImageName));
+            Asset saveAsset = assetService.registerAsset(adminMapper.toAsset(dto, storedImageName));
             log.info("부동산 저장 : {} ", saveAsset);
 
             // 자산ID도 토큰 엔터티에 넣기
@@ -71,8 +75,11 @@ public class AdminServiceImpl implements AdminService {
             // 플랫폼 보유 테이블 SAVE
             platformTokenHoldingsRepository.save(platformTokenHoldings);
 
+            String contractAddress = contractGatewayService.deployToken(saveToken, platformTokenHoldings);
+            saveToken.updateContractAddress(contractAddress);
+
             // 자산 계좌 생성
-            assetService.AssetAccountRegister(saveToken);
+            assetService.registerAssetAccount(saveToken);
 
             // 공지 등록 메서드 호출
             noticeService.registerAssetNotice(dto);
@@ -205,7 +212,7 @@ public class AdminServiceImpl implements AdminService {
         log.info("배당 이벤트 저장 : {}", saveAllocationEvent);
 
         // 배당 월수익 입금처리
-        assetService.AllocationAccountDeposit(saveAllocationEvent.getMonthlyDividendIncome(), saveAllocationEvent.getAssetId());
+        assetService.depositAllocationAmount(saveAllocationEvent.getMonthlyDividendIncome(), saveAllocationEvent.getAssetId());
 
         // 파일저장
         fileService.saveOrUpdatePdf(file, disclosureId);

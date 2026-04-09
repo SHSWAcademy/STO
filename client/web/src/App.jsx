@@ -18,7 +18,7 @@ import { AssetManagement }      from './pages/admin/asset';
 import { PlatformRevenue }      from './pages/admin/PlatformRevenue.jsx';
 import { AllocationManagement } from './pages/admin/allocation/index.jsx';
 import { NoticeManagement }     from './pages/admin/notice/index.jsx';
-import { ContentManagement }    from './pages/admin/ContentManagement.jsx';
+import { DisclosureManagement } from './pages/admin/disclosure/index.jsx';
 import { SystemLogs }           from './pages/admin/SystemLogs.jsx';
 import { SystemSettings }       from './pages/admin/SystemSettings.jsx';
 
@@ -72,7 +72,7 @@ function AppContent() {
         <Route path="revenue"   element={<PlatformRevenue />} />
         <Route path="dividends" element={<AllocationManagement />} />
         <Route path="notices"   element={<NoticeManagement />} />
-        <Route path="content"   element={<ContentManagement />} />
+        <Route path="content"   element={<DisclosureManagement />} />
         <Route path="logs"      element={<SystemLogs />} />
         <Route path="settings"  element={<SystemSettings />} />
       </Route>

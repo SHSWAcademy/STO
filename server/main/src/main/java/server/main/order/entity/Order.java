@@ -1,13 +1,24 @@
 package server.main.order.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import server.main.global.util.BaseEntity;
 import server.main.member.entity.Member;
 import server.main.token.entity.Token;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -61,5 +72,11 @@ public class Order extends BaseEntity {
     public void removeOrder() {
         // updatedAd은 자동으로 값이 채워진다
         this.orderStatus = OrderStatus.CANCELLED; // 주문 취소
+    }
+    
+    public void applyMatchResult(Long filledQuantity, Long remainingQuantity, OrderStatus status) {
+        this.filledQuantity = filledQuantity;
+        this.remainingQuantity = remainingQuantity;
+        this.orderStatus = status;
     }
 }

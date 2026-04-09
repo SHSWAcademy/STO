@@ -48,7 +48,7 @@ public class NoticeController {
 
     // 공지사항 삭제
     @DeleteMapping("/admin/notice/{noticeId}")
-    public ResponseEntity<Void> deletedNotice(@PathVariable Long noticeId) {
+    public ResponseEntity<Void> deleteNotice(@PathVariable Long noticeId) {
         noticeService.deleteNotice(noticeId);
         return ResponseEntity.noContent().build();
     }

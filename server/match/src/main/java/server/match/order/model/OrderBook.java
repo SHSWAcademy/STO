@@ -1,10 +1,12 @@
 package server.match.order.model;
 
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.TreeMap;
 
 import server.match.order.entity.OrderType;
@@ -26,13 +28,13 @@ public class OrderBook {
         this.tokenId = tokenId;
     }
 
-    public void addOrder(Order order) {
+    public synchronized void addOrder(Order order) {
         TreeMap<Long, Deque<Order>> book = getBook(order.getOrderType());
         book.computeIfAbsent(order.getPrice(), price -> new ArrayDeque<>()).add(order);
         orderIndex.put(order.getOrderId(), order);
     }
 
-    public void removeOrder(Order order) {
+    public synchronized void removeOrder(Order order) {
         TreeMap<Long, Deque<Order>> book = getBook(order.getOrderType());
         Deque<Order> queue = book.get(order.getPrice());
         if (queue != null) {
@@ -48,12 +50,12 @@ public class OrderBook {
         return orderIndex.get(orderId);
     }
 
-    public TreeMap<Long, Deque<Order>> getBuyOrders() {
-        return buyOrders;
+    public NavigableMap<Long, Deque<Order>> getBuyOrders() {
+        return Collections.unmodifiableNavigableMap(buyOrders);
     }
 
-    public TreeMap<Long, Deque<Order>> getSellOrders() {
-        return sellOrders;
+    public NavigableMap<Long, Deque<Order>> getSellOrders() {
+        return Collections.unmodifiableNavigableMap(sellOrders);
     }
 
     public Long getTokenId() {

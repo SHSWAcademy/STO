@@ -17,6 +17,7 @@ import server.main.auth.dto.MemberSignupResponse;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.security.JwtTokenProvider;
+import server.main.log.loginLog.service.LoginLogService;
 import server.main.member.entity.Account;
 import server.main.member.entity.Member;
 import server.main.member.entity.Wallet;
@@ -37,6 +38,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AccountRepository accountRepository;
+    private final LoginLogService loginLogService;
     private final CustodialWalletService custodialWalletService;
 
     @Transactional
@@ -73,6 +75,9 @@ public class AuthService {
             throw new BusinessException(ErrorCode.LOGIN_FAILED);
         }
 
+        // 회원 로그 저장
+        loginLogService.save(maskEmail(request.getEmail()), "MEMBER_LOGIN", "로그인 성공", true);
+
         String token = jwtTokenProvider.createMemberToken(member.getMemberId(), member.getEmail());
         return new LoginResponse(token, "MEMBER");
     }
@@ -95,6 +100,8 @@ public class AuthService {
         String token = jwtTokenProvider.createAdminToken(admin.getAdminId(), admin.getAdminLoginId());
         return new LoginResponse(token, "ADMIN");
     }
+
+
 
     private String generateUniqueAccountNumber() {
         for (int i =0; i < 10; i++) {
