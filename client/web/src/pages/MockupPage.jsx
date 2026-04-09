@@ -843,28 +843,45 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   const [pendingOrders, setPendingOrders] = useState([]);
   const [pendingLoading, setPendingLoading] = useState(false);
 
-  // WS 실시간 업데이트 수신 시 목록 교체 (편집 중인 주문은 유지)
-  useEffect(() => {
-    if (!wsPendingData) return;
-    if (editingOrderId === null) {
-      setPendingOrders(wsPendingData);
-    } else {
-      setPendingOrders(prev =>
-        wsPendingData.map(incoming => {
-          if (incoming.orderId === editingOrderId) {
-            return prev.find(o => o.orderId === editingOrderId) ?? incoming;
-          }
-          return incoming;
-        })
-      );
-    }
-  }, [wsPendingData]);
-
   // ── 주문 수정 상태 ───────────────────────────────────────────
   const [editingOrderId, setEditingOrderId] = useState(null);
   const [editPrice, setEditPrice]           = useState('');
   const [editQty, setEditQty]               = useState('');
   const [updateMsg, setUpdateMsg]           = useState(null); // { orderId, type, text }
+
+  // WS 실시간 업데이트 수신 시 목록 교체 (편집 중인 주문은 유지)
+  useEffect(() => {
+    if (!wsPendingData) return;
+
+    if (editingOrderId === null) {
+      setPendingOrders(wsPendingData);
+      return;
+    }
+
+    const editingOrderExists = wsPendingData.some(o => o.orderId === editingOrderId);
+
+    if (!editingOrderExists) {
+      setPendingOrders(wsPendingData);
+      setEditingOrderId(null);
+      setEditPrice('');
+      setEditQty('');
+      setUpdateMsg({
+        orderId: editingOrderId,
+        type: 'error',
+        text: '편집 중인 주문이 체결되었거나 취소되어 편집이 종료되었습니다.',
+      });
+      return;
+    }
+
+    setPendingOrders(prev =>
+      wsPendingData.map(incoming => {
+        if (incoming.orderId === editingOrderId) {
+          return prev.find(o => o.orderId === editingOrderId) ?? incoming;
+        }
+        return incoming;
+      })
+    );
+  }, [wsPendingData, editingOrderId]);
 
   const fetchPendingOrders = useCallback(async () => {
     if (!isLoggedIn || !token) return;
@@ -912,8 +929,8 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
       onLoginRequired('매수/매도 주문을 하려면\n먼저 로그인해야 합니다');
       return;
     }
-    if (numQty <= 0 || numPrice <= 0) {
-      setOrderMsg({ type: 'error', text: '가격과 수량을 올바르게 입력하세요.' });
+    if (!Number.isInteger(numPrice) || !Number.isInteger(numQty) || numPrice <= 0 || numQty <= 0) {
+      setOrderMsg({ type: 'error', text: '가격과 수량은 양의 정수만 입력하세요.' });
       return;
     }
     setSubmitting(true);
