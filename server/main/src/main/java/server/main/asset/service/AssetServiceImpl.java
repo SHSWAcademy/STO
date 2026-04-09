@@ -3,6 +3,7 @@ package server.main.asset.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import server.main.asset.entity.*;
 import server.main.asset.repository.AssetAccountRepository;
 import server.main.asset.repository.AssetBankingRepository;
@@ -14,16 +15,21 @@ import server.main.token.entity.Token;
 @Service
 @Log4j2
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AssetServiceImpl implements AssetService{
     private final AssetRepository assetRepository;
     private final AssetAccountRepository assetAccountRepository;
     private final AssetBankingRepository assetBankingRepository;
 
     // 자산등록 (admin)
+    @Transactional
     @Override
     public Asset registerAsset(Asset asset) {
         return assetRepository.save(asset);
     }
+
+
+
     // 기존 자산조회 (admin)
     @Override
     public Asset findById(Long assetId) {
@@ -37,7 +43,10 @@ public class AssetServiceImpl implements AssetService{
         return assetRepository.findAssetName(assetId);
     }
 
+
+
     // 자산 첫 등록 시 계좌 생성 (admin)
+    @Transactional
     @Override
     public void registerAssetAccount(Token token) {
         // 계좌 먼저 생성
@@ -70,6 +79,7 @@ public class AssetServiceImpl implements AssetService{
     }
 
     // 배당 월수익 입금처리
+    @Transactional
     @Override
     public void depositAllocationAmount(Long amount, Long assetId) {
         // 입금 금액 검증
@@ -94,4 +104,5 @@ public class AssetServiceImpl implements AssetService{
         // 계좌 입출금 가능액 업데이트
         assetAccount.deposit(amount);
     }
+
 }
