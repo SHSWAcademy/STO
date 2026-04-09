@@ -79,12 +79,13 @@ public class OrderServiceImpl implements OrderService {
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
             // 원화 잔고 >= 총 주문 금액 검증
-            if (findMemberAccount.getAvailableBalance() < dto.getOrderPrice() * dto.getOrderQuantity())
+            long orderAmount = Math.multiplyExact(dto.getOrderPrice(), dto.getOrderQuantity());
+            if (findMemberAccount.getAvailableBalance() < orderAmount)
                 throw new BusinessException(INSUFFICIENT_BALANCE);
 
             // 매수 주문일 경우 구매력 차감 (current quantity 감소, locked quantity 증가)
             else
-                findMemberAccount.lockBalance(dto.getOrderPrice() * dto.getOrderQuantity()); // 더티 체킹
+                findMemberAccount.lockBalance(orderAmount); // 더티 체킹
         }
 
         // 매도일 경우
@@ -198,7 +199,7 @@ public class OrderServiceImpl implements OrderService {
 
             // 매수자가 주문 시 잠근 금액 (주문가 기준)
             long buyerOrderPrice = isBuy ? createOrder.getOrderPrice() : counterOrder.getOrderPrice();
-            long lockedAmount = buyerOrderPrice * execution.getTradeQuantity();
+            long lockedAmount = Math.multiplyExact(buyerOrderPrice, execution.getTradeQuantity());
 
             buyerAccount.settleBuyTrade(tradeAmount, lockedAmount); // lockedBalance 차감 + 차액 availableBalance 환급
             sellerAccount.settleSellTrade(tradeAmount);              // 매도자 availableBalance 증가
