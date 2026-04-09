@@ -12,4 +12,7 @@ import java.util.List;
 public interface CandleMonthRepository extends JpaRepository<CandleMonth, Long> {
     @Query("SELECT c FROM CandleMonth c WHERE c.token.tokenId = :tokenId AND c.candleTime < :before ORDER BY c.candleTime DESC LIMIT 35")
     List<CandleMonth> findTop35Before(@Param("tokenId") Long tokenId, @Param("before") LocalDateTime before);
+
+    @Query("SELECT c FROM CandleMonth c WHERE c.token.tokenId IN :tokenIds AND YEAR(c.candleTime) = YEAR(CURRENT_DATE) AND MONTH(c.candleTime) = MONTH(CURRENT_DATE)")
+    List<CandleMonth> findThisMonthByTokenIds(@Param("tokenIds") List<Long> tokenIds);
 }

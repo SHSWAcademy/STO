@@ -2,24 +2,15 @@ package server.main.asset.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import server.main.asset.dto.AssetMainResponseDto;
 import server.main.asset.entity.*;
-import server.main.asset.mapper.AssetMapper;
 import server.main.asset.repository.AssetAccountRepository;
 import server.main.asset.repository.AssetBankingRepository;
 import server.main.asset.repository.AssetRepository;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.token.entity.Token;
-
-import java.util.List;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
 
 @Service
 @Log4j2
@@ -29,7 +20,6 @@ public class AssetServiceImpl implements AssetService{
     private final AssetRepository assetRepository;
     private final AssetAccountRepository assetAccountRepository;
     private final AssetBankingRepository assetBankingRepository;
-    private final AssetMapper assetMapper;
 
     // 자산등록 (admin)
     @Transactional
@@ -114,14 +104,5 @@ public class AssetServiceImpl implements AssetService{
         // 계좌 입출금 가능액 업데이트
         assetAccount.deposit(amount);
     }
-
-    @Override
-    public List<AssetMainResponseDto> getAssetsWith10Paging(int page) {
-        Pageable pageable = PageRequest.of(page, 10); // n 페이지부터 10개
-        return assetRepository.findAll(pageable).stream()
-                .map(assetMapper :: toMainDto)
-                .collect(Collectors.toList());
-    }
-
 
 }

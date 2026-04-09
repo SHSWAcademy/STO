@@ -6,22 +6,25 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
+import server.main.candle.repository.CandleDayRepository;
+import server.main.candle.repository.CandleMonthRepository;
+import server.main.candle.repository.CandleYearRepository;
+import server.main.token.dto.SelectType;
 import server.main.asset.entity.Asset;
 import server.main.disclosure.entity.Disclosure;
 import server.main.disclosure.repository.DisclosureRepository;
 import server.main.global.error.BusinessException;
 import server.main.global.file.File;
 import server.main.global.file.FileRepository;
-import server.main.token.dto.TokenAllocationInfoResponseDto;
-import server.main.token.dto.TokenAssetInfoResponseDto;
-import server.main.token.dto.TokenChartDetailResponseDto;
-import server.main.token.dto.TokenDisclosureResponseDto;
+import server.main.token.dto.*;
 import server.main.token.entity.Token;
 import server.main.token.mapper.TokenMapper;
 import server.main.token.repository.TokenRepository;
+import server.main.trade.repository.TradeRepository;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static server.main.global.error.ErrorCode.ENTITY_NOT_FOUNT_ERROR;
@@ -33,9 +36,13 @@ import static server.main.global.error.ErrorCode.ENTITY_NOT_FOUNT_ERROR;
 public class TokenServiceImpl implements TokenService{
 
     private final DisclosureRepository disclosureRepository;
+    private final CandleDayRepository candleDayRepository;
+    private final CandleMonthRepository candleMonthRepository;
+    private final CandleYearRepository candleYearRepository;
     private final FileRepository fileRepository;
     private final TokenRepository tokenRepository;
     private final AllocationEventRepository allocationEventRepository;
+    private final TradeRepository tradeRepository;
     private final TokenMapper tokenMapper;
 
 
@@ -122,5 +129,68 @@ public class TokenServiceImpl implements TokenService{
                             .build();
                 })
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<TokenMainResponseDto> getTokenAssetsWith10Paging(int page, SelectType selectType, PeriodType periodType) {
+
+        // 정렬 기준에 따라 페이징된 Token 목록 조회
+        // selectType : 기본값 전체, 사용자가 메인 페이지에서 거래 대금, 거래량 선택 시 해당 필드로 정렬해서 가져온다
+        List<Token> tokens = tokenRepository.findAllBySelectType(page, selectType);
+        if (tokens.isEmpty()) return List.of();
+
+        List<Long> tokenIds = tokens.stream().map(Token::getTokenId).toList();
+
+        // 기간별(1일, 1개월, 1년) base price(시가) 조회, Map<tokenId, openPrice>
+        Map<Long, Double> basePriceMap = getBasePriceMap(tokenIds, periodType);
+
+        // 거래 집계 조회, Map<tokenId, [totalValue, totalQty]>
+        Map<Long, long[]> tradeAggMap = tradeRepository.findAggregatesByTokenIds(tokenIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> new long[]{ ((Number) row[1]).longValue(), ((Number) row[2]).longValue() }
+                ));
+
+        // dto 로 만들어서 전달
+        return tokens.stream().map(t -> {
+            Long tokenId = t.getTokenId();
+            Double currentPrice = t.getCurrentPrice();
+            Double basePrice = basePriceMap.get(tokenId);
+            long[] agg = tradeAggMap.getOrDefault(tokenId, new long[]{0L, 0L});
+
+            Double fluctuationRate = (basePrice != null && basePrice > 0) ? (currentPrice - basePrice) / basePrice * 100 : 0.0;
+
+            return TokenMainResponseDto.builder()
+                    .token(tokenId)
+                    .assetName(t.getAsset().getAssetName())
+                    .currentPrice(currentPrice.longValue())
+                    .fluctuationRate(Math.round(fluctuationRate * 100.0) / 100.0)
+                    .totalTradeValue(agg[0])
+                    .totalTradeQuantity(agg[1])
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    private Map<Long, Double> getBasePriceMap(List<Long> tokenIds, PeriodType periodType) {
+        return switch (periodType) {
+            // A 자산의 시작가, B 자산의 시작가, C 자산의 시작가 등이 들어간다.
+            case DAY -> candleDayRepository.findTodayByTokenIds(tokenIds)
+                    .stream().collect(Collectors.toMap(
+                            c -> c.getToken().getTokenId(),
+                            c -> c.getOpenPrice()
+                    ));
+            case MONTH -> candleMonthRepository.findThisMonthByTokenIds(tokenIds)
+                    .stream().collect(Collectors.toMap(
+                            c -> c.getToken().getTokenId(),
+                            c -> c.getOpenPrice()
+                    ));
+            case YEAR -> candleYearRepository.findThisYearByTokenIds(tokenIds)
+                    .stream().collect(Collectors.toMap(
+                            c -> c.getToken().getTokenId(),
+                            c -> c.getOpenPrice()
+                    ));
+
+        };
     }
 }

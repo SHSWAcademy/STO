@@ -1,10 +1,7 @@
 package server.main.asset.service;
 
-import server.main.asset.dto.AssetMainResponseDto;
 import server.main.asset.entity.Asset;
 import server.main.token.entity.Token;
-
-import java.util.List;
 
 public interface AssetService {
     Asset registerAsset(Asset asset);                               // 자산등록 (admin)
@@ -12,5 +9,4 @@ public interface AssetService {
     String findAssetName(Long assetId);                             // 자산 이름조회 (admin)
     void registerAssetAccount(Token token);                         // 자산 계좌 생성 (admin)
     void depositAllocationAmount(Long amount, Long assetId);        // 배당 월수익 입금 처리 (admin)
-    List<AssetMainResponseDto> getAssetsWith10Paging(int page);
 }
