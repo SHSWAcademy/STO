@@ -2,7 +2,6 @@ package server.main.log.tradeLog.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.log.tradeLog.entity.TradeLog;
 import server.main.log.tradeLog.repository.TradeLogRepository;
@@ -19,7 +18,7 @@ public class TradeLogService {
         tradeLogRepository.save(TradeLog.builder()
                 .timeStamp(LocalDateTime.now())
                 .identifier(tokenId)
-                .task("trade")
+                .task("TRADE")
                 .detail(detail)
                 .result(result)
                 .build());
