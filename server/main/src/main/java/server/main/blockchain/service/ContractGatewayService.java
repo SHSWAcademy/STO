@@ -29,11 +29,11 @@ public class ContractGatewayService {
 
         try {
             String issuerAddress = walletRepository.findByWalletRole(WalletRole.ISSUER)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND))
+                    .orElseThrow(() -> new BusinessException(ErrorCode.ISSUER_WALLET_NOT_FOUND))
                     .getWalletAddress();
 
             String treasuryAddress = walletRepository.findByWalletRole(WalletRole.PLATFORM_TREASURY)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.WALLET_NOT_FOUND))
+                    .orElseThrow(() -> new BusinessException(ErrorCode.BUYER_WALLET_NOT_FOUND))
                     .getWalletAddress();
 
             StoToken stoToken = StoToken.deploy(
