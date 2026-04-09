@@ -5,8 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.GeneratedColumn;
-import org.springframework.stereotype.Component;
 import server.main.admin.entity.PlatformTokenHolding;
 import server.main.trade.entity.Trade;
 
@@ -29,7 +27,7 @@ public class BlockchainTx {
     private Long queueId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trade_id", nullable = false)
+    @JoinColumn(name = "trade_id", nullable = true)
     private Trade trade;
 
     @ManyToOne(fetch = FetchType.LAZY)
