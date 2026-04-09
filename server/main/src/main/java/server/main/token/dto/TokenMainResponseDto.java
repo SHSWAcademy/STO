@@ -9,7 +9,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TokenMainResponseDto {  // 메인 페이지에 띄워줄 자산 리스트
-    private Long token;              // 상세 페이지로 접근할 수 있도록 화면에 전달, hidden
+    private Long tokenId;            // 상세 페이지로 접근할 수 있도록 화면에 전달, hidden
     private String assetName;        // 자산 이름
     private Long currentPrice;       // 현재 가격
     private Double fluctuationRate;  // 등락률

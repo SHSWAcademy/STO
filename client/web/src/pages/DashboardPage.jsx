@@ -55,7 +55,7 @@ export function DashboardPage() {
         // 미리보기 패널: 기존 선택 유지, 없으면 첫 번째로
         setPreviewToken(prev => {
           if (!data.length) return null;
-          const found = prev ? data.find(t => t.token === prev.token) : null;
+          const found = prev ? data.find(t => t.tokenId === prev.tokenId) : null;
           return found ?? data[0];
         });
       })
@@ -112,31 +112,31 @@ export function DashboardPage() {
                 ) : (
                   tokens.map((t, i) => (
                     <tr
-                      key={t.token}
+                      key={t.tokenId}
                       className={cn(
                         "group hover:bg-stone-100 transition-colors cursor-pointer",
-                        previewToken?.token === t.token && "bg-stone-100",
+                        previewToken?.tokenId === t.tokenId && "bg-stone-100",
                       )}
                       onMouseEnter={() => setPreviewToken(t)}
-                      onClick={() => navigate(`/${t.token}`)}
+                      onClick={() => navigate(`/${t.tokenId}`)}
                     >
                       <td className="py-4">
                         <div className="flex items-center gap-4">
                           <button
                             onClick={e => {
                               e.stopPropagation();
-                              toggleWatchlist(t.token);
+                              toggleWatchlist(t.tokenId);
                             }}
                             className={cn(
                               "transition-colors",
-                              watchlist.includes(t.token)
+                              watchlist.includes(t.tokenId)
                                 ? "text-brand-red"
                                 : "text-stone-400 hover:text-brand-red",
                             )}
                           >
                             <Heart
                               size={16}
-                              fill={watchlist.includes(t.token) ? "currentColor" : "none"}
+                              fill={watchlist.includes(t.tokenId) ? "currentColor" : "none"}
                             />
                           </button>
                           <span className="text-stone-400 font-mono w-4">
@@ -244,7 +244,7 @@ export function DashboardPage() {
                 </div>
 
                 <button
-                  onClick={() => navigate(`/${previewToken.token}`)}
+                  onClick={() => navigate(`/${previewToken.tokenId}`)}
                   className="w-full py-4 rounded-lg bg-stone-800 text-white font-black uppercase tracking-widest hover:bg-stone-700 transition-colors"
                 >
                   거래하기
