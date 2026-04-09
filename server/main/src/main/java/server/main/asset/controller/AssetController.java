@@ -17,10 +17,11 @@ public class AssetController {
 
     private final AssetService assetService;
 
-    @GetMapping
-    public ResponseEntity<List<AssetMainResponseDto>> getAssets(@RequestParam(defaultValue = "0") int page) {
-        List<AssetMainResponseDto> dtos = assetService.getAssetsWith10Paging(page);
-
-        return ResponseEntity.ok(dtos);
-    }
+//    @GetMapping
+//    public ResponseEntity<List<AssetMainResponseDto>> getAssets(@RequestParam(defaultValue = "0") int page,
+//                                                                ) {
+//        List<AssetMainResponseDto> dtos = assetService.getAssetsWith10Paging(page);
+//
+//        return ResponseEntity.ok(dtos);
+//    }
 }
