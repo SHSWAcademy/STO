@@ -70,10 +70,10 @@ public class BlockchainOutboxQ extends BaseEntity {
     }
 
     public void incrementRetry() {
-        this.maxRetry++;
+        this.retryCount++;
     }
 
     public boolean isMaxRetryExceeded() {
-        return this.maxRetry >= this.retryCount;
+        return this.retryCount >= this.maxRetry;
     }
 }
