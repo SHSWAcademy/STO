@@ -6,13 +6,8 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AssetMainResponseDto {
-    private Long assetId;
-    private String assetName;
-    private String imgUrl;
-    private Long initPrice;
-    private Long totalValue;
-    private Long totalSupply;
-    private Boolean isAllocated;
+public class AssetMainResponseDto { // 메인 페이지에 띄워줄 자산 리스트
+    private Long assetId;       // id
+    private String assetName;   // 자산 이름
 
 }
