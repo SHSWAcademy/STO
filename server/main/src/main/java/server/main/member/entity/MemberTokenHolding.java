@@ -37,6 +37,7 @@ public class MemberTokenHolding {
 
     private Long currentQuantity;     // 현재 회원이 가지고 있는 토큰 보유량
     private Long lockedQuantity;      // 매도 주문으로 묶인 수량
+    @Column(precision = 20, scale = 4)
     private BigDecimal avgBuyPrice;    // 평균 매수가 (수익률, 평가 손익 계산)
 
     @ManyToOne(fetch = FetchType.LAZY)
