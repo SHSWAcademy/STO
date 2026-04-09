@@ -37,6 +37,9 @@ public class AssetServiceImpl implements AssetService{
     public Asset registerAsset(Asset asset) {
         return assetRepository.save(asset);
     }
+
+
+
     // 기존 자산조회 (admin)
     @Override
     public Asset findById(Long assetId) {
@@ -49,6 +52,8 @@ public class AssetServiceImpl implements AssetService{
     public String findAssetName(Long assetId) {
         return assetRepository.findAssetName(assetId);
     }
+
+
 
     // 자산 첫 등록 시 계좌 생성 (admin)
     @Transactional
@@ -117,4 +122,6 @@ public class AssetServiceImpl implements AssetService{
                 .map(assetMapper :: toMainDto)
                 .collect(Collectors.toList());
     }
+
+
 }
