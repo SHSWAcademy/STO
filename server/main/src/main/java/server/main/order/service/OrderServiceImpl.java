@@ -128,6 +128,7 @@ public class OrderServiceImpl implements OrderService {
         try {
             matchResult = matchClient.sendOrder(matchDto);
         } catch (RestClientException e) {
+            log.error("match 서버 호출 실패. orderId={}, tokenId={}", createOrder.getOrderId(), tokenId, e);
             throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
         }
 
