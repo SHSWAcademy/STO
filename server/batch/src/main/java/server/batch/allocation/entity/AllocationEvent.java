@@ -24,8 +24,6 @@ public class AllocationEvent {
     private LocalDateTime settledAt;       // 배당 지급일
     private Integer settlementYear;        // 배당년도
     private Integer settlementMonth;       // 배당월
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 
     // 배당 성공 시
     public void complete() {
