@@ -60,7 +60,7 @@ export function DashboardPage() {
       })
       .catch(e => console.warn('[Dashboard] 토큰 목록 조회 실패:', e))
       .finally(() => setLoading(false));
-  }, [page, chartFilter, timeRange]);
+  }, [page, chartFilter, timeRange, user]);
 
   const sparklineData = previewToken?.sparkLine?.map(v => ({ v })) ?? [];
 
@@ -92,19 +92,20 @@ export function DashboardPage() {
                   <th className="text-left py-4 font-medium">종목</th>
                   <th className="text-right py-4 font-medium">현재가</th>
                   <th className="text-right py-4 font-medium">등락률</th>
+                  <th className="text-right py-4 font-medium">거래대금</th>
                   <th className="text-right py-4 font-medium">거래량</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={4} className="py-10 text-center text-stone-400 text-sm">
+                    <td colSpan={5} className="py-10 text-center text-stone-400 text-sm">
                       불러오는 중...
                     </td>
                   </tr>
                 ) : tokens.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-10 text-center text-stone-400 text-sm">
+                    <td colSpan={5} className="py-10 text-center text-stone-400 text-sm">
                       데이터가 없습니다.
                     </td>
                   </tr>
@@ -154,6 +155,9 @@ export function DashboardPage() {
                         t.fluctuationRate >= 0 ? "text-brand-red" : "text-brand-blue",
                       )}>
                         {t.fluctuationRate >= 0 ? "+" : ""}{t.fluctuationRate}%
+                      </td>
+                      <td className="py-4 text-right text-stone-500 font-mono">
+                        {t.totalTradeValue.toLocaleString()}원
                       </td>
                       <td className="py-4 text-right text-stone-500 font-mono">
                         {t.totalTradeQuantity.toLocaleString()}주

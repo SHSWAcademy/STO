@@ -1,5 +1,5 @@
 // MockupPage — 상세 페이지 실데이터 연동 목업
-// /mockup/:tokenId 로 접근
+// /token/:tokenId 로 접근
 // 팀원 작업 중인 TradingPage와 분리된 독립 테스트 공간
 
 import { useState, useEffect, useCallback } from 'react';
