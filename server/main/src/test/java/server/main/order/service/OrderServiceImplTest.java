@@ -29,6 +29,7 @@ import server.main.member.entity.MemberTokenHolding;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
+import server.main.order.dto.MatchResultDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.UpdateOrderRequestDto;
@@ -39,6 +40,7 @@ import server.main.order.mapper.OrderMapper;
 import server.main.order.repository.OrderRepository;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
+import server.main.trade.repository.TradeRepository;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceImplTest {
@@ -55,6 +57,8 @@ class OrderServiceImplTest {
     MemberTokenHoldingRepository memberTokenHoldingRepository;
     @Mock
     AccountRepository accountRepository;
+    @Mock
+    TradeRepository tradeRepository;
     @Mock
     MatchClient matchClient;
 
@@ -155,6 +159,14 @@ class OrderServiceImplTest {
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
         when(account.getAvailableBalance()).thenReturn(1_000_000L); // 잔고 세팅
+        when(matchClient.sendOrder(any())).thenReturn(MatchResultDto.builder()
+                .orderId(1L)
+                .tokenId(TOKEN_ID)
+                .finalStatus(OrderStatus.OPEN)
+                .filledQuantity(0L)
+                .remainingQuantity(5L)
+                .executions(List.of())
+                .build());
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.BUY)
@@ -257,6 +269,14 @@ class OrderServiceImplTest {
         when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
         when(holding.getCurrentQuantity()).thenReturn(10L); // 보유 10주
+        when(matchClient.sendOrder(any())).thenReturn(MatchResultDto.builder()
+                .orderId(1L)
+                .tokenId(TOKEN_ID)
+                .finalStatus(OrderStatus.OPEN)
+                .filledQuantity(0L)
+                .remainingQuantity(5L)
+                .executions(List.of())
+                .build());
 
         OrderRequestDto dto = OrderRequestDto.builder()
                 .orderType(OrderType.SELL)
