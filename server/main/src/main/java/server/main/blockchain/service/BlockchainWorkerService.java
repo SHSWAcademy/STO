@@ -32,7 +32,7 @@ public class BlockchainWorkerService {
 
     @Transactional
     public void processPending() {
-        List<BlockchainOutboxQ> pendingList = blockchainOutboxQRepository.findByStatus(QueueStatus.PENDING);
+        List<BlockchainOutboxQ> pendingList = blockchainOutboxQRepository.findByStatusIn(List.of(QueueStatus.PENDING, QueueStatus.FAILED));
 
         for (BlockchainOutboxQ blockchainOutboxQ : pendingList) {
             try {
@@ -59,7 +59,12 @@ public class BlockchainWorkerService {
                         BigInteger.valueOf(payload.getPrice())
                 ).send();
 
-                blockchainOutboxQ.markConfirmed();
+                boolean isSuccess = "0x1".equals(receipt.getStatus());
+                if (isSuccess) {
+                    blockchainOutboxQ.markConfirmed();
+                } else {
+                    blockchainOutboxQ.markFailed("Transaction reverted on-chain");
+                }
 
                 BlockchainTx blockchainTx = BlockchainTx.builder()
                         .queueId(blockchainOutboxQ.getQueueId())
@@ -87,7 +92,7 @@ public class BlockchainWorkerService {
                 } else {
                     blockchainOutboxQ.markFailed(e.getMessage());
                 }
-               log.error("온체인 기록 실패 queueId: {} retryCount: {}", blockchainOutboxQ.getQueueId(), blockchainOutboxQ.getMaxRetry(), e);
+               log.error("온체인 기록 실패 queueId: {} retryCount: {} maxRetry: {}", blockchainOutboxQ.getQueueId(), blockchainOutboxQ.getRetryCount(), blockchainOutboxQ.getMaxRetry(), e);
             }
         }
     }

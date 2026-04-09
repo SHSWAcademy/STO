@@ -4,9 +4,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import server.main.blockchain.entity.BlockchainOutboxQ;
 import server.main.blockchain.entity.QueueStatus;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface BlockchainOutboxQRepository extends JpaRepository<BlockchainOutboxQ, Long> {
     List<BlockchainOutboxQ> findByStatus(QueueStatus status);
+
+    List<BlockchainOutboxQ> findByStatusIn(Collection<QueueStatus> statuses);
     boolean existsByIdempotencyKey(String idempotencyKey);
 }
