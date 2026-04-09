@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.asset.dto.AssetMainResponseDto;
 import server.main.asset.entity.*;
+import server.main.asset.mapper.AssetMapper;
 import server.main.asset.repository.AssetAccountRepository;
 import server.main.asset.repository.AssetBankingRepository;
 import server.main.asset.repository.AssetRepository;
@@ -28,6 +29,7 @@ public class AssetServiceImpl implements AssetService{
     private final AssetRepository assetRepository;
     private final AssetAccountRepository assetAccountRepository;
     private final AssetBankingRepository assetBankingRepository;
+    private final AssetMapper assetMapper;
 
     // 자산등록 (admin)
     @Transactional
@@ -110,9 +112,9 @@ public class AssetServiceImpl implements AssetService{
 
     @Override
     public List<AssetMainResponseDto> getAssetsWith10Paging(int page) {
-        Pageable pageable = PageRequest.of(page, 10);
+        Pageable pageable = PageRequest.of(page, 10); // n 페이지부터 10개
         return assetRepository.findAll(pageable).stream()
-                .map(AssetMainResponseDto :: toMainDto)
+                .map(assetMapper :: toMainDto)
                 .collect(Collectors.toList());
     }
 }
