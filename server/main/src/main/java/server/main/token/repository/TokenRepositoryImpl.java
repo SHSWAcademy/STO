@@ -1,5 +1,6 @@
 package server.main.token.repository;
 
+import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -38,15 +39,16 @@ public class TokenRepositoryImpl implements TokenRepositoryCustom {
 
         // TOTAL_TRADE_VALUE / TOTAL_TRADE_QUANTITY
         // fetchJoin 랑 groupBy는 JPA 제약으로 불가, 두 단계로 처리
-        // 1단계: 집계 기준으로 정렬된 tokenId 목록 조회
+        // 1단계: Token 기준 LEFT JOIN — 거래 없는 토큰도 포함, null은 NullsLast
         OrderSpecifier<?> orderSpecifier = selectType == SelectType.TOTAL_TRADE_VALUE
-                ? trade.totalTradePrice.sum().desc()
-                : trade.tradeQuantity.sum().desc();
+                ? new OrderSpecifier<>(Order.DESC, trade.totalTradePrice.sum(), OrderSpecifier.NullHandling.NullsLast)
+                : new OrderSpecifier<>(Order.DESC, trade.tradeQuantity.sum(), OrderSpecifier.NullHandling.NullsLast);
 
         List<Long> tokenIds = queryFactory
-                .select(trade.token.tokenId)
-                .from(trade)
-                .groupBy(trade.token.tokenId)
+                .select(token.tokenId)
+                .from(token)
+                .leftJoin(trade).on(trade.token.eq(token))
+                .groupBy(token.tokenId)
                 .orderBy(orderSpecifier)
                 .offset((long) page * 10)
                 .limit(10)

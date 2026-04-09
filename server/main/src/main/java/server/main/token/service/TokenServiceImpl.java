@@ -197,24 +197,39 @@ public class TokenServiceImpl implements TokenService{
     }
 
     private Map<Long, Double> getBasePriceMap(List<Long> tokenIds, PeriodType periodType) {
+        LocalDateTime now = LocalDateTime.now();
         return switch (periodType) {
             // A 자산의 시작가, B 자산의 시작가, C 자산의 시작가 들이 들어간다.
-            case DAY -> candleDayRepository.findTodayByTokenIds(tokenIds)
-                    .stream().collect(Collectors.toMap(
-                            c -> c.getToken().getTokenId(),
-                            c -> c.getOpenPrice()
-                    ));
-            case MONTH -> candleMonthRepository.findThisMonthByTokenIds(tokenIds)
-                    .stream().collect(Collectors.toMap(
-                            c -> c.getToken().getTokenId(),
-                            c -> c.getOpenPrice()
-                    ));
-            case YEAR -> candleYearRepository.findThisYearByTokenIds(tokenIds)
-                    .stream().collect(Collectors.toMap(
-                            c -> c.getToken().getTokenId(),
-                            c -> c.getOpenPrice()
-                    ));
-
+            case DAY -> {
+                LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
+                LocalDateTime endOfDay   = startOfDay.plusDays(1);
+                yield candleDayRepository.findTodayByTokenIds(tokenIds, startOfDay, endOfDay)
+                        .stream().collect(Collectors.toMap(
+                                c -> c.getToken().getTokenId(),
+                                c -> c.getOpenPrice(),
+                                (a, b) -> a
+                        ));
+            }
+            case MONTH -> {
+                LocalDateTime startOfMonth = now.toLocalDate().withDayOfMonth(1).atStartOfDay();
+                LocalDateTime endOfMonth   = startOfMonth.plusMonths(1);
+                yield candleMonthRepository.findThisMonthByTokenIds(tokenIds, startOfMonth, endOfMonth)
+                        .stream().collect(Collectors.toMap(
+                                c -> c.getToken().getTokenId(),
+                                c -> c.getOpenPrice(),
+                                (a, b) -> a
+                        ));
+            }
+            case YEAR -> {
+                LocalDateTime startOfYear = now.toLocalDate().withDayOfYear(1).atStartOfDay();
+                LocalDateTime endOfYear   = startOfYear.plusYears(1);
+                yield candleYearRepository.findThisYearByTokenIds(tokenIds, startOfYear, endOfYear)
+                        .stream().collect(Collectors.toMap(
+                                c -> c.getToken().getTokenId(),
+                                c -> c.getOpenPrice(),
+                                (a, b) -> a
+                        ));
+            }
         };
     }
 }
