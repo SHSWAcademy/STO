@@ -62,7 +62,7 @@ public class TokenServiceImpl implements TokenService{
         String originName = disclosureRepository
                 .findByAssetIdAndCategory(asset.getAssetId())
                 .map(disclosure -> fileRepository.findByDisclosureId(disclosure.getDisclosureId()))
-                .map(File::getOrigin_name)
+                .map(File::getOriginName)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         return TokenAssetInfoResponseDto.builder()
@@ -117,7 +117,7 @@ public class TokenServiceImpl implements TokenService{
                             .disclosureTitle(d.getDisclosureTitle())
                             .disclosureContent(d.getDisclosureContent())
                             .disclosureCategory(d.getDisclosureCategory())           // 공시 카테고리 - BUILDING, DIVIDEND, ETC
-                            .OriginName(file != null ? file.getOrigin_name() : null) // 상세페이지 공시 pdf 파일은 null일 수 있다
+                            .OriginName(file != null ? file.getOriginName() : null) // 상세페이지 공시 pdf 파일은 null일 수 있다
                             .createdAt(d.getCreatedAt())
                             .build();
                 })

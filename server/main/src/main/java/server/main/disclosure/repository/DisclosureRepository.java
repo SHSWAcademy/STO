@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public interface DisclosureRepository extends JpaRepository<Disclosure, Long> {
     // 자산ID로 조회 (건물 소개 공시 조회)
-    @Query("SELECT d FROM Disclosure d WHERE d.assetId = :assetId AND d.disclosureCategory ='BUILDING'")
+    @Query("SELECT d FROM Disclosure d WHERE d.assetId = :assetId AND d.disclosureCategory ='BUILDING' AND d.isSystem = true ")
     Optional<Disclosure> findByAssetIdAndCategory(@Param("assetId") Long assetId);
 
     List<Disclosure> findAllByAssetId(Long assetId);

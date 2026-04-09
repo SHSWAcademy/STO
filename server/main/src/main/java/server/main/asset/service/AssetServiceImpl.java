@@ -21,7 +21,7 @@ public class AssetServiceImpl implements AssetService{
 
     // 자산등록 (admin)
     @Override
-    public Asset AssetRegister(Asset asset) {
+    public Asset registerAsset(Asset asset) {
         return assetRepository.save(asset);
     }
     // 기존 자산조회 (admin)
@@ -39,7 +39,7 @@ public class AssetServiceImpl implements AssetService{
 
     // 자산 첫 등록 시 계좌 생성 (admin)
     @Override
-    public void AssetAccountRegister(Token token) {
+    public void registerAssetAccount(Token token) {
         // 계좌 먼저 생성
         AssetAccount saveAccount = AssetAccount.builder()
                 .assetId(token.getAsset().getAssetId())
@@ -71,7 +71,7 @@ public class AssetServiceImpl implements AssetService{
 
     // 배당 월수익 입금처리
     @Override
-    public void AllocationAccountDeposit(Long amount, Long assetId) {
+    public void depositAllocationAmount(Long amount, Long assetId) {
         // 입금 금액 검증
         if (amount == null || amount <= 0) {
             throw new BusinessException(ErrorCode.INVALID_AMOUNT);
