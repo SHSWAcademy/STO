@@ -843,9 +843,21 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   const [pendingOrders, setPendingOrders] = useState([]);
   const [pendingLoading, setPendingLoading] = useState(false);
 
-  // WS 실시간 업데이트 수신 시 목록 교체
+  // WS 실시간 업데이트 수신 시 목록 교체 (편집 중인 주문은 유지)
   useEffect(() => {
-    if (wsPendingData) setPendingOrders(wsPendingData);
+    if (!wsPendingData) return;
+    if (editingOrderId === null) {
+      setPendingOrders(wsPendingData);
+    } else {
+      setPendingOrders(prev =>
+        wsPendingData.map(incoming => {
+          if (incoming.orderId === editingOrderId) {
+            return prev.find(o => o.orderId === editingOrderId) ?? incoming;
+          }
+          return incoming;
+        })
+      );
+    }
   }, [wsPendingData]);
 
   // ── 주문 수정 상태 ───────────────────────────────────────────
