@@ -26,25 +26,26 @@ export function useTradingSocket({
       connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
       reconnectDelay: 5000,
       onConnect: () => {
+        const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
         if (onOrderBook) {
           client.subscribe(`/topic/orderBook/${tokenId}`, (msg) => {
             try { onOrderBook(JSON.parse(msg.body)); } catch (e) {}
-          });
+          }, authHeader);
         }
         if (onTrades) {
           client.subscribe(`/topic/trades/${tokenId}`, (msg) => {
             try { onTrades(JSON.parse(msg.body)); } catch (e) {}
-          });
+          }, authHeader);
         }
         if (onCandle) {
-          client.subscribe(`/topic/candle/${candleType}/${tokenId}`, (msg) => {
+          client.subscribe(`/topic/candle/live/${tokenId}/${candleType}`, (msg) => {
             try { onCandle(JSON.parse(msg.body)); } catch (e) {}
-          });
+          }, authHeader);
         }
         if (onPendingOrders && memberId) {
           client.subscribe(`/topic/pendingOrders/${tokenId}/${memberId}`, (msg) => {
             try { onPendingOrders(JSON.parse(msg.body)); } catch (e) {}
-          });
+          }, authHeader);
         }
       },
       onStompError: (frame) => {
@@ -59,7 +60,7 @@ export function useTradingSocket({
     return () => {
       client.deactivate();
     };
-  }, [tokenId, candleType]);
+  }, [tokenId, candleType, token, memberId]);
 
   return clientRef;
 }

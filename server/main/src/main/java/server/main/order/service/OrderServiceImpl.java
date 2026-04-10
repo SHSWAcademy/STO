@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import org.springframework.web.client.RestClientException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import server.main.blockchain.service.BlockchainOutboxService;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.MatchClient;
@@ -57,6 +59,8 @@ public class OrderServiceImpl implements OrderService {
     private final AccountRepository accountRepository;
     private final TradeRepository tradeRepository;
     private final MatchClient matchClient;
+    private final BlockchainOutboxService blockchainOutboxService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     @Override
@@ -257,7 +261,32 @@ public class OrderServiceImpl implements OrderService {
 
             if (sellerHolding == null) throw new BusinessException(ENTITY_NOT_FOUNT_ERROR);
             sellerHolding.settleSellTrade(execution.getTradeQuantity());
+            blockchainOutboxService.saveTradeOutbox(trade, findToken);
+
+            // 상대방 주문 상태 DB 업데이트
+            long newFilledQty = counterOrder.getFilledQuantity() + execution.getTradeQuantity();
+            long newRemainingQty = counterOrder.getRemainingQuantity() - execution.getTradeQuantity();
+            OrderStatus counterStatus = newRemainingQty == 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL;
+            counterOrder.applyMatchResult(newFilledQty, newRemainingQty, counterStatus);
+
+
         }
+
+        // 체결이 끝나면 웹소켓으로 '대기' 창에 push
+        // 현재 사용자 WebSocket push
+        messagingTemplate.convertAndSend(
+                "/topic/pendingOrders/" + tokenId + "/" + memberId,
+                orderMapper.toPendingDtoList(orderRepository.findPendingOrderByMemberAndToken(memberId, tokenId))
+        );
+
+        // 상대방 WebSocket push
+        matchResult.getExecutions().stream()
+                .map(TradeExecutionDto::getCounterMemberId)
+                .distinct()
+                .forEach(counterMemberId -> messagingTemplate.convertAndSend(
+                        "/topic/pendingOrders/" + tokenId + "/" + counterMemberId,
+                        orderMapper.toPendingDtoList(orderRepository.findPendingOrderByMemberAndToken(counterMemberId, tokenId))
+                ));
 
         // 로그 저장
         String detail = String.format("토큰 ID=%d 매수매도=%s 가격=%d 수량=%d",

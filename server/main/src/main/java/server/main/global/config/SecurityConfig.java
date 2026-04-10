@@ -59,6 +59,7 @@ public class SecurityConfig {
                 // 개발동안은 시큐리티 비활성화
                 http
                 .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfig.corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .anyRequest().permitAll()
                 );

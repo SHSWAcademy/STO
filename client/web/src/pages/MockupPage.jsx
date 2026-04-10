@@ -1,5 +1,5 @@
 // MockupPage — 상세 페이지 실데이터 연동 목업
-// /mockup/:tokenId 로 접근
+// /token/:tokenId 로 접근
 // 팀원 작업 중인 TradingPage와 분리된 독립 테스트 공간
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,7 +9,7 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
 import {
-  ChartLine, Filter, Settings, Maximize2, X, Target, CheckCircle, MoreHorizontal, Edit3,
+  Maximize2, X, Target, MoreHorizontal, Edit3,
 } from 'lucide-react';
 
 import { useApp }            from '../context/AppContext.jsx';
@@ -18,12 +18,27 @@ import { AssetHeader }       from '../components/trading/AssetHeader.jsx';
 import { OrderPanel }        from '../components/trading/OrderPanel.jsx';
 import { HogaRow }           from '../components/trading/HogaRow.jsx';
 import { PriceRow }          from '../components/trading/PriceRow.jsx';
-import {
-  HOGA_ASKS, HOGA_BIDS, HOGA_EXECUTIONS, PRICE_HISTORY_ROWS,
-} from '../data/mock.js';
 import { cn } from '../lib/utils.js';
 
 const API = 'http://localhost:8080';
+
+// JWT payload에서 memberId(sub 클레임) 추출
+function parseJwtMemberId(token) {
+  if (!token) return null;
+  try {
+    const payloadPart = token.split('.')[1];
+    if (!payloadPart) return null;
+    const base64 = payloadPart
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(payloadPart.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(base64));
+    const memberId = Number(payload?.sub);
+    return Number.isFinite(memberId) && Number.isInteger(memberId) ? memberId : null;
+  } catch {
+    return null;
+  }
+}
 
 const PERIOD_TO_TYPE = {
   '분':  'MINUTE',
@@ -99,6 +114,7 @@ export function MockupPage() {
   const { tokenId }    = useParams();
   const { user, watchlist, toggleWatchlist } = useApp();
   const TOKEN_ID = Number(tokenId) || 1;
+  const memberId = parseJwtMemberId(user?.accessToken);
 
   // ── 로그인 필요 팝업 ─────────────────────────────────────────
   const [loginModal, setLoginModal] = useState(null); // null | string(message)
@@ -120,10 +136,11 @@ export function MockupPage() {
   }, [TOKEN_ID, user?.accessToken]);
 
   // ── 차트 상태 ────────────────────────────────────────────────
-  const [chartPeriod, setChartPeriod] = useState('분');
-  const [chartData, setChartData]     = useState([]);
-  const [hoveredData, setHoveredData] = useState(null);
-  const [loading, setLoading]         = useState(false);
+  const [chartPeriod, setChartPeriod]   = useState('분');
+  const [chartData, setChartData]       = useState([]);
+  const [hoveredData, setHoveredData]   = useState(null);
+  const [loading, setLoading]           = useState(false);
+  const [chartModalOpen, setChartModalOpen] = useState(false);
 
   // ── 종목 정보 탭 데이터 ─────────────────────────────────────
   const [tokenAssetInfo, setTokenAssetInfo] = useState(null);
@@ -164,11 +181,33 @@ export function MockupPage() {
       .catch(e => { console.warn('[MockupPage] 공시 조회 실패:', e); setDisclosures([]); });
   }, [activeTab, TOKEN_ID, user?.accessToken]);
 
-  // ── 호가 / 체결 상태 (match 서버 연동 전: mock 기본값) ────────
-  const [asks, setAsks]             = useState(HOGA_ASKS);
-  const [bids, setBids]             = useState(HOGA_BIDS);
-  const [executions, setExecutions] = useState(HOGA_EXECUTIONS);
-  const [trades, setTrades]         = useState(PRICE_HISTORY_ROWS);
+  // ── 호가 / 체결 상태 ────────────────────────────────────────
+  // 호가: WebSocket snapshot이 구독 즉시 전송하므로 빈 배열로 초기화
+  const [asks, setAsks]             = useState([]);
+  const [bids, setBids]             = useState([]);
+  const [executions, setExecutions] = useState([]);
+  const [trades, setTrades]         = useState([]);
+
+  // ── 체결 목록 초기 REST 로드 ─────────────────────────────────
+  useEffect(() => {
+    const headers = user?.accessToken
+      ? { Authorization: `Bearer ${user.accessToken}` }
+      : {};
+    fetch(`${API}/api/token/${TOKEN_ID}/trades`, { headers })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => {
+        setTrades(data.map(d => ({
+          price:      d.tradePrice,
+          qty:        d.tradeQuantity,
+          changeRate: d.percentageChange ?? 0,
+          vol:        d.totalVolume ?? 0,
+          time:       d.executedAt
+            ? new Date(d.executedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+            : '',
+        })));
+      })
+      .catch(e => console.warn('[MockupPage] 체결 목록 조회 실패:', e));
+  }, [TOKEN_ID, user?.accessToken]);
 
   // ── 현재가 계산 ──────────────────────────────────────────────
   const currentPrice = chartData.length > 0
@@ -225,25 +264,30 @@ export function MockupPage() {
 
   useEffect(() => { fetchCandles(); }, [fetchCandles]);
 
+  // ── 대기 주문 WS 업데이트 ────────────────────────────────────
+  // match 서버가 pendingOrders:{tokenId}:{memberId} publish 시 LoginGateOrderPanel로 전달
+  const [wsPendingData, setWsPendingData] = useState(null);
+
   // ── WebSocket 연동 ───────────────────────────────────────────
-  // candleType='live' → /topic/candle/live/{tokenId} 구독 (백엔드 [6-3] 설계와 일치)
-  // 과거 봉은 REST (fetchCandles), 현재 봉 고가/저가만 WS로 실시간 수신
+  // /topic/candle/live/{tokenId}/{candleType} 구독
+  // 현재 선택된 주기(chartPeriod)의 타입만 구독 → 차트 전환 시 재연결
   useTradingSocket({
     tokenId:    TOKEN_ID,
-    candleType: 'live',
+    candleType: PERIOD_TO_TYPE[chartPeriod],
     token:      user?.accessToken,
+    memberId,
     onOrderBook: (data) => {
       if (data.asks) setAsks(data.asks);
       if (data.bids) setBids(data.bids);
     },
     onTrades: (data) => {
       setExecutions(prev =>
-        [{ price: data.price, qty: data.quantity, isBuy: data.isBuy }, ...prev].slice(0, 15)
+        [{ price: data.tradePrice, qty: data.tradeQuantity, isBuy: data.isBuy }, ...prev].slice(0, 15)
       );
       setTrades(prev =>
         [{
-          price:      data.price,
-          qty:        data.quantity,
+          price:      data.tradePrice,
+          qty:        data.tradeQuantity,
           changeRate: data.percentageChange ?? 0,
           vol:        data.totalVolume ?? 0,
           time:       data.tradeTime ?? '',
@@ -259,6 +303,9 @@ export function MockupPage() {
           ? [...prev.slice(0, -1), newCandle]
           : [...prev, newCandle];
       });
+    },
+    onPendingOrders: (data) => {
+      setWsPendingData(data);
     },
   });
 
@@ -310,13 +357,11 @@ export function MockupPage() {
                         </button>
                       ))}
                     </div>
-                    <div className="flex gap-3 text-stone-400">
-                      <ChartLine size={16} className="cursor-pointer hover:text-stone-800" />
-                      <Filter    size={16} className="cursor-pointer hover:text-stone-800" />
-                      <Settings  size={16} className="cursor-pointer hover:text-stone-800" />
-                    </div>
                   </div>
-                  <button className="flex items-center gap-1 text-[11px] font-bold text-stone-400 hover:text-stone-800 transition-colors">
+                  <button
+                    onClick={() => setChartModalOpen(true)}
+                    className="flex items-center gap-1 text-[11px] font-bold text-stone-400 hover:text-stone-800 transition-colors"
+                  >
                     차트 크게보기 <Maximize2 size={14} />
                   </button>
                 </div>
@@ -421,9 +466,6 @@ export function MockupPage() {
               <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-stone-100">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-black text-stone-800">호가</h3>
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-stone-200 rounded text-[9px] font-bold text-stone-400">
-                    <CheckCircle size={10} className="text-brand-blue" /> 빠른 주문
-                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button className="p-1 hover:text-stone-800 text-stone-400">
@@ -587,12 +629,123 @@ export function MockupPage() {
         {/* 주문창: 항상 오른쪽 고정 */}
         <LoginGateOrderPanel
           currentPrice={currentPrice}
-          isLoggedIn={!!user}
+          isLoggedIn={!!user?.accessToken}
           onLoginRequired={setLoginModal}
           tokenId={TOKEN_ID}
           token={user?.accessToken}
+          wsPendingData={wsPendingData}
         />
       </div>
+
+      {/* ── 차트 크게보기 모달 ─────────────────────────────────── */}
+      {chartModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setChartModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-stone-200 shadow-2xl w-[90vw] max-w-[1200px] h-[80vh] flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="p-4 border-b border-stone-200 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-black text-stone-800">
+                  {tokenInfo?.assetName ?? '차트'}
+                </span>
+                <div className="flex bg-stone-200 p-1 rounded-lg">
+                  {CHART_PERIODS.map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setChartPeriod(p)}
+                      className={cn(
+                        'px-3 py-1 rounded-md text-[11px] font-bold transition-all',
+                        chartPeriod === p
+                          ? 'bg-white text-stone-800 shadow-sm'
+                          : 'text-stone-400 hover:text-stone-500'
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                onClick={() => setChartModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-stone-100 transition-colors"
+              >
+                <X size={18} className="text-stone-500" />
+              </button>
+            </div>
+
+            {/* 모달 차트 */}
+            <div className="flex-1 p-6 relative">
+              <div className="absolute top-6 left-6 z-10 flex items-center gap-3 pointer-events-none">
+                {[
+                  { label: '시', val: displayData?.open },
+                  { label: '고', val: displayData?.high, color: 'var(--color-brand-red)' },
+                  { label: '저', val: displayData?.low,  color: 'var(--color-brand-blue)' },
+                  { label: '종', val: displayData?.close },
+                ].map(({ label, val, color }) => (
+                  <div key={label} className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-stone-400">{label}</span>
+                    <span className="text-[11px] font-mono font-bold text-stone-800"
+                      style={color ? { color } : {}}>
+                      {val?.toLocaleString() ?? '-'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {chartData.length === 0 ? (
+                <div className="w-full h-full flex items-center justify-center text-stone-400 text-sm font-bold">
+                  {loading ? '데이터 로딩 중...' : '캔들 데이터 없음'}
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart
+                    data={chartData}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                    onMouseMove={e => {
+                      if (e?.activePayload?.length > 0) setHoveredData(e.activePayload[0].payload);
+                    }}
+                    onMouseLeave={() => setHoveredData(null)}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-stone-200)" vertical={false} />
+                    <XAxis dataKey="time" axisLine={false} tickLine={false}
+                      tick={{ fontSize: 10, fill: 'var(--color-stone-400)' }} minTickGap={30} />
+                    <YAxis yAxisId="price" domain={['auto', 'auto']} orientation="right"
+                      tick={{ fontSize: 10, fill: 'var(--color-stone-400)', fontWeight: 'bold' }}
+                      axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="vol" orientation="left"
+                      domain={[0, dataMax => dataMax * 4]}
+                      tick={{ fontSize: 9, fill: 'var(--color-stone-400)' }}
+                      axisLine={false} tickLine={false}
+                      tickFormatter={val => `${(val / 10000).toFixed(0)}만`} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'var(--color-stone-100)',
+                        border: '1px solid var(--color-stone-200)',
+                        borderRadius: '12px', fontSize: '11px',
+                        color: 'var(--color-stone-800)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                      }}
+                      formatter={(value, name) => {
+                        if (name === 'vol') return [`${value.toLocaleString()}주`, '거래량'];
+                        return [`${value.toLocaleString()}원`, '가격'];
+                      }}
+                    />
+                    <Bar yAxisId="vol" dataKey="vol" name="vol"
+                      fill="var(--color-stone-400)" opacity={0.1} radius={[2, 2, 0, 0]} />
+                    <Bar yAxisId="price" dataKey={d => [d.open, d.close]}
+                      shape={<CandlestickShape />} animationDuration={0} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -778,7 +931,7 @@ function NewsTab({ disclosures }) {
 
 // ── 로그인 게이트 주문창 ────────────────────────────────────────
 // 비로그인 시 매수/매도/대기 버튼에 로그인 안내 처리
-function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenId, token }) {
+function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenId, token, wsPendingData }) {
   const [orderSide, setOrderSide] = useState('buy');
   const [inputMode, setInputMode] = useState('qty');
   const [price, setPrice]             = useState(currentPrice > 0 ? String(currentPrice) : '');
@@ -795,6 +948,46 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   // ── 대기 주문 목록 ───────────────────────────────────────────
   const [pendingOrders, setPendingOrders] = useState([]);
   const [pendingLoading, setPendingLoading] = useState(false);
+
+  // ── 주문 수정 상태 ───────────────────────────────────────────
+  const [editingOrderId, setEditingOrderId] = useState(null);
+  const [editPrice, setEditPrice]           = useState('');
+  const [editQty, setEditQty]               = useState('');
+  const [updateMsg, setUpdateMsg]           = useState(null); // { orderId, type, text }
+
+  // WS 실시간 업데이트 수신 시 목록 교체 (편집 중인 주문은 유지)
+  useEffect(() => {
+    if (!wsPendingData) return;
+
+    if (editingOrderId === null) {
+      setPendingOrders(wsPendingData);
+      return;
+    }
+
+    const editingOrderExists = wsPendingData.some(o => o.orderId === editingOrderId);
+
+    if (!editingOrderExists) {
+      setPendingOrders(wsPendingData);
+      setEditingOrderId(null);
+      setEditPrice('');
+      setEditQty('');
+      setUpdateMsg({
+        orderId: editingOrderId,
+        type: 'error',
+        text: '편집 중인 주문이 체결되었거나 취소되어 편집이 종료되었습니다.',
+      });
+      return;
+    }
+
+    setPendingOrders(prev =>
+      wsPendingData.map(incoming => {
+        if (incoming.orderId === editingOrderId) {
+          return prev.find(o => o.orderId === editingOrderId) ?? incoming;
+        }
+        return incoming;
+      })
+    );
+  }, [wsPendingData, editingOrderId]);
 
   const fetchPendingOrders = useCallback(async () => {
     if (!isLoggedIn || !token) return;
@@ -824,7 +1017,7 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   const numQty    = inputMode === 'qty'
     ? (Number(qty) || 0)
     : (numPrice > 0 ? Math.floor((Number(amount) || 0) / numPrice) : 0);
-  const numAmount = inputMode === 'amt'
+  const numAmount = inputMode === 'amount'
     ? (Number(amount) || 0)
     : numPrice * numQty;
 
@@ -842,8 +1035,8 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
       onLoginRequired('매수/매도 주문을 하려면\n먼저 로그인해야 합니다');
       return;
     }
-    if (numQty <= 0 || numPrice <= 0) {
-      setOrderMsg({ type: 'error', text: '가격과 수량을 올바르게 입력하세요.' });
+    if (!Number.isInteger(numPrice) || !Number.isInteger(numQty) || numPrice <= 0 || numQty <= 0) {
+      setOrderMsg({ type: 'error', text: '가격과 수량은 양의 정수만 입력하세요.' });
       return;
     }
     setSubmitting(true);
@@ -887,6 +1080,55 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
       setPendingOrders(prev => prev.filter(o => o.orderId !== orderId));
     } catch (e) {
       console.warn('[OrderPanel] 주문 취소 실패:', e.message);
+    }
+  }
+
+  function handleEditStart(o) {
+    setEditingOrderId(o.orderId);
+    setEditPrice(String(o.orderPrice ?? ''));
+    setEditQty(String(o.orderQuantity ?? ''));
+    setUpdateMsg(null);
+  }
+
+  function handleEditCancel() {
+    setEditingOrderId(null);
+    setEditPrice('');
+    setEditQty('');
+    setUpdateMsg(null);
+  }
+
+  async function handleUpdateOrder(orderId) {
+    const p = Number(editPrice);
+    const q = Number(editQty);
+    if (!Number.isInteger(p) || !Number.isInteger(q) || p <= 0 || q <= 0) {
+      setUpdateMsg({ orderId, type: 'error', text: '가격과 수량은 양의 정수만 입력하세요.' });
+      return;
+    }
+    try {
+      const res = await fetch(`${API}/api/token/order/update/${orderId}`, {
+        method:  'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization:  `Bearer ${token}`,
+        },
+        body: JSON.stringify({ updatePrice: p, updateQuantity: q }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+      setPendingOrders(prev =>
+        prev.map(o => {
+          if (o.orderId !== orderId) return o;
+          const filledQuantity = Number(o.filledQuantity) || 0;
+          const remainingQuantity = Math.max(q - filledQuantity, 0);
+          return { ...o, orderPrice: p, remainingQuantity, orderQuantity: q };
+        })
+      );
+      setEditingOrderId(null);
+      setUpdateMsg(null);
+    } catch (e) {
+      setUpdateMsg({ orderId, type: 'error', text: e.message || '수정에 실패했습니다.' });
     }
   }
 
@@ -945,10 +1187,15 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
             ) : (
               <div className="space-y-3">
                 {pendingOrders.map(o => {
-                  const isBuy = o.orderType === 'BUY';
-                  const totalAmount = (o.orderPrice ?? 0) * (o.orderQuantity ?? 0);
+                  const isBuy      = o.orderType === 'BUY';
+                  const isPending  = o.orderStatus === 'PENDING';
+                  const isEditing  = editingOrderId === o.orderId;
+                  const totalAmount = isEditing
+                    ? (Number(editPrice) || 0) * (Number(editQty) || 0)
+                    : (o.orderPrice ?? 0) * (o.orderQuantity ?? 0);
                   return (
                     <div key={o.orderId} className="p-4 bg-stone-100 rounded-lg border border-stone-200 space-y-3">
+                      {/* 헤더: 매수/매도 뱃지 + 시간 */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className={cn(
@@ -957,39 +1204,125 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
                           )}>
                             {isBuy ? '매수' : '매도'}
                           </span>
-                          <span className="text-[10px] font-black bg-[#fef6dc] text-[#a07828] px-2 py-0.5 rounded-md">
-                            대기
+                          <span className={cn(
+                            'text-[10px] font-black px-2 py-0.5 rounded-md',
+                            isPending
+                              ? 'bg-stone-200 text-stone-400'
+                              : isEditing
+                                ? 'bg-blue-100 text-blue-600'
+                                : 'bg-[#fef6dc] text-[#a07828]'
+                          )}>
+                            {isPending ? '처리중' : isEditing ? '수정중' : '대기'}
                           </span>
                         </div>
                         <span className="text-[9px] text-stone-400 font-bold">
                           {o.createdAt ? new Date(o.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '-'}
                         </span>
                       </div>
-                      <div className="space-y-1.5 text-[11px] font-bold">
-                        <div className="flex justify-between">
-                          <span className="text-stone-400">지정가격</span>
-                          <span className="font-mono text-stone-800">{o.orderPrice?.toLocaleString()}원</span>
+
+                      {/* 수정 모드 */}
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-stone-400">수정 가격</label>
+                            <div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2">
+                              <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={editPrice}
+                                onChange={e => setEditPrice(e.target.value)}
+                                className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800"
+                              />
+                              <span className="text-[11px] font-bold text-stone-400">원</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-stone-400">수정 수량</label>
+                            <div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2">
+                              <input
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={editQty}
+                                onChange={e => setEditQty(e.target.value)}
+                                className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800"
+                              />
+                              <span className="text-[11px] font-bold text-stone-400">주</span>
+                            </div>
+                          </div>
+                          <div className="flex justify-between text-[11px] font-bold border-t border-stone-200 pt-1.5">
+                            <span className="text-stone-400">주문금액</span>
+                            <span className="font-mono font-black text-stone-800">{totalAmount.toLocaleString()}원</span>
+                          </div>
+                          {updateMsg?.orderId === o.orderId && (
+                            <p className={cn(
+                              'text-[10px] font-bold text-center',
+                              updateMsg.type === 'error' ? 'text-brand-red' : 'text-green-600'
+                            )}>
+                              {updateMsg.text}
+                            </p>
+                          )}
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => handleUpdateOrder(o.orderId)}
+                              className="flex-1 py-2 bg-stone-800 border border-stone-800 rounded-md text-[11px] font-black text-white hover:bg-stone-700 transition-all"
+                            >
+                              확인
+                            </button>
+                            <button
+                              onClick={handleEditCancel}
+                              className="flex-1 py-2 bg-white border border-stone-200 rounded-md text-[11px] font-black text-stone-500 hover:bg-stone-200 transition-all"
+                            >
+                              취소
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-stone-400">미체결/전체</span>
-                          <span className="font-mono text-stone-800">{o.remainingQuantity} / {o.orderQuantity}주</span>
-                        </div>
-                        <div className="flex justify-between border-t border-stone-200 pt-1.5">
-                          <span className="text-stone-400">주문금액</span>
-                          <span className="font-mono font-black text-stone-800">{totalAmount.toLocaleString()}원</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 pt-1">
-                        <button className="flex-1 py-2 bg-white border border-stone-200 rounded-md text-[11px] font-black text-stone-500 hover:bg-stone-200 transition-all flex items-center justify-center gap-1">
-                          <Edit3 size={12} /> 수정
-                        </button>
-                        <button
-                          onClick={() => handleCancelOrder(o.orderId)}
-                          className="flex-1 py-2 bg-brand-red-light border border-brand-red-light rounded-md text-[11px] font-black text-brand-red hover:bg-[#fccfcf] transition-all flex items-center justify-center gap-1"
-                        >
-                          <X size={12} /> 취소
-                        </button>
-                      </div>
+                      ) : (
+                        <>
+                          {/* 일반 표시 모드 */}
+                          <div className="space-y-1.5 text-[11px] font-bold">
+                            <div className="flex justify-between">
+                              <span className="text-stone-400">지정가격</span>
+                              <span className="font-mono text-stone-800">{o.orderPrice?.toLocaleString()}원</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-stone-400">미체결/전체</span>
+                              <span className="font-mono text-stone-800">{o.remainingQuantity} / {o.orderQuantity}주</span>
+                            </div>
+                            <div className="flex justify-between border-t border-stone-200 pt-1.5">
+                              <span className="text-stone-400">주문금액</span>
+                              <span className="font-mono font-black text-stone-800">{totalAmount.toLocaleString()}원</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              disabled={isPending}
+                              onClick={() => !isPending && handleEditStart(o)}
+                              className={cn(
+                                'flex-1 py-2 border rounded-md text-[11px] font-black transition-all flex items-center justify-center gap-1',
+                                isPending
+                                  ? 'bg-stone-100 border-stone-200 text-stone-300 cursor-not-allowed'
+                                  : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-200'
+                              )}
+                            >
+                              <Edit3 size={12} /> 수정
+                            </button>
+                            <button
+                              disabled={isPending}
+                              onClick={() => !isPending && handleCancelOrder(o.orderId)}
+                              className={cn(
+                                'flex-1 py-2 border rounded-md text-[11px] font-black transition-all flex items-center justify-center gap-1',
+                                isPending
+                                  ? 'bg-stone-100 border-stone-200 text-stone-300 cursor-not-allowed'
+                                  : 'bg-brand-red-light border-brand-red-light text-brand-red hover:bg-[#fccfcf]'
+                              )}
+                            >
+                              <X size={12} /> 취소
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}
