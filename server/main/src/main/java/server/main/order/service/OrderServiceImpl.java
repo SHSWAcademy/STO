@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -67,6 +69,8 @@ public class OrderServiceImpl implements OrderService {
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderDuplicatedRepository orderDuplicatedRepository;
     private final TradeDuplicatedRepository tradeDuplicatedRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     @Override
@@ -198,6 +202,20 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             tradeRepository.save(trade);
+
+            // 캔들 차트 push
+            try {
+                String payload = objectMapper.writeValueAsString(Map.of(
+                        "tradePrice",    execution.getTradePrice(),
+                        "tradeQuantity", execution.getTradeQuantity(),
+                        "isBuy",         OrderType.BUY.equals(dto.getOrderType()),
+                        "tradeTime",     LocalDateTime.now().toLocalTime().toString()
+                ));
+                redisTemplate.convertAndSend("trades:" + tokenId, payload);
+            } catch (Exception e) {
+                log.warn("trades Redis publish 실패 tokenId={}", tokenId, e);
+            }
+
 
             long tradeAmount = Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity());
 
