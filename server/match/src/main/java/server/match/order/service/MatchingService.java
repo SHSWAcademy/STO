@@ -53,8 +53,13 @@ public class MatchingService {
                 }
             }
 
-            if (incomingOrder.getRemainingQuantity() > 0
-                    && orderBook.findById(incomingOrder.getOrderId()) == null) {
+            if (incomingOrder.getRemainingQuantity() == 0) {
+                // 전량 체결: 이미 오더북에 있던 주문이면 제거 (가격 동일 수정 케이스)
+                if (orderBook.findById(incomingOrder.getOrderId()) != null) {
+                    orderBook.removeOrder(incomingOrder);
+                }
+            } else if (orderBook.findById(incomingOrder.getOrderId()) == null) {
+                // 잔량 있고 오더북에 없을 때만 추가
                 orderBook.addOrder(incomingOrder);
             }
         }

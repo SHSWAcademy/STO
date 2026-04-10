@@ -12,16 +12,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import server.main.order.dto.MatchResultDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.UpdateOrderRequestDto;
-import server.main.order.entity.Order;
 import server.main.order.service.OrderService;
 
 @RestController
@@ -60,28 +57,5 @@ public class OrderController {
         orderService.cancelOrder(orderId);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
-
-    @DeleteMapping("/{orderId}")
-    public ResponseEntity<Void> cancelOrder(
-            @PathVariable Long orderId, // 경로의 {orderId}
-            @RequestParam Long tokenId) { // ?token
-
-        OrderBook orderBook = orderBookRegistry.getOrCreate(tokenId);
-
-        Order order = orderBook.findById(orderId);
-
-        if (order == null) {
-            return ResponseEntity.notFound().build(); // 404
-        }
-
-        orderBook.removeOrder(order);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PutMapping("/{orderid}")
-    public ResponseEntity<MatchResultDto> updateOrder(
-        @PathVariable Long orderId,
-        @RequestBody UpDa
-    )
 
 }

@@ -51,7 +51,7 @@ public class OrderBook {
         orderIndex.remove(order.getOrderId());
     }
 
-    public Order findById(Long orderId) {
+    public synchronized Order findById(Long orderId) {
         return orderIndex.get(orderId);
     }
 
