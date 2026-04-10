@@ -440,9 +440,9 @@ class OrderServiceImplTest {
         when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(account.getAvailableBalance()).thenReturn(1_000_000L);
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(buyerHolding));
-        when(memberTokenHoldingRepository.findByMemberAndToken(counterMember, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, token))
                 .thenReturn(Optional.of(sellerHolding));
 
         TradeExecutionDto execution = TradeExecutionDto.builder()
@@ -499,9 +499,9 @@ class OrderServiceImplTest {
         when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(account.getAvailableBalance()).thenReturn(1_000_000L);
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(buyerHolding));
-        when(memberTokenHoldingRepository.findByMemberAndToken(counterMember, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, token))
                 .thenReturn(Optional.of(sellerHolding));
 
         TradeExecutionDto execution = TradeExecutionDto.builder()
@@ -557,9 +557,9 @@ class OrderServiceImplTest {
         when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(account.getAvailableBalance()).thenReturn(1_000_000L);
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.empty()); // 처음 받는 토큰 — 레코드 없음
-        when(memberTokenHoldingRepository.findByMemberAndToken(counterMember, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, token))
                 .thenReturn(Optional.of(sellerHolding));
 
         TradeExecutionDto execution = TradeExecutionDto.builder()
@@ -616,7 +616,7 @@ class OrderServiceImplTest {
         when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
         when(counterOrder.getOrderPrice()).thenReturn(12000L); // resting BUY 주문가 = 체결가
-        when(memberTokenHoldingRepository.findByMemberAndToken(counterMember, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, token))
                 .thenReturn(Optional.of(buyerHolding));
 
         TradeExecutionDto execution = TradeExecutionDto.builder()
