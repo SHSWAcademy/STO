@@ -85,7 +85,8 @@ public class OrderServiceImpl implements OrderService {
 
         // 매수일 경우
         if (OrderType.BUY.equals(dto.getOrderType())) {
-            findMemberAccount = accountRepository.findByMember(findMember)
+            // 비관적 락 — 동시 주문 시 잔고 lost update 방지
+            findMemberAccount = accountRepository.findWithLockByMember(findMember)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
             // 원화 잔고 >= 총 주문 금액 검증
@@ -100,9 +101,9 @@ public class OrderServiceImpl implements OrderService {
 
         // 매도일 경우
         if (OrderType.SELL.equals(dto.getOrderType())) {
-            // 보유 수량 >= 요청 수량 검증
+            // 보유 수량 >= 요청 수량 검증 — 비관적 락으로 동시 초과 매도 방지
             findMemberHolding = memberTokenHoldingRepository
-                    .findByMemberAndToken(findMember, findToken)
+                    .findWithLockByMemberAndToken(findMember, findToken)
                     .orElseThrow(() -> new BusinessException(INSUFFICIENT_TOKEN_BALANCE));
 
             if (findMemberHolding.getCurrentQuantity() < dto.getOrderQuantity())
@@ -160,7 +161,8 @@ public class OrderServiceImpl implements OrderService {
         // findMember Account/Holding — 체결 건이 있을 때만 미조회 항목 보완
         if (!matchResult.getExecutions().isEmpty()) {
             if (findMemberAccount == null) {
-                findMemberAccount = accountRepository.findByMember(findMember)
+                // SELL 케이스 — 비관적 락으로 체결 루프 잔고 lost update 방지
+                findMemberAccount = accountRepository.findWithLockByMember(findMember)
                         .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             }
             if (findMemberHolding == null) {
@@ -199,10 +201,10 @@ public class OrderServiceImpl implements OrderService {
 
             long tradeAmount = Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity());
 
-            // counterMember Account 캐시 조회
+            // counterMember Account 캐시 조회 — 비관적 락으로 체결 루프 잔고 lost update 방지
             Account counterAccount = counterAccountCache.get(execution.getCounterMemberId());
             if (counterAccount == null) {
-                counterAccount = accountRepository.findByMember(counterMember)
+                counterAccount = accountRepository.findWithLockByMember(counterMember)
                         .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
                 counterAccountCache.put(execution.getCounterMemberId(), counterAccount);
             }
