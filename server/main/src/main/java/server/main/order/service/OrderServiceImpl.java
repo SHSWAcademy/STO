@@ -295,25 +295,6 @@ public class OrderServiceImpl implements OrderService {
                     .createdAt(LocalDateTime.now())
                     .build());
 
-            // orders_duplicated — 내 주문 FILLED 시
-            if (matchResult.getFinalStatus() == OrderStatus.FILLED) {
-                orderDuplicatedRepository.save(OrderDuplicated.builder()
-                        .orderId(createOrder.getOrderId())
-                        .memberId(memberId)
-                        .tokenId(tokenId)
-                        .orderPrice(createOrder.getOrderPrice())
-                        .orderQuantity(createOrder.getOrderQuantity())
-                        .filledQuantity(createOrder.getFilledQuantity())
-                        .remainingQuantity(createOrder.getRemainingQuantity())
-                        .orderType(createOrder.getOrderType())
-                        .orderStatus(createOrder.getOrderStatus())
-                        .orderSequence(createOrder.getOrderSequence())
-                        .createdAt(createOrder.getCreatedAt())
-                        .updatedAt(createOrder.getUpdatedAt())
-                        .archivedAt(LocalDateTime.now())
-                        .build());
-            }
-
             // orders_duplicated — 상대방 주문 FILLED 시
             if (counterStatus == OrderStatus.FILLED) {
                 orderDuplicatedRepository.save(OrderDuplicated.builder()
@@ -332,6 +313,25 @@ public class OrderServiceImpl implements OrderService {
                         .archivedAt(LocalDateTime.now())
                         .build());
             }
+        }
+
+        // orders_duplicated — 내 주문 FILLED 시 (루프 밖: 체결 건수와 무관하게 1번만 저장)
+        if (matchResult.getFinalStatus() == OrderStatus.FILLED) {
+            orderDuplicatedRepository.save(OrderDuplicated.builder()
+                    .orderId(createOrder.getOrderId())
+                    .memberId(memberId)
+                    .tokenId(tokenId)
+                    .orderPrice(createOrder.getOrderPrice())
+                    .orderQuantity(createOrder.getOrderQuantity())
+                    .filledQuantity(createOrder.getFilledQuantity())
+                    .remainingQuantity(createOrder.getRemainingQuantity())
+                    .orderType(createOrder.getOrderType())
+                    .orderStatus(createOrder.getOrderStatus())
+                    .orderSequence(createOrder.getOrderSequence())
+                    .createdAt(createOrder.getCreatedAt())
+                    .updatedAt(createOrder.getUpdatedAt())
+                    .archivedAt(LocalDateTime.now())
+                    .build());
         }
 
         // 체결이 끝나면 웹소켓으로 '대기' 창에 push
@@ -457,12 +457,10 @@ public class OrderServiceImpl implements OrderService {
         if (!matchResult.getExecutions().isEmpty()) {
             findMemberAccount = accountRepository.findWithLockByMember(findMember)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-            if (!isBuy) {
-                // SELL: 매도자 Holding도 미리 잠금
-                findMemberHolding = memberTokenHoldingRepository
-                        .findWithLockByMemberAndToken(findMember, findToken)
-                        .orElse(null);
-            }
+            // BUY/SELL 모두 Holding 미리 잠금 — BUY는 받을 토큰, SELL은 차감할 토큰
+            findMemberHolding = memberTokenHoldingRepository
+                    .findWithLockByMemberAndToken(findMember, findToken)
+                    .orElse(null);
         }
 
         Map<Long, Account> counterAccountCache = new HashMap<>();
@@ -581,25 +579,6 @@ public class OrderServiceImpl implements OrderService {
                     .createdAt(LocalDateTime.now())
                     .build());
 
-            // orders_duplicated — 내 주문 FILLED 시
-            if (matchResult.getFinalStatus() == OrderStatus.FILLED) {
-                orderDuplicatedRepository.save(OrderDuplicated.builder()
-                        .orderId(findOrder.getOrderId())
-                        .memberId(memberId)
-                        .tokenId(tokenId)
-                        .orderPrice(findOrder.getOrderPrice())
-                        .orderQuantity(findOrder.getOrderQuantity())
-                        .filledQuantity(findOrder.getFilledQuantity())
-                        .remainingQuantity(findOrder.getRemainingQuantity())
-                        .orderType(findOrder.getOrderType())
-                        .orderStatus(findOrder.getOrderStatus())
-                        .orderSequence(findOrder.getOrderSequence())
-                        .createdAt(findOrder.getCreatedAt())
-                        .updatedAt(findOrder.getUpdatedAt())
-                        .archivedAt(LocalDateTime.now())
-                        .build());
-            }
-
             // orders_duplicated — 상대방 주문 FILLED 시
             if (counterStatus == OrderStatus.FILLED) {
                 orderDuplicatedRepository.save(OrderDuplicated.builder()
@@ -618,6 +597,25 @@ public class OrderServiceImpl implements OrderService {
                         .archivedAt(LocalDateTime.now())
                         .build());
             }
+        }
+
+        // orders_duplicated — 내 주문 FILLED 시 (루프 밖: 체결 건수와 무관하게 1번만 저장)
+        if (matchResult.getFinalStatus() == OrderStatus.FILLED) {
+            orderDuplicatedRepository.save(OrderDuplicated.builder()
+                    .orderId(findOrder.getOrderId())
+                    .memberId(memberId)
+                    .tokenId(tokenId)
+                    .orderPrice(findOrder.getOrderPrice())
+                    .orderQuantity(findOrder.getOrderQuantity())
+                    .filledQuantity(findOrder.getFilledQuantity())
+                    .remainingQuantity(findOrder.getRemainingQuantity())
+                    .orderType(findOrder.getOrderType())
+                    .orderStatus(findOrder.getOrderStatus())
+                    .orderSequence(findOrder.getOrderSequence())
+                    .createdAt(findOrder.getCreatedAt())
+                    .updatedAt(findOrder.getUpdatedAt())
+                    .archivedAt(LocalDateTime.now())
+                    .build());
         }
 
         // 체결이 끝나면 웹소켓으로 '대기' 창에 push
