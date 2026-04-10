@@ -37,11 +37,15 @@ import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.entity.OrderType;
 import server.main.order.mapper.OrderMapper;
+import server.main.order.entity.OrderDuplicated;
+import server.main.order.repository.OrderDuplicatedRepository;
 import server.main.order.repository.OrderRepository;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 import server.main.trade.entity.SettlementStatus;
 import server.main.trade.entity.Trade;
+import server.main.trade.entity.TradeDuplicated;
+import server.main.trade.repository.TradeDuplicatedRepository;
 import server.main.trade.repository.TradeRepository;
 
 @Service
@@ -61,6 +65,8 @@ public class OrderServiceImpl implements OrderService {
     private final MatchClient matchClient;
     private final BlockchainOutboxService blockchainOutboxService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final OrderDuplicatedRepository orderDuplicatedRepository;
+    private final TradeDuplicatedRepository tradeDuplicatedRepository;
 
     @Transactional
     @Override
@@ -269,7 +275,60 @@ public class OrderServiceImpl implements OrderService {
             OrderStatus counterStatus = newRemainingQty == 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL;
             counterOrder.applyMatchResult(newFilledQty, newRemainingQty, counterStatus);
 
+            // trades_duplicated 저장
+            tradeDuplicatedRepository.save(TradeDuplicated.builder()
+                    .tradeId(trade.getTradeId())
+                    .sellerId(trade.getSeller().getMemberId())
+                    .buyerId(trade.getBuyer().getMemberId())
+                    .sellOrderId(trade.getSellOrder().getOrderId())
+                    .buyOrderId(trade.getBuyOrder().getOrderId())
+                    .tokenId(tokenId)
+                    .tradePrice(trade.getTradePrice())
+                    .tradeQuantity(trade.getTradeQuantity())
+                    .settlementStatus(trade.getSettlementStatus())
+                    .executedAt(trade.getExecutedAt())
+                    .feeAmount(trade.getFeeAmount())
+                    .totalTradePrice(trade.getTotalTradePrice())
+                    .createdAt(LocalDateTime.now())
+                    .build());
 
+            // orders_duplicated — 내 주문 FILLED 시
+            if (matchResult.getFinalStatus() == OrderStatus.FILLED) {
+                orderDuplicatedRepository.save(OrderDuplicated.builder()
+                        .orderId(createOrder.getOrderId())
+                        .memberId(memberId)
+                        .tokenId(tokenId)
+                        .orderPrice(createOrder.getOrderPrice())
+                        .orderQuantity(createOrder.getOrderQuantity())
+                        .filledQuantity(createOrder.getFilledQuantity())
+                        .remainingQuantity(createOrder.getRemainingQuantity())
+                        .orderType(createOrder.getOrderType())
+                        .orderStatus(createOrder.getOrderStatus())
+                        .orderSequence(createOrder.getOrderSequence())
+                        .createdAt(createOrder.getCreatedAt())
+                        .updatedAt(createOrder.getUpdatedAt())
+                        .archivedAt(LocalDateTime.now())
+                        .build());
+            }
+
+            // orders_duplicated — 상대방 주문 FILLED 시
+            if (counterStatus == OrderStatus.FILLED) {
+                orderDuplicatedRepository.save(OrderDuplicated.builder()
+                        .orderId(counterOrder.getOrderId())
+                        .memberId(execution.getCounterMemberId())
+                        .tokenId(tokenId)
+                        .orderPrice(counterOrder.getOrderPrice())
+                        .orderQuantity(counterOrder.getOrderQuantity())
+                        .filledQuantity(newFilledQty)
+                        .remainingQuantity(newRemainingQty)
+                        .orderType(counterOrder.getOrderType())
+                        .orderStatus(counterStatus)
+                        .orderSequence(counterOrder.getOrderSequence())
+                        .createdAt(counterOrder.getCreatedAt())
+                        .updatedAt(counterOrder.getUpdatedAt())
+                        .archivedAt(LocalDateTime.now())
+                        .build());
+            }
         }
 
         // 체결이 끝나면 웹소켓으로 '대기' 창에 push
