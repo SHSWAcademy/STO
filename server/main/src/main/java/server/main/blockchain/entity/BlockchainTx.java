@@ -29,7 +29,7 @@ public class BlockchainTx {
     private Long queueId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trade_id", nullable = false)
+    @JoinColumn(name = "trade_id", nullable = true)
     private Trade trade;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -78,7 +78,7 @@ function AppContent() {
       </Route>
 
       {/* 비로그인 접근 가능 — 독립 최상위 라우트 */}
-      <Route path="/:tokenId" element={<MockupLayout />} />
+      <Route path="/token/:tokenId" element={<MockupLayout />} />
 
       {/* 로그인 필요 라우트 */}
       <Route element={<MainLayout />}>

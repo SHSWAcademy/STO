@@ -13,7 +13,7 @@ public class TokenMainResponseDto {  // 메인 페이지에 띄워줄 자산 리
     private String assetName;        // 자산 이름
     private Long currentPrice;       // 현재 가격
     private Double fluctuationRate;  // 등락률
-    private Long totalTradeValue;    // 총 거래 대금
+    private Long totalTradeValue;    // 총 거래 대금 (토큰 별 거래 체결 시 거래 가격 * 거래량 의 합)
     private Long totalTradeQuantity; // 총 거래 수량
 
     private List<Long> sparkLine;    // 메인 화면 각 토큰 별 차트

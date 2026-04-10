@@ -1,12 +1,25 @@
 package server.main.member.entity;
 
-import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import server.main.token.entity.Token;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -19,11 +32,13 @@ public class MemberTokenHolding {
     @Column(name = "token_holding_id")
     private Long tokenHoldingId;
 
-    private LocalDateTime updatedAt; // DB 에서 NOW()로 들어간다
+    @LastModifiedDate
+    private LocalDateTime updatedAt; // AuditingEntityListener 가 insert/update 시 자동 세팅
 
     private Long currentQuantity;     // 현재 회원이 가지고 있는 토큰 보유량
     private Long lockedQuantity;      // 매도 주문으로 묶인 수량
-    private Double avgBuyPrice;       // 평균 매수가 (수익률, 평가 손익 계산)
+    @Column(precision = 20, scale = 4)
+    private BigDecimal avgBuyPrice;    // 평균 매수가 (수익률, 평가 손익 계산)
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id")
@@ -36,6 +51,17 @@ public class MemberTokenHolding {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "wallet_id")
     private Wallet wallet;
+
+    // 매수 체결로 토큰을 처음 받는 경우 — 새 보유 레코드 생성
+    public static MemberTokenHolding createForBuyer(Member member, Token token, Long quantity, Long tradePrice) {
+        MemberTokenHolding holding = new MemberTokenHolding();
+        holding.member = member;
+        holding.token = token;
+        holding.currentQuantity = quantity;
+        holding.lockedQuantity = 0L;
+        holding.avgBuyPrice = BigDecimal.valueOf(tradePrice);
+        return holding;
+    }
 
     // 매도 호가 시 보유 토큰 감소
     public void lockQuantity(Long amount) {
@@ -56,5 +82,20 @@ public class MemberTokenHolding {
     public void cancelOrder(Long orderQuantity) {
         this.currentQuantity += orderQuantity;
         this.lockedQuantity -= orderQuantity;
+    }
+    
+    // 매도 체결 시 묶인 수량 차감
+    public void settleSellTrade(Long quantity) {
+        this.lockedQuantity -= quantity;
+    }
+
+    // 매수 체결 시 토큰 수령 + 평균 매수가 갱신
+    public void settleBuyTrade(Long quantity, Long tradePrice) {
+        long totalQuantity = this.currentQuantity + this.lockedQuantity;
+        BigDecimal newAvg = this.avgBuyPrice.multiply(BigDecimal.valueOf(totalQuantity))
+                .add(BigDecimal.valueOf(tradePrice).multiply(BigDecimal.valueOf(quantity)))
+                .divide(BigDecimal.valueOf(totalQuantity + quantity), 4, RoundingMode.HALF_UP);
+        this.currentQuantity += quantity;
+        this.avgBuyPrice = newAvg;
     }
 }
