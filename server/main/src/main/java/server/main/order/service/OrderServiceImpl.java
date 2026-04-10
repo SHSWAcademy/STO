@@ -28,13 +28,7 @@ import server.main.member.entity.MemberTokenHolding;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
-import server.main.order.dto.MatchOrderRequestDto;
-import server.main.order.dto.MatchResultDto;
-import server.main.order.dto.OrderRequestDto;
-import server.main.order.dto.PendingOrderResponseDto;
-import server.main.order.dto.TradeExecutionDto;
-import server.main.order.dto.UpdateMatchOrderRequestDto;
-import server.main.order.dto.UpdateOrderRequestDto;
+import server.main.order.dto.*;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.entity.OrderType;
@@ -491,4 +485,20 @@ public class OrderServiceImpl implements OrderService {
         matchClient.cancelOrder(orderId);
     }
 
+    @Override
+    public OrderCapacityResponseDto getOrderCapacity(Long tokenId) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Long availableBalance = accountRepository.findByMemberId(memberId)
+                .map(Account::getAvailableBalance)
+                .orElse(0L);
+
+        Long availableQuantity = memberTokenHoldingRepository
+                .findByMemberIdAndTokenId(memberId, tokenId)
+                .map(MemberTokenHolding::getCurrentQuantity)
+                .orElse(0L);
+
+        return new OrderCapacityResponseDto(availableBalance, availableQuantity);
+    }
 }
