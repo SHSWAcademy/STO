@@ -155,7 +155,7 @@ public class OrderServiceImpl implements OrderService {
             }
             if (findMemberHolding == null) {
                 findMemberHolding = memberTokenHoldingRepository
-                        .findByMemberAndToken(findMember, findToken)
+                        .findWithLockByMemberAndToken(findMember, findToken)
                         .orElse(null);
             }
         }
@@ -213,7 +213,7 @@ public class OrderServiceImpl implements OrderService {
             } else {
                 buyerHolding = counterHoldingCache.get(execution.getCounterMemberId());
                 if (buyerHolding == null) {
-                    buyerHolding = memberTokenHoldingRepository.findByMemberAndToken(counterMember, findToken)
+                    buyerHolding = memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, findToken)
                             .orElse(null);
                     if (buyerHolding != null) {
                         counterHoldingCache.put(execution.getCounterMemberId(), buyerHolding);
