@@ -5,6 +5,7 @@ import static server.main.global.error.ErrorCode.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +58,7 @@ public class OrderServiceImpl implements OrderService {
     private final TradeRepository tradeRepository;
     private final MatchClient matchClient;
     private final BlockchainOutboxService blockchainOutboxService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
     @Override
@@ -163,7 +165,31 @@ public class OrderServiceImpl implements OrderService {
 
             tradeRepository.save(trade);
             blockchainOutboxService.saveTradeOutbox(trade, findToken);
+
+            // 상대방 주문 상태 DB 업데이트
+            long newFilledQty = counterOrder.getFilledQuantity() + execution.getTradeQuantity();
+            long newRemainingQty = counterOrder.getRemainingQuantity() - execution.getTradeQuantity();
+            OrderStatus counterStatus = newRemainingQty == 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL;
+            counterOrder.applyMatchResult(newFilledQty, newRemainingQty, counterStatus);
+
+
         }
+
+        // 체결이 끝나면 웹소켓으로 '대기' 창에 push
+        // 현재 사용자 WebSocket push
+        messagingTemplate.convertAndSend(
+                "/topic/pendingOrders/" + tokenId + "/" + memberId,
+                orderMapper.toPendingDtoList(orderRepository.findPendingOrderByMemberAndToken(memberId, tokenId))
+        );
+
+        // 상대방 WebSocket push
+        matchResult.getExecutions().stream()
+                .map(TradeExecutionDto::getCounterMemberId)
+                .distinct()
+                .forEach(counterMemberId -> messagingTemplate.convertAndSend(
+                        "/topic/pendingOrders/" + tokenId + "/" + counterMemberId,
+                        orderMapper.toPendingDtoList(orderRepository.findPendingOrderByMemberAndToken(counterMemberId, tokenId))
+                ));
 
         // 로그 저장
         String detail = String.format("토큰 ID=%d 매수매도=%s 가격=%d 수량=%d",

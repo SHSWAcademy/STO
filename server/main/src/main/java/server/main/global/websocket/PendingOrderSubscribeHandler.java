@@ -17,13 +17,13 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class PendingOrderSubscribeHandler {
-
+    // 상세 페이지 대기 탭을 누르면 스냅샷을 전달
     private final SimpMessagingTemplate template;
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
     private final JwtTokenProvider jwtTokenProvider;
 
-    @EventListener
+    @EventListener // 이벤트 리스너 : 웹소켓이 연결되는 시점에 동작, /topic/pendingOrders/
     public void handleSubscribe(SessionSubscribeEvent event) {
         String destination = (String) event.getMessage().getHeaders()
                 .get(SimpMessageHeaderAccessor.DESTINATION_HEADER);
@@ -49,7 +49,7 @@ public class PendingOrderSubscribeHandler {
         if (!actualMemberId.equals(memberId)) return;
 
         // DB 에서 미체결 주문 조회, snapshot 바로 전송
-        // '대기' 탭을 누를 때 1회 발생
+        // '대기' 탭을 누를 때 1회 발생 => 스냅샷 전송
         List<Order> pendingOrders = orderRepository.findPendingOrderByMemberAndToken(memberId, tokenId);
         List<PendingOrderResponseDto> dtos = orderMapper.toPendingDtoList(pendingOrders);
 
