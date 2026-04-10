@@ -161,7 +161,7 @@ class OrderServiceImplTest {
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(account.getAvailableBalance()).thenReturn(1_000_000L); // 잔고 세팅
         when(matchClient.sendOrder(any())).thenReturn(MatchResultDto.builder()
                 .orderId(1L)
@@ -195,7 +195,7 @@ class OrderServiceImplTest {
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(account.getAvailableBalance()).thenReturn(10_000L); // 잔고 부족
 
         OrderRequestDto dto = OrderRequestDto.builder()
