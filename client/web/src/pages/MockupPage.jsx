@@ -954,6 +954,7 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   const [editPrice, setEditPrice]           = useState('');
   const [editQty, setEditQty]               = useState('');
   const [updateMsg, setUpdateMsg]           = useState(null); // { orderId, type, text }
+  const [capacity, setCapacity]             = useState({ availableBalance: 0, availableQuantity: 0 });
 
   // WS 실시간 업데이트 수신 시 목록 교체 (편집 중인 주문은 유지)
   useEffect(() => {
@@ -1010,6 +1011,28 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
     if (orderSide === 'pending') fetchPendingOrders();
   }, [orderSide, fetchPendingOrders]);
 
+  // 가용 잔고/수량 조회
+  const fetchCapacity = useCallback(async () => {
+    if (!isLoggedIn || !tokenId) return;
+    try {
+      const res = await fetch(`${API}/api/token/${tokenId}/order/capacity`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setCapacity({
+        availableBalance:  data.availableBalance  ?? 0,
+        availableQuantity: data.availableQuantity ?? 0,
+      });
+    } catch (e) {
+      console.warn('[OrderPanel] capacity 조회 실패:', e.message);
+    }
+  }, [isLoggedIn, token, tokenId]);
+
+  useEffect(() => {
+    if (orderSide === 'buy' || orderSide === 'sell') fetchCapacity();
+  }, [orderSide, fetchCapacity]);
+
   const isBuy     = orderSide === 'buy';
   const isPending = orderSide === 'pending';
 
@@ -1062,6 +1085,7 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
       setOrderMsg({ type: 'success', text: `${isBuy ? '매수' : '매도'} 주문이 접수되었습니다.` });
       setQty('');
       setAmount('');
+      fetchCapacity();
     } catch (e) {
       setOrderMsg({ type: 'error', text: e.message || '주문 접수에 실패했습니다.' });
     } finally {
@@ -1130,6 +1154,17 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
     } catch (e) {
       setUpdateMsg({ orderId, type: 'error', text: e.message || '수정에 실패했습니다.' });
     }
+  }
+
+  const RATIO_MAP = { '10%': 0.1, '25%': 0.25, '50%': 0.5, '최대': 1.0 };
+
+  function handleRatioClick(label) {
+    const pct = RATIO_MAP[label];
+    const newQty = isBuy
+      ? (numPrice > 0 ? Math.floor(capacity.availableBalance * pct / numPrice) : 0)
+      : Math.floor(capacity.availableQuantity * pct);
+    setQty(String(newQty));
+    setInputMode('qty');
   }
 
   return (
@@ -1402,7 +1437,14 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
             <div className="grid grid-cols-4 gap-2">
               {['10%', '25%', '50%', '최대'].map(p => (
                 <button key={p}
-                  className="py-1.5 bg-stone-200 hover:bg-stone-300 rounded-lg text-[10px] font-bold text-stone-400 transition-all border border-stone-200">
+                  onClick={() => handleRatioClick(p)}
+                  disabled={!isLoggedIn}
+                  className={cn(
+                    'py-1.5 rounded-lg text-[10px] font-bold transition-all border',
+                    isLoggedIn
+                      ? 'bg-stone-200 hover:bg-stone-300 border-stone-200 text-stone-400'
+                      : 'bg-stone-100 border-stone-100 text-stone-300 cursor-not-allowed'
+                  )}>
                   {p}
                 </button>
               ))}
@@ -1412,7 +1454,11 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
             <div className="pt-3 border-t border-stone-200 space-y-2">
               <div className="flex justify-between text-[10px] font-bold">
                 <span className="text-stone-400">{isBuy ? '매수가능 금액' : '매도가능 수량'}</span>
-                <span className="text-stone-800">{isBuy ? '0원' : '0주'}</span>
+                <span className="text-stone-800">
+                  {isBuy
+                    ? `${capacity.availableBalance.toLocaleString()}원`
+                    : `${capacity.availableQuantity.toLocaleString()}주`}
+                </span>
               </div>
               <div className="flex justify-between text-[10px] font-bold">
                 <span className="text-stone-400">총 주문 금액</span>

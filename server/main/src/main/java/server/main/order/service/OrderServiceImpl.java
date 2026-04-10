@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -26,22 +28,20 @@ import server.main.member.entity.MemberTokenHolding;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
-import server.main.order.dto.MatchOrderRequestDto;
-import server.main.order.dto.MatchResultDto;
-import server.main.order.dto.OrderRequestDto;
-import server.main.order.dto.PendingOrderResponseDto;
-import server.main.order.dto.TradeExecutionDto;
-import server.main.order.dto.UpdateMatchOrderRequestDto;
-import server.main.order.dto.UpdateOrderRequestDto;
+import server.main.order.dto.*;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.entity.OrderType;
 import server.main.order.mapper.OrderMapper;
+import server.main.order.entity.OrderDuplicated;
+import server.main.order.repository.OrderDuplicatedRepository;
 import server.main.order.repository.OrderRepository;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 import server.main.trade.entity.SettlementStatus;
 import server.main.trade.entity.Trade;
+import server.main.trade.entity.TradeDuplicated;
+import server.main.trade.repository.TradeDuplicatedRepository;
 import server.main.trade.repository.TradeRepository;
 
 @Service
@@ -61,6 +61,10 @@ public class OrderServiceImpl implements OrderService {
     private final MatchClient matchClient;
     private final BlockchainOutboxService blockchainOutboxService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final OrderDuplicatedRepository orderDuplicatedRepository;
+    private final TradeDuplicatedRepository tradeDuplicatedRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     @Override
@@ -79,7 +83,8 @@ public class OrderServiceImpl implements OrderService {
 
         // 매수일 경우
         if (OrderType.BUY.equals(dto.getOrderType())) {
-            findMemberAccount = accountRepository.findByMember(findMember)
+            // 비관적 락 — 동시 주문 시 잔고 lost update 방지
+            findMemberAccount = accountRepository.findWithLockByMember(findMember)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
             // 원화 잔고 >= 총 주문 금액 검증
@@ -94,9 +99,9 @@ public class OrderServiceImpl implements OrderService {
 
         // 매도일 경우
         if (OrderType.SELL.equals(dto.getOrderType())) {
-            // 보유 수량 >= 요청 수량 검증
+            // 보유 수량 >= 요청 수량 검증 — 비관적 락으로 동시 초과 매도 방지
             findMemberHolding = memberTokenHoldingRepository
-                    .findByMemberAndToken(findMember, findToken)
+                    .findWithLockByMemberAndToken(findMember, findToken)
                     .orElseThrow(() -> new BusinessException(INSUFFICIENT_TOKEN_BALANCE));
 
             if (findMemberHolding.getCurrentQuantity() < dto.getOrderQuantity())
@@ -154,7 +159,8 @@ public class OrderServiceImpl implements OrderService {
         // findMember Account/Holding — 체결 건이 있을 때만 미조회 항목 보완
         if (!matchResult.getExecutions().isEmpty()) {
             if (findMemberAccount == null) {
-                findMemberAccount = accountRepository.findByMember(findMember)
+                // SELL 케이스 — 비관적 락으로 체결 루프 잔고 lost update 방지
+                findMemberAccount = accountRepository.findWithLockByMember(findMember)
                         .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             }
             if (findMemberHolding == null) {
@@ -191,12 +197,26 @@ public class OrderServiceImpl implements OrderService {
 
             tradeRepository.save(trade);
 
+            // 캔들 차트 push
+            try {
+                String payload = objectMapper.writeValueAsString(Map.of(
+                        "tradePrice",    execution.getTradePrice(),
+                        "tradeQuantity", execution.getTradeQuantity(),
+                        "isBuy",         OrderType.BUY.equals(dto.getOrderType()),
+                        "tradeTime",     LocalDateTime.now().toLocalTime().toString()
+                ));
+                redisTemplate.convertAndSend("trades:" + tokenId, payload);
+            } catch (Exception e) {
+                log.warn("trades Redis publish 실패 tokenId={}", tokenId, e);
+            }
+
+
             long tradeAmount = Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity());
 
-            // counterMember Account 캐시 조회
+            // counterMember Account 캐시 조회 — 비관적 락으로 체결 루프 잔고 lost update 방지
             Account counterAccount = counterAccountCache.get(execution.getCounterMemberId());
             if (counterAccount == null) {
-                counterAccount = accountRepository.findByMember(counterMember)
+                counterAccount = accountRepository.findWithLockByMember(counterMember)
                         .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
                 counterAccountCache.put(execution.getCounterMemberId(), counterAccount);
             }
@@ -269,7 +289,60 @@ public class OrderServiceImpl implements OrderService {
             OrderStatus counterStatus = newRemainingQty == 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL;
             counterOrder.applyMatchResult(newFilledQty, newRemainingQty, counterStatus);
 
+            // trades_duplicated 저장
+            tradeDuplicatedRepository.save(TradeDuplicated.builder()
+                    .tradeId(trade.getTradeId())
+                    .sellerId(trade.getSeller().getMemberId())
+                    .buyerId(trade.getBuyer().getMemberId())
+                    .sellOrderId(trade.getSellOrder().getOrderId())
+                    .buyOrderId(trade.getBuyOrder().getOrderId())
+                    .tokenId(tokenId)
+                    .tradePrice(trade.getTradePrice())
+                    .tradeQuantity(trade.getTradeQuantity())
+                    .settlementStatus(trade.getSettlementStatus())
+                    .executedAt(trade.getExecutedAt())
+                    .feeAmount(trade.getFeeAmount())
+                    .totalTradePrice(trade.getTotalTradePrice())
+                    .createdAt(LocalDateTime.now())
+                    .build());
 
+            // orders_duplicated — 내 주문 FILLED 시
+            if (matchResult.getFinalStatus() == OrderStatus.FILLED) {
+                orderDuplicatedRepository.save(OrderDuplicated.builder()
+                        .orderId(createOrder.getOrderId())
+                        .memberId(memberId)
+                        .tokenId(tokenId)
+                        .orderPrice(createOrder.getOrderPrice())
+                        .orderQuantity(createOrder.getOrderQuantity())
+                        .filledQuantity(createOrder.getFilledQuantity())
+                        .remainingQuantity(createOrder.getRemainingQuantity())
+                        .orderType(createOrder.getOrderType())
+                        .orderStatus(createOrder.getOrderStatus())
+                        .orderSequence(createOrder.getOrderSequence())
+                        .createdAt(createOrder.getCreatedAt())
+                        .updatedAt(createOrder.getUpdatedAt())
+                        .archivedAt(LocalDateTime.now())
+                        .build());
+            }
+
+            // orders_duplicated — 상대방 주문 FILLED 시
+            if (counterStatus == OrderStatus.FILLED) {
+                orderDuplicatedRepository.save(OrderDuplicated.builder()
+                        .orderId(counterOrder.getOrderId())
+                        .memberId(execution.getCounterMemberId())
+                        .tokenId(tokenId)
+                        .orderPrice(counterOrder.getOrderPrice())
+                        .orderQuantity(counterOrder.getOrderQuantity())
+                        .filledQuantity(newFilledQty)
+                        .remainingQuantity(newRemainingQty)
+                        .orderType(counterOrder.getOrderType())
+                        .orderStatus(counterStatus)
+                        .orderSequence(counterOrder.getOrderSequence())
+                        .createdAt(counterOrder.getCreatedAt())
+                        .updatedAt(counterOrder.getUpdatedAt())
+                        .archivedAt(LocalDateTime.now())
+                        .build());
+            }
         }
 
         // 체결이 끝나면 웹소켓으로 '대기' 창에 push
@@ -412,4 +485,20 @@ public class OrderServiceImpl implements OrderService {
         matchClient.cancelOrder(orderId);
     }
 
+    @Override
+    public OrderCapacityResponseDto getOrderCapacity(Long tokenId) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Long availableBalance = accountRepository.findByMemberId(memberId)
+                .map(Account::getAvailableBalance)
+                .orElse(0L);
+
+        Long availableQuantity = memberTokenHoldingRepository
+                .findByMemberIdAndTokenId(memberId, tokenId)
+                .map(MemberTokenHolding::getCurrentQuantity)
+                .orElse(0L);
+
+        return new OrderCapacityResponseDto(availableBalance, availableQuantity);
+    }
 }

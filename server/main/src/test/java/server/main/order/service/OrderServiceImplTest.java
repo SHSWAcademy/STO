@@ -20,6 +20,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import server.main.blockchain.service.BlockchainOutboxService;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.MatchClient;
@@ -31,17 +35,22 @@ import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.MatchResultDto;
+import server.main.order.dto.OrderCapacityResponseDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.TradeExecutionDto;
 import server.main.order.dto.UpdateOrderRequestDto;
 import server.main.order.entity.Order;
+import server.main.order.entity.OrderDuplicated;
 import server.main.order.entity.OrderStatus;
 import server.main.order.entity.OrderType;
 import server.main.order.mapper.OrderMapper;
+import server.main.order.repository.OrderDuplicatedRepository;
 import server.main.order.repository.OrderRepository;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
+import server.main.trade.entity.TradeDuplicated;
+import server.main.trade.repository.TradeDuplicatedRepository;
 import server.main.trade.repository.TradeRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -65,6 +74,18 @@ class OrderServiceImplTest {
     MatchClient matchClient;
     @Mock
     OrderLogService orderLogService;
+    @Mock
+    BlockchainOutboxService blockchainOutboxService;
+    @Mock
+    SimpMessagingTemplate messagingTemplate;
+    @Mock
+    OrderDuplicatedRepository orderDuplicatedRepository;
+    @Mock
+    TradeDuplicatedRepository tradeDuplicatedRepository;
+    @Mock
+    RedisTemplate<String, String> redisTemplate;
+    @Mock
+    ObjectMapper objectMapper;
 
     @InjectMocks
     OrderServiceImpl orderService;
@@ -161,7 +182,7 @@ class OrderServiceImplTest {
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(account.getAvailableBalance()).thenReturn(1_000_000L); // 잔고 세팅
         when(matchClient.sendOrder(any())).thenReturn(MatchResultDto.builder()
                 .orderId(1L)
@@ -195,7 +216,7 @@ class OrderServiceImplTest {
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(account.getAvailableBalance()).thenReturn(10_000L); // 잔고 부족
 
         OrderRequestDto dto = OrderRequestDto.builder()
@@ -219,7 +240,7 @@ class OrderServiceImplTest {
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.empty());
 
         OrderRequestDto dto = OrderRequestDto.builder()
@@ -244,7 +265,7 @@ class OrderServiceImplTest {
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
         when(holding.getCurrentQuantity()).thenReturn(3L); // 보유 3주
 
@@ -270,7 +291,7 @@ class OrderServiceImplTest {
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
         when(holding.getCurrentQuantity()).thenReturn(10L); // 보유 10주
         when(matchClient.sendOrder(any())).thenReturn(MatchResultDto.builder()
@@ -436,13 +457,13 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
-        when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(account.getAvailableBalance()).thenReturn(1_000_000L);
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(buyerHolding));
-        when(memberTokenHoldingRepository.findByMemberAndToken(counterMember, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, token))
                 .thenReturn(Optional.of(sellerHolding));
 
         TradeExecutionDto execution = TradeExecutionDto.builder()
@@ -495,13 +516,13 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
-        when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(account.getAvailableBalance()).thenReturn(1_000_000L);
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(buyerHolding));
-        when(memberTokenHoldingRepository.findByMemberAndToken(counterMember, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, token))
                 .thenReturn(Optional.of(sellerHolding));
 
         TradeExecutionDto execution = TradeExecutionDto.builder()
@@ -553,13 +574,13 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
-        when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(account.getAvailableBalance()).thenReturn(1_000_000L);
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.empty()); // 처음 받는 토큰 — 레코드 없음
-        when(memberTokenHoldingRepository.findByMemberAndToken(counterMember, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, token))
                 .thenReturn(Optional.of(sellerHolding));
 
         TradeExecutionDto execution = TradeExecutionDto.builder()
@@ -591,6 +612,101 @@ class OrderServiceImplTest {
         verify(memberTokenHoldingRepository).save(any(MemberTokenHolding.class));
     }
 
+    // ── getOrderCapacity ────────────────────────────────────────────
+
+    @Test
+    void getOrderCapacity_잔고있고_토큰보유있음_정상반환() {
+        // given
+        Account account = mock(Account.class);
+        MemberTokenHolding holding = mock(MemberTokenHolding.class);
+
+        when(accountRepository.findByMemberId(MEMBER_ID)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(500_000L);
+        when(memberTokenHoldingRepository.findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID))
+                .thenReturn(Optional.of(holding));
+        when(holding.getCurrentQuantity()).thenReturn(30L);
+
+        // when
+        OrderCapacityResponseDto result = orderService.getOrderCapacity(TOKEN_ID);
+
+        // then
+        assertThat(result.getAvailableBalance()).isEqualTo(500_000L);
+        assertThat(result.getAvailableQuantity()).isEqualTo(30L);
+    }
+
+    @Test
+    void getOrderCapacity_Account없음_availableBalance는0() {
+        // given
+        MemberTokenHolding holding = mock(MemberTokenHolding.class);
+
+        when(accountRepository.findByMemberId(MEMBER_ID)).thenReturn(Optional.empty());
+        when(memberTokenHoldingRepository.findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID))
+                .thenReturn(Optional.of(holding));
+        when(holding.getCurrentQuantity()).thenReturn(10L);
+
+        // when
+        OrderCapacityResponseDto result = orderService.getOrderCapacity(TOKEN_ID);
+
+        // then
+        assertThat(result.getAvailableBalance()).isEqualTo(0L);
+        assertThat(result.getAvailableQuantity()).isEqualTo(10L);
+    }
+
+    @Test
+    void getOrderCapacity_토큰미보유_availableQuantity는0() {
+        // given
+        Account account = mock(Account.class);
+
+        when(accountRepository.findByMemberId(MEMBER_ID)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(200_000L);
+        when(memberTokenHoldingRepository.findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID))
+                .thenReturn(Optional.empty());
+
+        // when
+        OrderCapacityResponseDto result = orderService.getOrderCapacity(TOKEN_ID);
+
+        // then
+        assertThat(result.getAvailableBalance()).isEqualTo(200_000L);
+        assertThat(result.getAvailableQuantity()).isEqualTo(0L);
+    }
+
+    @Test
+    void getOrderCapacity_Account없고_토큰미보유_모두0() {
+        // given
+        when(accountRepository.findByMemberId(MEMBER_ID)).thenReturn(Optional.empty());
+        when(memberTokenHoldingRepository.findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID))
+                .thenReturn(Optional.empty());
+
+        // when
+        OrderCapacityResponseDto result = orderService.getOrderCapacity(TOKEN_ID);
+
+        // then
+        assertThat(result.getAvailableBalance()).isEqualTo(0L);
+        assertThat(result.getAvailableQuantity()).isEqualTo(0L);
+    }
+
+    @Test
+    void getOrderCapacity_Member없이_ID로만_쿼리2개만_호출() {
+        // given — memberRepository, tokenRepository는 호출되지 않아야 함
+        Account account = mock(Account.class);
+        MemberTokenHolding holding = mock(MemberTokenHolding.class);
+
+        when(accountRepository.findByMemberId(MEMBER_ID)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(100_000L);
+        when(memberTokenHoldingRepository.findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID))
+                .thenReturn(Optional.of(holding));
+        when(holding.getCurrentQuantity()).thenReturn(5L);
+
+        // when
+        orderService.getOrderCapacity(TOKEN_ID);
+
+        // then
+        verify(memberRepository, never()).findById(any());
+        verify(tokenRepository, never()).findById(TOKEN_ID);
+        verify(accountRepository).findByMemberId(MEMBER_ID);
+        verify(memberTokenHoldingRepository).findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID);
+    }
+
     @Test
     void createOrder_매도_체결발생_잔고및수량반영() {
         // given
@@ -609,14 +725,14 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(sellerHolding));
         when(sellerHolding.getCurrentQuantity()).thenReturn(10L); // 보유 10주 >= 주문 5주
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(sellerAccount));
-        when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(sellerAccount));
+        when(accountRepository.findWithLockByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
         when(counterOrder.getOrderPrice()).thenReturn(12000L); // resting BUY 주문가 = 체결가
-        when(memberTokenHoldingRepository.findByMemberAndToken(counterMember, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, token))
                 .thenReturn(Optional.of(buyerHolding));
 
         TradeExecutionDto execution = TradeExecutionDto.builder()
