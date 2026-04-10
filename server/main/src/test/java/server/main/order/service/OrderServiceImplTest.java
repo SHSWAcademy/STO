@@ -436,8 +436,8 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
-        when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(account.getAvailableBalance()).thenReturn(1_000_000L);
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
@@ -495,8 +495,8 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
-        when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(account.getAvailableBalance()).thenReturn(1_000_000L);
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
@@ -553,8 +553,8 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(account));
-        when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(account.getAvailableBalance()).thenReturn(1_000_000L);
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
@@ -609,11 +609,11 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(sellerHolding));
         when(sellerHolding.getCurrentQuantity()).thenReturn(10L); // 보유 10주 >= 주문 5주
-        when(accountRepository.findByMember(member)).thenReturn(Optional.of(sellerAccount));
-        when(accountRepository.findByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(sellerAccount));
+        when(accountRepository.findWithLockByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
         when(counterOrder.getOrderPrice()).thenReturn(12000L); // resting BUY 주문가 = 체결가
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, token))
