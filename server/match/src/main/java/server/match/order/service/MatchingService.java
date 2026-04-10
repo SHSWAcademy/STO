@@ -35,6 +35,11 @@ public class MatchingService {
                 Deque<Order> queue = bestEntry.getValue();
                 Order counterOrder = queue.peek();
 
+                // STP: 자기 자신과는 체결하지 않음
+                if (incomingOrder.getMemberId().equals(counterOrder.getMemberId())) {
+                    break;
+                }
+
                 long tradeQuantity = Math.min(incomingOrder.getRemainingQuantity(), counterOrder.getRemainingQuantity());
 
                 incomingOrder.reduceQuantity(tradeQuantity);
@@ -70,6 +75,7 @@ public class MatchingService {
         return MatchResultDto.builder()
                 .orderId(incomingOrder.getOrderId())
                 .tokenId(incomingOrder.getTokenId())
+                .orderSequence(incomingOrder.getSequence()) // FILLED면 null, OPEN/PARTIAL이면 부여된 번호
                 .finalStatus(finalStatus)
                 .filledQuantity(filledQuantity)
                 .remainingQuantity(incomingOrder.getRemainingQuantity())
