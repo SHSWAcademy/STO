@@ -219,7 +219,7 @@ class OrderServiceImplTest {
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.empty());
 
         OrderRequestDto dto = OrderRequestDto.builder()
@@ -244,7 +244,7 @@ class OrderServiceImplTest {
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
         when(holding.getCurrentQuantity()).thenReturn(3L); // 보유 3주
 
@@ -270,7 +270,7 @@ class OrderServiceImplTest {
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
-        when(memberTokenHoldingRepository.findByMemberAndToken(member, token))
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
         when(holding.getCurrentQuantity()).thenReturn(10L); // 보유 10주
         when(matchClient.sendOrder(any())).thenReturn(MatchResultDto.builder()
