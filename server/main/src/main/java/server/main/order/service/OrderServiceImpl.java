@@ -154,6 +154,7 @@ public class OrderServiceImpl implements OrderService {
                         .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             }
             if (findMemberHolding == null) {
+                // 비관적 락 — 동시 체결 시 같은 (member, token)으로 중복 insert 방지
                 findMemberHolding = memberTokenHoldingRepository
                         .findWithLockByMemberAndToken(findMember, findToken)
                         .orElse(null);
@@ -213,6 +214,7 @@ public class OrderServiceImpl implements OrderService {
             } else {
                 buyerHolding = counterHoldingCache.get(execution.getCounterMemberId());
                 if (buyerHolding == null) {
+                    // 비관적 락 — 동시 체결 시 같은 (member, token)으로 중복 insert 방지
                     buyerHolding = memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, findToken)
                             .orElse(null);
                     if (buyerHolding != null) {
@@ -244,7 +246,8 @@ public class OrderServiceImpl implements OrderService {
             if (isBuy) {
                 sellerHolding = counterHoldingCache.get(execution.getCounterMemberId());
                 if (sellerHolding == null) {
-                    sellerHolding = memberTokenHoldingRepository.findByMemberAndToken(counterMember, findToken)
+                    // 비관적 락 — 동시 체결 시 lost update 방지
+                    sellerHolding = memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, findToken)
                             .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
                     counterHoldingCache.put(execution.getCounterMemberId(), sellerHolding);
                 }
