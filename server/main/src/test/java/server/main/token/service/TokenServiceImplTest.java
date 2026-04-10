@@ -306,9 +306,9 @@ class TokenServiceImplTest {
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
         when(candleDayRepository.findTodayByTokenIds(anyList(), any(), any())).thenReturn(List.of(todayCandle));
-        when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(
-                List.of(new Object[]{1L, 50000000L, 300L})
-        );
+//        when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(
+//                List.of(new Object[]{1L, 50000000L, 300L})
+//        );
         when(candleDayRepository.findRecentByTokenIds(anyList(), any())).thenReturn(List.of(sparkCandle));
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.DAY);
