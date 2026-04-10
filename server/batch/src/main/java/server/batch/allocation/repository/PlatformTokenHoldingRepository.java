@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface PlatformTokenHoldingRepository extends JpaRepository<PlatformTokenHolding, Long> {
 
-    @Query("SELECT COALESCE(SUM(p.holdingSupply), 0) FROM PlatformTokenHolding p WHERE p.tokenId = :tokenId")
-    Long sumHoldingSupplyByTokenId(Long tokenId);
+    // 플랫폼 보유 수량 조회
+    @Query("SELECT p.holdingSupply FROM PlatformTokenHolding p WHERE p.tokenId = :tokenId")
+    Long holdingSupplyByTokenId(Long tokenId);
 }

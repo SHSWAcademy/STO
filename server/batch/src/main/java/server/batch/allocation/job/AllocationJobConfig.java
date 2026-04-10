@@ -36,7 +36,7 @@ public class AllocationJobConfig {
     @Bean
     public Step allocationStep() {
         return new StepBuilder("allocationStep", jobRepository)
-                .<AllocationEvent, AllocationResult>chunk(10, txManager)    // 이벤트 수는 무방함 (1로해도)
+                .<AllocationEvent, AllocationResult>chunk(1, txManager)    // 이벤트 수는 무방함 (1로해도)
                 .reader(allocationEventReader())
                 .processor(processor)
                 .writer(writer)

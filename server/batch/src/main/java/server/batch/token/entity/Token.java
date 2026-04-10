@@ -14,4 +14,6 @@ public class Token {
 
     @Enumerated(EnumType.STRING)
     private TokenStatus tokenStatus;
+
+    private Long assetId;
 }

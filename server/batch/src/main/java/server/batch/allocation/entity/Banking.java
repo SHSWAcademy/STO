@@ -18,14 +18,17 @@ public class Banking {
     private Long bankingId;
 
     private Long accountId;
-    private String txType;
-    private String txStatus;
+    @Enumerated(value = EnumType.STRING)
+    private TxType txType;
+
+    @Enumerated(value = EnumType.STRING)
+    private TxStatus txStatus;
     private Long bankingAmount;
     private Long balanceSnapshot;
     private LocalDateTime createdAt;
 
     @Builder
-    public Banking(Long accountId, String txType, String txStatus,
+    public Banking(Long accountId, TxType txType, TxStatus txStatus,
                    Long bankingAmount, Long balanceSnapshot) {
         this.accountId = accountId;
         this.txType = txType;
