@@ -19,14 +19,18 @@ public class PlatformBanking {
 
     private Long tokenId;
     private Long tradeId;
-    private String accountType;
     private Long platformBankingAmount;
-    private String platformBankingDirection;
     private LocalDateTime createdAt;
 
+    @Enumerated(value = EnumType.STRING)
+    private PlatformAccountType accountType;
+
+    @Enumerated(value = EnumType.STRING)
+    private PlatformDirection platformBankingDirection;
+
     @Builder
-    public PlatformBanking(Long tokenId, String accountType,
-                           Long platformBankingAmount, String platformBankingDirection) {
+    public PlatformBanking(Long tokenId, PlatformAccountType accountType,
+                           Long platformBankingAmount, PlatformDirection platformBankingDirection) {
         this.tokenId = tokenId;
         this.accountType = accountType;
         this.platformBankingAmount = platformBankingAmount;

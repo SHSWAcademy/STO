@@ -9,8 +9,8 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import server.batch.allocation.entity.Commons;
-import server.batch.allocation.repository.CommonsRepository;
+import server.batch.allocation.entity.Common;
+import server.batch.allocation.repository.CommonRepository;
 
 import java.time.LocalDate;
 
@@ -20,7 +20,7 @@ import java.time.LocalDate;
 public class AllocationScheduler {
 
     private final JobLauncher jobLauncher;
-    private final CommonsRepository commonsRepository;
+    private final CommonRepository commonsRepository;
 
     @Qualifier("allocationJob")
     private final Job allocationJob;
@@ -28,7 +28,7 @@ public class AllocationScheduler {
     @Scheduled(cron = "0 0 0 * * *")
     public void runAllocationJob() throws Exception {
         // 시스템 기초설정조회
-        Commons commons = commonsRepository.findFirstBy();
+        Common commons = commonsRepository.findFirstBy();
         // 배일일 아니면 종료
         if (LocalDate.now().getDayOfMonth() != commons.getAllocateDate()) {
             return;

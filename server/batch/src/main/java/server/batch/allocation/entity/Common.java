@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 @Table(name = "commons")
-public class Commons {
+public class Common {
 
     @Id
     private Long baseId;
