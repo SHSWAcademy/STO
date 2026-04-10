@@ -60,13 +60,17 @@ public class AllocationProcessor implements ItemProcessor<AllocationEvent, Alloc
         log.info("토큰명 : {}", tokenId.getTokenId());
         log.info("배당 월 수익 : {}", event.getMonthlyDividendIncome());
         log.info("총 토큰 수량 : {}", totalQuantity);
-
         // 아무도 토크을 안샀다면
         if (totalQuantity == 0) return null;
         // 배당 세율 조회
         Common commons = commonsRepository.findFirstBy();
+        // 이전 달 누적 잔여금이 있다면 합산
+        long accumulatedRemainder = assetAccount.getAccumulatedRemainder() != null
+                ? assetAccount.getAccumulatedRemainder() : 0L;
+        long effectiveIncome = event.getMonthlyDividendIncome() + accumulatedRemainder;
         // 배당금 평균 계산
-        long allocationAvg = event.getMonthlyDividendIncome() / totalQuantity;
+        long allocationAvg = effectiveIncome / totalQuantity;
+
         // 멤버 배당
         List<MemberPayoutResult> memberPayouts = new ArrayList<>();
         for (TokenHolding tokenHolding : tokenHoldings) {
@@ -89,9 +93,11 @@ public class AllocationProcessor implements ItemProcessor<AllocationEvent, Alloc
         long adminPayout = allocationAvg * platformTokenHolding;
         // 배당 총 지급액
         long totalPaid = allocationAvg * totalQuantity;
-        // 월 수익 - 배당 총 지급액 = 잔여금액
-        long remainder = event.getMonthlyDividendIncome() - totalPaid;
+        // 실질 수익 - 배당 총 지급액 = 잔여금액
+        long remainder = effectiveIncome - totalPaid;
 
+        log.info("누적 잔여금 : {}", accumulatedRemainder);
+        log.info("실질 배당 수익 : {}", effectiveIncome);
         log.info("플랫폼 배당금액 : {}", adminPayout);
         log.info("유저 배당금액 : {}", memberPayouts);
         log.info("잔여 금액 : {}", remainder);
@@ -102,7 +108,7 @@ public class AllocationProcessor implements ItemProcessor<AllocationEvent, Alloc
                 .tokenId(tokenId.getTokenId())
                 .memberPayouts(memberPayouts)
                 .platformAmount(adminPayout)
-                .totalDeduction(event.getMonthlyDividendIncome())
+                .totalDeduction(effectiveIncome)
                 .remainder(remainder)
                 .assetAccount(assetAccount)
                 .build();

@@ -31,18 +31,21 @@ public class AllocationWriter implements ItemWriter<AllocationResult> {
 
         // chunk를 1로 설정해서 0번인덱스 이벤트만 꺼냄
         AllocationResult result = chunk.getItems().getFirst();
-        // 자산 계좌에서 배당금 출금처리 (실제 지급된 총액)
-        result.getAssetAccount().withdraw(result.getTotalDeduction());
+        // 자산 계좌에서 배당금 출금처리 (실제 지급된 총액 = totalDeduction - remainder)
+        long actualDeduction = result.getTotalDeduction() - result.getRemainder();
+        result.getAssetAccount().withdraw(actualDeduction);
+        // 누적 잔여금 갱신
+        result.getAssetAccount().updateAccumulatedRemainder(result.getRemainder());
         assetAccountRepository.save(result.getAssetAccount());
         // 자산 계좌내역 출금 기록
         AssetBanking assetBanking = AssetBanking.builder()
                 .assetAccountId(result.getAssetAccount().getAssetAccountId())
-                .assetBankingAmount(result.getTotalDeduction())
+                .assetBankingAmount(actualDeduction)
                 .type(AssetBankingType.ALLOCATION)
                 .direction(AssetBankingDirection.WITHDRAWAL)
                 .build();
         assetBankingRepository.save(assetBanking);
-        log.info("자산계좌 입금 확인 : {}", assetBanking);
+        log.info("자산계좌 출금 확인 : {}", assetBanking);
 
         // getMemberPayouts에 담긴 멤버 객체 하나씩 꺼냄
         for(MemberPayoutResult member : result.getMemberPayouts()) {
@@ -84,7 +87,7 @@ public class AllocationWriter implements ItemWriter<AllocationResult> {
                 .tokenId(result.getTokenId())
                 .build();
         platformBankingRepository.save(platformBanking);
-        log.info("플랫폼 계좌 입금내역 : {}", platformAccount);
+        log.info("플랫폼 계좌 입금내역 : {}", platformBanking);
 
         // 배당 이벤트 완료, 배당지급일 등록 처리 (detached 엔티티라 명시적 save 필요)
         result.getEvent().complete();
