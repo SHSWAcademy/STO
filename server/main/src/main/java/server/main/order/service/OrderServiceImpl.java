@@ -186,13 +186,15 @@ public class OrderServiceImpl implements OrderService {
 
             tradeRepository.save(trade);
 
-            long tradeAmount = execution.getTradePrice() * execution.getTradeQuantity();
+            long tradeAmount = Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity());
 
             // counterMember Account 캐시 조회
-            Account counterAccount = counterAccountCache.computeIfAbsent(
-                    execution.getCounterMemberId(),
-                    id -> accountRepository.findByMember(counterMember)
-                            .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR)));
+            Account counterAccount = counterAccountCache.get(execution.getCounterMemberId());
+            if (counterAccount == null) {
+                counterAccount = accountRepository.findByMember(counterMember)
+                        .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+                counterAccountCache.put(execution.getCounterMemberId(), counterAccount);
+            }
 
             Account buyerAccount  = isBuy ? findMemberAccount : counterAccount;
             Account sellerAccount = isBuy ? counterAccount : findMemberAccount;
@@ -205,12 +207,19 @@ public class OrderServiceImpl implements OrderService {
             sellerAccount.settleSellTrade(tradeAmount);              // 매도자 availableBalance 증가
 
             // 매수자 Holding 반영
-            MemberTokenHolding buyerHolding = isBuy
-                    ? findMemberHolding
-                    : counterHoldingCache.computeIfAbsent(
-                            execution.getCounterMemberId(),
-                            id -> memberTokenHoldingRepository.findByMemberAndToken(counterMember, findToken)
-                                    .orElse(null));
+            MemberTokenHolding buyerHolding;
+            if (isBuy) {
+                buyerHolding = findMemberHolding;
+            } else {
+                buyerHolding = counterHoldingCache.get(execution.getCounterMemberId());
+                if (buyerHolding == null) {
+                    buyerHolding = memberTokenHoldingRepository.findByMemberAndToken(counterMember, findToken)
+                            .orElse(null);
+                    if (buyerHolding != null) {
+                        counterHoldingCache.put(execution.getCounterMemberId(), buyerHolding);
+                    }
+                }
+            }
 
             if (buyerHolding == null) {
                 // 처음 받는 토큰 — 새 레코드 생성
@@ -219,7 +228,7 @@ public class OrderServiceImpl implements OrderService {
                         buyer, findToken,
                         execution.getTradeQuantity(),
                         execution.getTradePrice());
-                memberTokenHoldingRepository.save(buyerHolding);
+                memberTokenHoldingRepository.save(buyerHolding); // null 아님 — 바로 위 createForBuyer로 생성, IDE 정적 분석 오탐
                 // 캐시 업데이트 — 다음 execution에서 재사용
                 if (isBuy) {
                     findMemberHolding = buyerHolding;
@@ -231,12 +240,17 @@ public class OrderServiceImpl implements OrderService {
             }
 
             // 매도자 Holding 반영
-            MemberTokenHolding sellerHolding = isBuy
-                    ? counterHoldingCache.computeIfAbsent(
-                            execution.getCounterMemberId(),
-                            id -> memberTokenHoldingRepository.findByMemberAndToken(counterMember, findToken)
-                                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR)))
-                    : findMemberHolding;
+            MemberTokenHolding sellerHolding;
+            if (isBuy) {
+                sellerHolding = counterHoldingCache.get(execution.getCounterMemberId());
+                if (sellerHolding == null) {
+                    sellerHolding = memberTokenHoldingRepository.findByMemberAndToken(counterMember, findToken)
+                            .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+                    counterHoldingCache.put(execution.getCounterMemberId(), sellerHolding);
+                }
+            } else {
+                sellerHolding = findMemberHolding;
+            }
 
             if (sellerHolding == null) throw new BusinessException(ENTITY_NOT_FOUNT_ERROR);
             sellerHolding.settleSellTrade(execution.getTradeQuantity());
