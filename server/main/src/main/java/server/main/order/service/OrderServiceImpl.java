@@ -9,6 +9,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,9 +71,7 @@ public class OrderServiceImpl implements OrderService {
     private final ApplicationEventPublisher eventPublisher;
     private final server.main.global.util.MatchClient matchClient;
 
-    // ──────────────────────────────────────────────
     // createOrder Phase 1: 검증 + 잔고 차감 + 주문 저장
-    // ──────────────────────────────────────────────
     @Transactional
     @Override
     public MatchOrderRequestDto validateAndSaveOrder(Long tokenId, OrderRequestDto dto) {
@@ -136,9 +137,8 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    // ──────────────────────────────────────────────
     // createOrder / updateOrder Phase 2: 체결 결과 반영
-    // ──────────────────────────────────────────────
+    @Retryable(retryFor = CannotAcquireLockException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional
     @Override
     public void processMatchResult(Long orderId, Long tokenId, MatchResultDto matchResult) {
@@ -329,9 +329,7 @@ public class OrderServiceImpl implements OrderService {
         eventPublisher.publishEvent(new OrderWebSocketEvent(tokenId, memberId, counterMemberIds));
     }
 
-    // ──────────────────────────────────────────────
     // match 실패 시 보상: 잔고 복구 + 주문 삭제
-    // ──────────────────────────────────────────────
     @Transactional
     @Override
     public void compensateFailedOrder(Long orderId) {
@@ -355,9 +353,7 @@ public class OrderServiceImpl implements OrderService {
         order.removeOrder();
     }
 
-    // ──────────────────────────────────────────────
     // updateOrder Phase 1: 검증 + 잔고 재조정 + 주문 수정
-    // ──────────────────────────────────────────────
     @Transactional
     @Override
     public UpdateMatchOrderRequestDto validateAndUpdateOrder(Long orderId, UpdateOrderRequestDto dto) {
@@ -378,7 +374,7 @@ public class OrderServiceImpl implements OrderService {
         long newRemaining = dto.getUpdateQuantity() - findOrder.getFilledQuantity();
 
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
-            Account findAccount = accountRepository.findByMember(findOrder.getMember())
+            Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
             long oldAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
@@ -392,7 +388,7 @@ public class OrderServiceImpl implements OrderService {
 
         if (OrderType.SELL.equals(findOrder.getOrderType())) {
             MemberTokenHolding tokenHolding = memberTokenHoldingRepository
-                    .findByMemberAndToken(findOrder.getMember(), findOrder.getToken())
+                    .findWithLockByMemberAndToken(findOrder.getMember(), findOrder.getToken())
                     .orElseThrow(() -> new BusinessException(INSUFFICIENT_TOKEN_BALANCE));
 
             long oldQuantity = findOrder.getRemainingQuantity();
@@ -432,7 +428,7 @@ public class OrderServiceImpl implements OrderService {
         long newRemaining = originalQuantity - order.getFilledQuantity();
 
         if (OrderType.BUY.equals(order.getOrderType())) {
-            Account account = accountRepository.findByMember(order.getMember())
+            Account account = accountRepository.findWithLockByMember(order.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             long currentLocked = order.getOrderPrice() * order.getRemainingQuantity();
             long originalLocked = originalPrice * newRemaining;
@@ -441,7 +437,7 @@ public class OrderServiceImpl implements OrderService {
 
         if (OrderType.SELL.equals(order.getOrderType())) {
             MemberTokenHolding holding = memberTokenHoldingRepository
-                    .findByMemberAndToken(order.getMember(), order.getToken())
+                    .findWithLockByMemberAndToken(order.getMember(), order.getToken())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             long currentQuantity = order.getRemainingQuantity();
             holding.relockQuantity(currentQuantity, newRemaining);
@@ -482,7 +478,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
-            Account findAccount = accountRepository.findByMember(findOrder.getMember())
+            Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             Long lockedAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
             findAccount.cancelOrder(lockedAmount);
@@ -490,7 +486,7 @@ public class OrderServiceImpl implements OrderService {
 
         if (OrderType.SELL.equals(findOrder.getOrderType())) {
             MemberTokenHolding tokenHolding = memberTokenHoldingRepository
-                    .findByMemberAndToken(findOrder.getMember(), findOrder.getToken())
+                    .findWithLockByMemberAndToken(findOrder.getMember(), findOrder.getToken())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             tokenHolding.cancelOrder(findOrder.getRemainingQuantity());
         }
