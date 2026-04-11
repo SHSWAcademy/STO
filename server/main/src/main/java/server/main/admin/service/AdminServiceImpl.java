@@ -161,7 +161,6 @@ public class AdminServiceImpl implements AdminService {
     public List<AllocationListResponseDTO> getAllocationList() {
         // 자산 리스트 조회
         List<Token> tokens = tokenRepository.findAllTokensWithAssetAllocationList();
-        // 배당 잔여금 조회
 
         // 마감월 확인
         YearMonth targetMonth = getTargetMonth();

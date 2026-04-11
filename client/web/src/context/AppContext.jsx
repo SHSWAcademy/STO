@@ -1,7 +1,8 @@
 import { createContext, useContext, useState } from 'react';
 import { TOKENS as INITIAL_TOKENS, ADMIN_DISCLOSURES, ADMIN_NOTICES } from '../data/mock.js';
+import { API_BASE_URL } from '../lib/config.js';
 
-const API = 'http://localhost:8080';
+const API = API_BASE_URL;
 
 const AppContext = createContext(null);
 
@@ -40,6 +41,7 @@ export function AppProvider({ children }) {
       data = await res.json();
 
       const isAdmin = data.userType === 'ADMIN' || isAdminInput;
+      localStorage.setItem('token', data.accessToken);
       setUser({
         name:        isAdmin ? '관리자' : email,
         email:       email,
@@ -63,6 +65,7 @@ export function AppProvider({ children }) {
   }
 
   function logout() {
+    localStorage.removeItem('token');
     setUser(null);
   }
 

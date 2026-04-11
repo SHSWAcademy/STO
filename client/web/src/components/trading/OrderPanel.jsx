@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MoreHorizontal, Edit3, X } from 'lucide-react';
 import { cn } from '../../lib/utils.js';
+import { API_BASE_URL } from '../../lib/config.js';
 
-const API = 'http://localhost:8080';
+const API = API_BASE_URL;
 
 // OrderPanel — 주문창
 // Props:
