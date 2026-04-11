@@ -2,6 +2,7 @@ package server.main.admin.mapper;
 
 import org.springframework.stereotype.Component;
 import server.main.admin.dto.*;
+import server.main.admin.entity.PlatformBanking;
 import server.main.admin.entity.PlatformTokenHolding;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.asset.entity.Asset;
@@ -124,5 +125,29 @@ public class AdminMapper {
                 .build();
     }
 
+    // 플랫폼 계좌내역 entity -> dto변환
+    public PlatformBankingListDTO toPlatformBankingListDTO(PlatformBanking platformBanking) {
+        return PlatformBankingListDTO.builder()
+                .platformBankingDirection(platformBanking.getPlatformBankingDirection())
+                .accountType(platformBanking.getAccountType())
+                .platformBankingAmount(platformBanking.getPlatformBankingAmount())
+                .createdAt(platformBanking.getCreatedAt())
+                .tokenId(platformBanking.getTokenId())
+                .build();
+    }
 
+    // 플랫폼 보유 토큰 상세 entity -> dto 변환
+    public PlatformTokenHoldingsDetailDTO toPlatformTokenHoldingsDetailDTO(PlatformTokenHolding platformTokenHolding) {
+        return PlatformTokenHoldingsDetailDTO.builder()
+                .tokenName(platformTokenHolding.getToken().getTokenName())
+                .tokenSymbol(platformTokenHolding.getToken().getTokenSymbol())
+                .totalSupply(platformTokenHolding.getToken().getTotalSupply())
+                .initPrice(platformTokenHolding.getInitPrice())
+                .circulatingSupply(platformTokenHolding.getToken().getCirculatingSupply())
+                .currentPrice(platformTokenHolding.getToken().getCurrentPrice())
+                .holdingSupply(platformTokenHolding.getHoldingSupply())
+                .imgUrl(platformTokenHolding.getToken().getAsset().getImgUrl())
+                .tokenId(platformTokenHolding.getToken().getTokenId())
+                .build();
+    }
 }

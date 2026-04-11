@@ -105,4 +105,11 @@ class AdminServiceImplTest {
         List<AllocationDetailResponseDTO> list = adminService.getAllocationDetailList(12L);
         System.out.println("배당 상세조회 확인 : " + list);
     }
+
+    // 플랫폼 수익/보유 조회
+    @Test
+    void testPlatformHaveTokenAndComm() {
+        PlatformProfitAccountResponseDTO list = adminService.getPlatformProfitAccount();
+        System.out.println("플랫폼 수익 보유 현황 확인 : " + list);
+    }
 }
