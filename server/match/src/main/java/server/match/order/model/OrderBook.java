@@ -61,8 +61,8 @@ public class OrderBook {
         Order old = orderIndex.get(orderId);
         if (old == null) return null;
 
-        if (old.getPrice().equals(newPrice)) {
-            // 가격 동일 → 수량만 변경, 줄 위치 유지
+        if (old.getPrice().equals(newPrice) && newQuantity <= old.getRemainingQuantity()) {
+            // 가격 동일 + 수량 감소 → in-place 수정, 우선순위 유지
             old.updateQuantity(newQuantity);
             return old;
         } else {

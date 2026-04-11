@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.UpdateOrderRequestDto;
+import server.main.order.service.OrderFacade;
 import server.main.order.service.OrderService;
 
 @RestController
@@ -27,12 +28,13 @@ import server.main.order.service.OrderService;
 @Slf4j
 public class OrderController {
 
+    private final OrderFacade orderFacade;
     private final OrderService orderService;
 
     // 매수, 매도 요청
     @PostMapping("/{tokenId}/order")
     public ResponseEntity<Void> order(@PathVariable Long tokenId, @Validated @RequestBody OrderRequestDto dto) {
-        orderService.createOrder(tokenId, dto);
+        orderFacade.createOrder(tokenId, dto);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
@@ -47,7 +49,7 @@ public class OrderController {
     @PutMapping("/order/update/{orderId}")
     public ResponseEntity<Void> orderUpdate(@PathVariable Long orderId,
             @Validated @RequestBody UpdateOrderRequestDto dto) {
-        orderService.updateOrder(orderId, dto);
+        orderFacade.updateOrder(orderId, dto);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build(); // 204 No Content
     }
 
