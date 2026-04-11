@@ -1,21 +1,29 @@
 package server.match.order.service;
 
-import org.springframework.stereotype.Service;
-import server.match.order.dto.MatchResultDto;
-import server.match.order.dto.TradeExecutionDto;
-import server.match.order.entity.OrderStatus;
-import server.match.order.entity.OrderType;
-import server.match.order.model.Order;
-import server.match.order.model.OrderBook;
-
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 
+import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
+import server.match.global.redis.RedisPublisher;
+import server.match.order.dto.MatchResultDto;
+import server.match.order.dto.TradeEventDto;
+import server.match.order.dto.TradeExecutionDto;
+import server.match.order.entity.OrderStatus;
+import server.match.order.entity.OrderType;
+import server.match.order.model.Order;
+import server.match.order.model.OrderBook;
+
 @Service
+@RequiredArgsConstructor
 public class MatchingService {
+
+    private final RedisPublisher redisPublisher;
 
     public MatchResultDto match(Order incomingOrder, OrderBook orderBook) {
         List<TradeExecutionDto> executions = new ArrayList<>();
@@ -48,6 +56,15 @@ public class MatchingService {
                         .tradeQuantity(tradeQuantity)
                         .build());
 
+                // 체결 1건 발생 → trades 채널로 publish
+                redisPublisher.publishTrade(TradeEventDto.builder()
+                        .tokenId(incomingOrder.getTokenId())
+                        .tradePrice(bestPrice)
+                        .tradeQuantity(tradeQuantity)
+                        .isBuy(OrderType.BUY.equals(incomingOrder.getOrderType()))
+                        .tradeTime(LocalDateTime.now())
+                        .build());
+
                 if (counterOrder.getRemainingQuantity() == 0) {
                     orderBook.removeOrder(counterOrder);
                 }
@@ -63,6 +80,8 @@ public class MatchingService {
                 orderBook.addOrder(incomingOrder);
             }
         }
+
+        redisPublisher.publishOrderBook(orderBook);
 
         OrderStatus finalStatus;
         if (filledQuantity == 0) {
