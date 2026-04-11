@@ -474,7 +474,7 @@ public class OrderServiceImpl implements OrderService {
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
             Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-            Long lockedAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
+            long lockedAmount = Math.multiplyExact(findOrder.getOrderPrice(), findOrder.getRemainingQuantity());
             findAccount.cancelOrder(lockedAmount);
         }
 

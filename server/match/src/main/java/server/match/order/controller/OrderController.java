@@ -53,13 +53,15 @@ public class OrderController {
 
         OrderBook orderBook = orderBookRegistry.getOrCreate(tokenId);
 
-        Order order = orderBook.findById(orderId);
-        if (order == null) {
-            return ResponseEntity.notFound().build(); // 404
-        }
+        synchronized (orderBook) {
+            Order order = orderBook.findById(orderId);
+            if (order == null) {
+                return ResponseEntity.notFound().build(); // 404
+            }
 
-        orderBook.removeOrder(order);
-        redisPublisher.publishOrderBook(orderBook);
+            orderBook.removeOrder(order);
+            redisPublisher.publishOrderBook(orderBook);
+        }
         return ResponseEntity.noContent().build(); // 204 — 취소 성공, 반환할 body 없음
     }
 
