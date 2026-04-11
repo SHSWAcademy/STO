@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import server.main.order.dto.OrderCapacityResponseDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.UpdateOrderRequestDto;
@@ -27,6 +28,14 @@ public class OrderController {
     public ResponseEntity<Void> order(@PathVariable Long tokenId, @Validated @RequestBody OrderRequestDto dto) {
         orderService.createOrder(tokenId, dto);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+
+    // 10% , 25%, 50%, 최대
+    @GetMapping("/{tokenId}/order/capacity")
+    public ResponseEntity<OrderCapacityResponseDto> getOrderCapacity(@PathVariable Long tokenId) {
+        OrderCapacityResponseDto dto = orderService.getOrderCapacity(tokenId);
+        return ResponseEntity.ok(dto);
     }
 
     // 상세 페이지 접근 시 회원 미체결 주문 조회

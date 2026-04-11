@@ -4,7 +4,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import server.main.admin.entity.PlatformTokenHolding;
+import server.main.token.entity.Token;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface PlatformTokenHoldingsRepository extends JpaRepository<PlatformTokenHolding, Long> {
@@ -12,4 +14,10 @@ public interface PlatformTokenHoldingsRepository extends JpaRepository<PlatformT
     // 자산 / 토큰 / 플랫폼 보유 토큰 상세조회
     @Query("SELECT p FROM PlatformTokenHolding p JOIN FETCH p.token t JOIN FETCH t.asset WHERE t.asset.assetId = :assetId")
     Optional<PlatformTokenHolding> findWithTokenAndAssetByAssetId(@Param("assetId") Long assetId);
+
+    // 플랫폼/보유 토큰 전체 조회
+    @Query("SELECT p FROM PlatformTokenHolding p JOIN FETCH p.token t JOIN FETCH t.asset")
+    List<PlatformTokenHolding> getPlatformTokenHoldingWithToken();
+
+    Optional<PlatformTokenHolding> findByToken(Token token);
 }

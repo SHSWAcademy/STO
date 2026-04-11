@@ -2,6 +2,16 @@ import { useState } from 'react';
 import { Download, FileText } from 'lucide-react';
 import { TOKENS, DIVIDEND_HISTORY, DISCLOSURES } from '../data/mock.js';
 import { useApp } from '../context/AppContext.jsx';
+
+// mock asset.id(string) → 백엔드 tokenId(number) 매핑
+const TOKEN_ID_MAP = {
+  SEOULST:  1,
+  SONGDORE: 2,
+  ARTPRIME: 3,
+  JEJU1:    4,
+  LOGISHUB: 5,
+  SOLAR1:   6,
+};
 import { AssetHeader } from '../components/trading/AssetHeader.jsx';
 import { ChartPanel }  from '../components/trading/ChartPanel.jsx';
 import { HogaPanel }   from '../components/trading/HogaPanel.jsx';
@@ -21,11 +31,13 @@ import { OrderPanel }  from '../components/trading/OrderPanel.jsx';
 export function TradingPage() {
   const [activeTab, setActiveTab]           = useState('chart');
   const [currentAssetId, setCurrentAssetId] = useState('SEOULST');
-  const { watchlist, toggleWatchlist }      = useApp();
+  const { user, watchlist, toggleWatchlist } = useApp();
 
   const asset        = TOKENS.find(t => t.id === currentAssetId) || TOKENS[0];
   const currentPrice = asset.price;   // 실서비스: 실시간 가격 상태로 교체
   const inWatchlist  = watchlist.includes(asset.id);
+  const tokenId      = TOKEN_ID_MAP[asset.id] ?? null;
+  const token        = user?.accessToken ?? null;
 
   return (
     // 원본: h-[calc(100vh-64px)] -m-8 (MainLayout p-8을 상쇄)
@@ -62,7 +74,7 @@ export function TradingPage() {
         )}
 
         {/* 주문창: 항상 오른쪽에 고정 */}
-        <OrderPanel asset={asset} currentPrice={currentPrice} />
+        <OrderPanel asset={asset} currentPrice={currentPrice} tokenId={tokenId} token={token} />
       </div>
     </div>
   );

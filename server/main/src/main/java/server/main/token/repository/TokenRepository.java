@@ -8,7 +8,7 @@ import server.main.token.entity.Token;
 import java.util.List;
 import java.util.Optional;
 
-public interface TokenRepository extends JpaRepository<Token, Long> {
+public interface TokenRepository extends JpaRepository<Token, Long> , TokenRepositoryCustom {
 
     // fetch join 으로 asset 테이블 조인해서 데이터를 가져온다
     @Query("SELECT t FROM Token t JOIN FETCH t.asset WHERE t.tokenId =:tokenId")
@@ -21,4 +21,6 @@ public interface TokenRepository extends JpaRepository<Token, Long> {
     // 자산 ID 로 토큰 / 자산테이블 배당 리스트 조회용
     @Query("SELECT t FROM Token t JOIN FETCH t.asset a WHERE t.tokenStatus = 'TRADING' AND a.isAllocated = true ")
     List<Token> findAllTokensWithAssetAllocationList();
+
+    Long tokenId(Long tokenId);
 }
