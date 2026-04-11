@@ -19,8 +19,9 @@ import { OrderPanel }        from '../components/trading/OrderPanel.jsx';
 import { HogaRow }           from '../components/trading/HogaRow.jsx';
 import { PriceRow }          from '../components/trading/PriceRow.jsx';
 import { cn } from '../lib/utils.js';
+import { API_BASE_URL } from '../lib/config.js';
 
-const API = 'http://localhost:8080';
+const API = API_BASE_URL;
 
 // JWT payload에서 memberId(sub 클레임) 추출
 function parseJwtMemberId(token) {
