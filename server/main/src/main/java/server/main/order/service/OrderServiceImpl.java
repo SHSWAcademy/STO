@@ -416,9 +416,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    // ──────────────────────────────────────────────
     // update match 실패 시 보상: 원래 가격/수량으로 복구
-    // ──────────────────────────────────────────────
     @Transactional
     @Override
     public void compensateFailedUpdate(Long orderId, Long originalPrice, Long originalQuantity) {
@@ -446,9 +444,7 @@ public class OrderServiceImpl implements OrderService {
         order.updateOrder(originalPrice, originalQuantity);
     }
 
-    // ──────────────────────────────────────────────
     // 미체결 주문 조회
-    // ──────────────────────────────────────────────
     @Override
     public List<PendingOrderResponseDto> getPendingOrders(Long tokenId) {
         CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
@@ -459,9 +455,7 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.toPendingDtoList(pendingOrders);
     }
 
-    // ──────────────────────────────────────────────
-    // 주문 취소 (기존 그대로 — 단일 트랜잭션으로 충분)
-    // ──────────────────────────────────────────────
+    // 주문 취소
     @Transactional
     @Override
     public void cancelOrder(Long orderId) {
