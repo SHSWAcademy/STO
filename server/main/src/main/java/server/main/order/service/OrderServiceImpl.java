@@ -377,8 +377,8 @@ public class OrderServiceImpl implements OrderService {
             Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-            long oldAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
-            long updateAmount = dto.getUpdatePrice() * newRemaining;
+            long oldAmount = Math.multiplyExact(findOrder.getOrderPrice(), findOrder.getRemainingQuantity());
+            long updateAmount = Math.multiplyExact(dto.getUpdatePrice(), newRemaining);
 
             if (findAccount.getAvailableBalance() + oldAmount < updateAmount)
                 throw new BusinessException(INSUFFICIENT_BALANCE);
@@ -428,8 +428,8 @@ public class OrderServiceImpl implements OrderService {
         if (OrderType.BUY.equals(order.getOrderType())) {
             Account account = accountRepository.findWithLockByMember(order.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-            long currentLocked = order.getOrderPrice() * order.getRemainingQuantity();
-            long originalLocked = originalPrice * newRemaining;
+            long currentLocked = Math.multiplyExact(order.getOrderPrice(), order.getRemainingQuantity());
+            long originalLocked = Math.multiplyExact(originalPrice, newRemaining);
             account.relockBalance(currentLocked, originalLocked);
         }
 

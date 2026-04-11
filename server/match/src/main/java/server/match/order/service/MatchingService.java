@@ -79,9 +79,8 @@ public class MatchingService {
                 // 잔량 있고 오더북에 없을 때만 추가
                 orderBook.addOrder(incomingOrder);
             }
+            redisPublisher.publishOrderBook(orderBook);
         }
-
-        redisPublisher.publishOrderBook(orderBook);
 
         OrderStatus finalStatus;
         if (filledQuantity == 0) {

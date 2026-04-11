@@ -33,7 +33,9 @@ public class RedisPublisher {
             String payload = objectMapper.writeValueAsString(dto);
             redisTemplate.convertAndSend(channel, payload);
         } catch (JsonProcessingException e) {
-            log.error("Redis publish 실패 = channel: {}", channel, e);
+            log.error("Redis publish 직렬화 실패 = channel: {}", channel, e);
+        } catch (RuntimeException e) {
+            log.error("Redis publish 전송 실패 = channel: {}", channel, e);
         }
     }
 
