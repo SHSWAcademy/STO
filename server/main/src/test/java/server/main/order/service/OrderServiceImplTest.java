@@ -34,12 +34,14 @@ import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.MatchOrderRequestDto;
 import server.main.order.dto.MatchResultDto;
+import server.main.order.dto.OrderCapacityResponseDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.TradeExecutionDto;
 import server.main.order.dto.UpdateMatchOrderRequestDto;
 import server.main.order.dto.UpdateOrderRequestDto;
 import server.main.order.entity.Order;
+import server.main.order.entity.OrderDuplicated;
 import server.main.order.entity.OrderStatus;
 import server.main.order.entity.OrderType;
 import server.main.order.mapper.OrderMapper;
@@ -656,6 +658,101 @@ class OrderServiceImplTest {
 
         // then — 새 TOKEN_HOLDINGS 레코드가 save() 되어야 한다
         verify(memberTokenHoldingRepository).save(any(MemberTokenHolding.class));
+    }
+
+    // ── getOrderCapacity ────────────────────────────────────────────
+
+    @Test
+    void getOrderCapacity_잔고있고_토큰보유있음_정상반환() {
+        // given
+        Account account = mock(Account.class);
+        MemberTokenHolding holding = mock(MemberTokenHolding.class);
+
+        when(accountRepository.findByMemberId(MEMBER_ID)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(500_000L);
+        when(memberTokenHoldingRepository.findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID))
+                .thenReturn(Optional.of(holding));
+        when(holding.getCurrentQuantity()).thenReturn(30L);
+
+        // when
+        OrderCapacityResponseDto result = orderService.getOrderCapacity(TOKEN_ID);
+
+        // then
+        assertThat(result.getAvailableBalance()).isEqualTo(500_000L);
+        assertThat(result.getAvailableQuantity()).isEqualTo(30L);
+    }
+
+    @Test
+    void getOrderCapacity_Account없음_availableBalance는0() {
+        // given
+        MemberTokenHolding holding = mock(MemberTokenHolding.class);
+
+        when(accountRepository.findByMemberId(MEMBER_ID)).thenReturn(Optional.empty());
+        when(memberTokenHoldingRepository.findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID))
+                .thenReturn(Optional.of(holding));
+        when(holding.getCurrentQuantity()).thenReturn(10L);
+
+        // when
+        OrderCapacityResponseDto result = orderService.getOrderCapacity(TOKEN_ID);
+
+        // then
+        assertThat(result.getAvailableBalance()).isEqualTo(0L);
+        assertThat(result.getAvailableQuantity()).isEqualTo(10L);
+    }
+
+    @Test
+    void getOrderCapacity_토큰미보유_availableQuantity는0() {
+        // given
+        Account account = mock(Account.class);
+
+        when(accountRepository.findByMemberId(MEMBER_ID)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(200_000L);
+        when(memberTokenHoldingRepository.findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID))
+                .thenReturn(Optional.empty());
+
+        // when
+        OrderCapacityResponseDto result = orderService.getOrderCapacity(TOKEN_ID);
+
+        // then
+        assertThat(result.getAvailableBalance()).isEqualTo(200_000L);
+        assertThat(result.getAvailableQuantity()).isEqualTo(0L);
+    }
+
+    @Test
+    void getOrderCapacity_Account없고_토큰미보유_모두0() {
+        // given
+        when(accountRepository.findByMemberId(MEMBER_ID)).thenReturn(Optional.empty());
+        when(memberTokenHoldingRepository.findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID))
+                .thenReturn(Optional.empty());
+
+        // when
+        OrderCapacityResponseDto result = orderService.getOrderCapacity(TOKEN_ID);
+
+        // then
+        assertThat(result.getAvailableBalance()).isEqualTo(0L);
+        assertThat(result.getAvailableQuantity()).isEqualTo(0L);
+    }
+
+    @Test
+    void getOrderCapacity_Member없이_ID로만_쿼리2개만_호출() {
+        // given — memberRepository, tokenRepository는 호출되지 않아야 함
+        Account account = mock(Account.class);
+        MemberTokenHolding holding = mock(MemberTokenHolding.class);
+
+        when(accountRepository.findByMemberId(MEMBER_ID)).thenReturn(Optional.of(account));
+        when(account.getAvailableBalance()).thenReturn(100_000L);
+        when(memberTokenHoldingRepository.findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID))
+                .thenReturn(Optional.of(holding));
+        when(holding.getCurrentQuantity()).thenReturn(5L);
+
+        // when
+        orderService.getOrderCapacity(TOKEN_ID);
+
+        // then
+        verify(memberRepository, never()).findById(any());
+        verify(tokenRepository, never()).findById(TOKEN_ID);
+        verify(accountRepository).findByMemberId(MEMBER_ID);
+        verify(memberTokenHoldingRepository).findByMemberIdAndTokenId(MEMBER_ID, TOKEN_ID);
     }
 
     @Test

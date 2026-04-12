@@ -106,4 +106,10 @@ public class AdminController {
         return ResponseEntity.ok(dto);
     }
 
+    // 플랫폼 수익/보유 현황 조회
+    @GetMapping("/platformprofitaccount")
+    public ResponseEntity<PlatformProfitAccountResponseDTO> getPlatFormProfitAccount() {
+        PlatformProfitAccountResponseDTO list = adminService.getPlatformProfitAccount();
+        return ResponseEntity.ok(list);
+    }
  }

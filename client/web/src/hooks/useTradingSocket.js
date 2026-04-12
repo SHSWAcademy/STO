@@ -5,6 +5,7 @@
 import { useEffect, useRef } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import { API_BASE_URL } from '../lib/config.js';
 
 export function useTradingSocket({
   tokenId,
@@ -22,7 +23,7 @@ export function useTradingSocket({
     if (!tokenId) return;
 
     const client = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws/trading'),
+      webSocketFactory: () => new SockJS(`${API_BASE_URL}/ws/trading`),
       connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
       reconnectDelay: 5000,
       onConnect: () => {

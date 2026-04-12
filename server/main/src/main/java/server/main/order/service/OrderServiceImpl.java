@@ -28,13 +28,7 @@ import server.main.member.entity.MemberTokenHolding;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
-import server.main.order.dto.MatchOrderRequestDto;
-import server.main.order.dto.MatchResultDto;
-import server.main.order.dto.OrderRequestDto;
-import server.main.order.dto.PendingOrderResponseDto;
-import server.main.order.dto.TradeExecutionDto;
-import server.main.order.dto.UpdateMatchOrderRequestDto;
-import server.main.order.dto.UpdateOrderRequestDto;
+import server.main.order.dto.*;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderDuplicated;
 import server.main.order.entity.OrderStatus;
@@ -202,6 +196,20 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             tradeRepository.save(trade);
+
+            // 캔들 차트 push
+            try {
+                String payload = objectMapper.writeValueAsString(Map.of(
+                        "tradePrice",    execution.getTradePrice(),
+                        "tradeQuantity", execution.getTradeQuantity(),
+                        "isBuy",         OrderType.BUY.equals(dto.getOrderType()),
+                        "tradeTime",     LocalDateTime.now().toLocalTime().toString()
+                ));
+                redisTemplate.convertAndSend("trades:" + tokenId, payload);
+            } catch (Exception e) {
+                log.warn("trades Redis publish 실패 tokenId={}", tokenId, e);
+            }
+
 
             long tradeAmount = Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity());
 
