@@ -312,8 +312,8 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        // orders_duplicated — 내 주문 FILLED 시
-        if (matchResult.getFinalStatus() == OrderStatus.FILLED) {
+        // orders_duplicated — 내 주문 FILLED 시 (재계산된 상태 기준)
+        if (findOrder.getOrderStatus() == OrderStatus.FILLED) {
             orderDuplicatedRepository.save(OrderDuplicated.builder()
                     .orderId(findOrder.getOrderId())
                     .memberId(memberId)
