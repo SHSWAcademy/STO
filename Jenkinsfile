@@ -20,7 +20,7 @@ pipeline {
             steps {
                 sh '''
                     cd client/web
-                    echo "VITE_API_BASE_URL=http://shinhanacademy.duckdns.org" > .env.production
+                    echo "VITE_API_BASE_URL=http://www.shinhan6th.com" > .env.production
                     npm install && npm run build
                 '''
             }
@@ -32,7 +32,7 @@ pipeline {
                     cp server/match/build/libs/*.jar ${DEPLOY_PATH}/match/app.jar
                     cp server/batch/build/libs/*.jar ${DEPLOY_PATH}/batch/app.jar
                     cp -r client/web/dist/* ${DEPLOY_PATH}/frontend/dist/
-                    cd ${DEPLOY_PATH} && docker-compose up -d --build main match batch nginx
+                    cd ${DEPLOY_PATH} && docker-compose up -d --build main match batch
                 '''
             }
         }
