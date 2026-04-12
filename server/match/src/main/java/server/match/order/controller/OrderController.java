@@ -72,16 +72,18 @@ public class OrderController {
 
         OrderBook orderBook = orderBookRegistry.getOrCreate(dto.getTokenId());
 
-        Order updatedOrder = orderBook.updateOrder(
-                orderId, dto.getUpdatePrice(), dto.getUpdateQuantity());
+        synchronized (orderBook) {
+            Order updatedOrder = orderBook.updateOrder(
+                    orderId, dto.getUpdatePrice(), dto.getUpdateQuantity());
 
-        // null = orderId가 오더북에 없음 (이미 체결되었거나 취소된 주문)
-        if (updatedOrder == null) {
-            return ResponseEntity.notFound().build(); // 404
+            // null = orderId가 오더북에 없음 (이미 체결되었거나 취소된 주문)
+            if (updatedOrder == null) {
+                return ResponseEntity.notFound().build(); // 404
+            }
+
+            // 수정 후 즉시 재매칭 — 가격 변경으로 체결 조건이 맞아진 경우 즉시 체결
+            MatchResultDto result = matchingService.match(updatedOrder, orderBook);
+            return ResponseEntity.ok(result);
         }
-
-        // 수정 후 즉시 재매칭 — 가격 변경으로 체결 조건이 맞아진 경우 즉시 체결
-        MatchResultDto result = matchingService.match(updatedOrder, orderBook);
-        return ResponseEntity.ok(result);
     }
 }
