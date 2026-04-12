@@ -32,7 +32,7 @@ pipeline {
                     cp server/match/build/libs/*.jar ${DEPLOY_PATH}/match/app.jar
                     cp server/batch/build/libs/*.jar ${DEPLOY_PATH}/batch/app.jar
                     cp -r client/web/dist/* ${DEPLOY_PATH}/frontend/dist/
-                    cd ${DEPLOY_PATH} && docker compose up -d --build main match batch
+                    cd ${DEPLOY_PATH} && docker compose up -d --build main match batch nginx
                 '''
             }
         }
