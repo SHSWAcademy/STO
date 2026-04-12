@@ -31,15 +31,23 @@ public class MatchClient {
 
     // 주문 생성
     public MatchResultDto sendOrder(MatchOrderRequestDto dto) {
-        return restTemplate.postForObject(matchServerUrl + "/internal/orders", dto, MatchResultDto.class);
+        MatchResultDto body = restTemplate.postForObject(matchServerUrl + "/internal/orders", dto, MatchResultDto.class);
+        if (body == null) {
+            throw new org.springframework.web.client.RestClientException("match 서버 응답 body가 null입니다. orderId=" + dto.getOrderId());
+        }
+        return body;
     }
 
     // 주문 수정 — 수정 후 재매칭 결과를 받아야 하므로 exchange() 사용 (put()은 응답 body를 버림)
     public MatchResultDto updateOrder(UpdateMatchOrderRequestDto dto) {
         String url = matchServerUrl + "/internal/orders/" + dto.getOrderId();
-        return restTemplate.exchange(
+        MatchResultDto body = restTemplate.exchange(
                 url, HttpMethod.PUT, new HttpEntity<>(dto), MatchResultDto.class
         ).getBody();
+        if (body == null) {
+            throw new org.springframework.web.client.RestClientException("match 서버 응답 body가 null입니다. orderId=" + dto.getOrderId());
+        }
+        return body;
     }
 
     // 주문 취소 — match가 어느 오더북에서 찾을지 알 수 있도록 tokenId를 쿼리 파라미터로 전달

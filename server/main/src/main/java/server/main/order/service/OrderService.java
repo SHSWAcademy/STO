@@ -1,25 +1,36 @@
 package server.main.order.service;
 
-import server.main.order.dto.OrderCapacityResponseDto;
+import server.main.order.dto.MatchOrderRequestDto;
+import server.main.order.dto.MatchResultDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
+import server.main.order.dto.UpdateMatchOrderRequestDto;
 import server.main.order.dto.UpdateOrderRequestDto;
 
 import java.util.List;
 
 public interface OrderService {
 
-    // 매수, 매도 요청 생성, 매치로 전달
-    void createOrder(Long tokenId, OrderRequestDto dto);
+    // Phase 1: 검증 + 잔고 차감 + 주문 저장 → 커밋
+    MatchOrderRequestDto validateAndSaveOrder(Long tokenId, OrderRequestDto dto);
+
+    // Phase 2: 체결 결과 반영 + 이벤트 발행 → 커밋
+    void processMatchResult(Long orderId, Long tokenId, MatchResultDto matchResult);
+
+    // match 실패 시 보상 트랜잭션: 잔고 복구 + 주문 취소
+    void compensateFailedOrder(Long orderId);
+
+    // updateOrder Phase 1: 검증 + 잔고 재조정 + 주문 수정 → 커밋
+    UpdateMatchOrderRequestDto validateAndUpdateOrder(Long orderId, UpdateOrderRequestDto dto);
+
+    // updateOrder Phase 2: processMatchResult 재사용
+
+    // match 실패 시 보상 (수정): 원래 상태로 복구
+    void compensateFailedUpdate(Long orderId, Long originalPrice, Long originalQuantity);
 
     // 미체결 주문 조회
     List<PendingOrderResponseDto> getPendingOrders(Long tokenId);
 
     // 대기창 - 매수, 매도 요청 취소
     void cancelOrder(Long orderId);
-
-    // 대기창 - 매수, 매도 요청 수정
-    void updateOrder(Long orderId, UpdateOrderRequestDto dto);
-
-    OrderCapacityResponseDto getOrderCapacity(Long tokenId);
 }
