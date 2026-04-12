@@ -364,10 +364,10 @@ public class AdminServiceImpl implements AdminService {
     }
 
     // 마감월 리턴 메서드
-    // 플랫폼설정 테이블에서 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
+    // 플랫폼설정 테이블에서 관리자 입력 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
     private YearMonth getTargetMonth() {
         Common commons = commonsRepository.findCommon();
-        return LocalDate.now().getDayOfMonth() > commons.getAllocateDate()
+        return LocalDate.now().getDayOfMonth() > commons.getAllocateSetDate()
                 ? YearMonth.now().plusMonths(1)
                 : YearMonth.now();
     }
