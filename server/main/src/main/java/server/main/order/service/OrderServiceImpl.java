@@ -112,7 +112,7 @@ public class OrderServiceImpl implements OrderService {
                 .orderPrice(dto.getOrderPrice())
                 .orderQuantity(dto.getOrderQuantity())
                 .orderType(dto.getOrderType())
-                .orderStatus(OrderStatus.OPEN)
+                .orderStatus(OrderStatus.PENDING)
                 .filledQuantity(0L)
                 .remainingQuantity(dto.getOrderQuantity())
                 .orderSequence(null)
@@ -441,7 +441,7 @@ public class OrderServiceImpl implements OrderService {
             holding.relockQuantity(currentQuantity, newRemaining);
         }
 
-        order.updateOrder(originalPrice, originalQuantity);
+        order.restoreOrder(originalPrice, originalQuantity);
     }
 
     // 미체결 주문 조회
