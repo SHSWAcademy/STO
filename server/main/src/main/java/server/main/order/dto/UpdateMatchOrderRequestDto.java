@@ -1,5 +1,7 @@
 package server.main.order.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.*;
 
 @Data
@@ -12,7 +14,9 @@ public class UpdateMatchOrderRequestDto {
     private Long updatePrice;    // 수정할 가격
     private Long updateQuantity; // 수정할 남은 수량 (filledQuantity 제외하고 계산된 값)
 
-    // 보상 트랜잭션용 — match 실패 시 원래 상태로 복구하기 위한 수정 전 값
+    // 보상 트랜잭션용 — match 서버로 전송하지 않음, Facade 내부에서만 사용
+    @JsonIgnore
     private Long originalPrice;
+    @JsonIgnore
     private Long originalQuantity;
 }
