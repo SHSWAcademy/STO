@@ -53,7 +53,13 @@ public class MatchingService {
                 }
             }
 
-            if (incomingOrder.getRemainingQuantity() > 0) {
+            if (incomingOrder.getRemainingQuantity() == 0) {
+                // 전량 체결: 이미 오더북에 있던 주문이면 제거 (가격 동일 수정 케이스)
+                if (orderBook.findById(incomingOrder.getOrderId()) != null) {
+                    orderBook.removeOrder(incomingOrder);
+                }
+            } else if (orderBook.findById(incomingOrder.getOrderId()) == null) {
+                // 잔량 있고 오더북에 없을 때만 추가
                 orderBook.addOrder(incomingOrder);
             }
         }
@@ -70,6 +76,7 @@ public class MatchingService {
         return MatchResultDto.builder()
                 .orderId(incomingOrder.getOrderId())
                 .tokenId(incomingOrder.getTokenId())
+                .orderSequence(incomingOrder.getSequence()) // FILLED면 null, OPEN/PARTIAL이면 부여된 번호
                 .finalStatus(finalStatus)
                 .filledQuantity(filledQuantity)
                 .remainingQuantity(incomingOrder.getRemainingQuantity())

@@ -79,4 +79,9 @@ public class Order extends BaseEntity {
         this.remainingQuantity = remainingQuantity;
         this.orderStatus = status;
     }
+
+    // match 서버가 부여한 시간 우선순위 번호 저장
+    public void updateSequence(Long sequence) {
+        this.orderSequence = sequence;
+    }
 }

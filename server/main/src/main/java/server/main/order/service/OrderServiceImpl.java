@@ -30,10 +30,10 @@ import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.*;
 import server.main.order.entity.Order;
+import server.main.order.entity.OrderDuplicated;
 import server.main.order.entity.OrderStatus;
 import server.main.order.entity.OrderType;
 import server.main.order.mapper.OrderMapper;
-import server.main.order.entity.OrderDuplicated;
 import server.main.order.repository.OrderDuplicatedRepository;
 import server.main.order.repository.OrderRepository;
 import server.main.token.entity.Token;
@@ -152,6 +152,7 @@ public class OrderServiceImpl implements OrderService {
                 matchResult.getFilledQuantity(),
                 matchResult.getRemainingQuantity(),
                 matchResult.getFinalStatus());
+        createOrder.updateSequence(matchResult.getOrderSequence()); // match가 부여한 시간 우선순위 번호 저장
 
         // TRADES 테이블 저장 — 체결 건별로 레코드 생성
         boolean isBuy = OrderType.BUY.equals(dto.getOrderType());
@@ -306,25 +307,6 @@ public class OrderServiceImpl implements OrderService {
                     .createdAt(LocalDateTime.now())
                     .build());
 
-            // orders_duplicated — 내 주문 FILLED 시
-            if (matchResult.getFinalStatus() == OrderStatus.FILLED) {
-                orderDuplicatedRepository.save(OrderDuplicated.builder()
-                        .orderId(createOrder.getOrderId())
-                        .memberId(memberId)
-                        .tokenId(tokenId)
-                        .orderPrice(createOrder.getOrderPrice())
-                        .orderQuantity(createOrder.getOrderQuantity())
-                        .filledQuantity(createOrder.getFilledQuantity())
-                        .remainingQuantity(createOrder.getRemainingQuantity())
-                        .orderType(createOrder.getOrderType())
-                        .orderStatus(createOrder.getOrderStatus())
-                        .orderSequence(createOrder.getOrderSequence())
-                        .createdAt(createOrder.getCreatedAt())
-                        .updatedAt(createOrder.getUpdatedAt())
-                        .archivedAt(LocalDateTime.now())
-                        .build());
-            }
-
             // orders_duplicated — 상대방 주문 FILLED 시
             if (counterStatus == OrderStatus.FILLED) {
                 orderDuplicatedRepository.save(OrderDuplicated.builder()
@@ -343,6 +325,25 @@ public class OrderServiceImpl implements OrderService {
                         .archivedAt(LocalDateTime.now())
                         .build());
             }
+        }
+
+        // orders_duplicated — 내 주문 FILLED 시 (루프 밖: 체결 건수와 무관하게 1번만 저장)
+        if (matchResult.getFinalStatus() == OrderStatus.FILLED) {
+            orderDuplicatedRepository.save(OrderDuplicated.builder()
+                    .orderId(createOrder.getOrderId())
+                    .memberId(memberId)
+                    .tokenId(tokenId)
+                    .orderPrice(createOrder.getOrderPrice())
+                    .orderQuantity(createOrder.getOrderQuantity())
+                    .filledQuantity(createOrder.getFilledQuantity())
+                    .remainingQuantity(createOrder.getRemainingQuantity())
+                    .orderType(createOrder.getOrderType())
+                    .orderStatus(createOrder.getOrderStatus())
+                    .orderSequence(createOrder.getOrderSequence())
+                    .createdAt(createOrder.getCreatedAt())
+                    .updatedAt(createOrder.getUpdatedAt())
+                    .archivedAt(LocalDateTime.now())
+                    .build());
         }
 
         // 체결이 끝나면 웹소켓으로 '대기' 창에 push
@@ -399,13 +400,15 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(INVALID_UPDATE_QUANTITY);
         }
 
+        // filledQuantity를 제외한 실제 남은 수량 — match에 전달할 값 (BUY/SELL 공통)
+        long newRemaining = dto.getUpdateQuantity() - findOrder.getFilledQuantity();
+
         // 매수일 경우
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
             Account findAccount = accountRepository.findByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
             long oldAmount = findOrder.getOrderPrice() * findOrder.getRemainingQuantity();
-            long newRemaining = dto.getUpdateQuantity() - findOrder.getFilledQuantity();
             long updateAmount = dto.getUpdatePrice() * newRemaining;
 
             // 수정 시점 회원의 구매력 < 수정으로 다시 구매할 구매력일 경우 오류 -> 부분 체결일 경우 고려하기
@@ -422,25 +425,224 @@ public class OrderServiceImpl implements OrderService {
                     .orElseThrow(() -> new BusinessException(INSUFFICIENT_TOKEN_BALANCE));
 
             long oldQuantity = findOrder.getRemainingQuantity();
-            long updateQuantity = dto.getUpdateQuantity() - findOrder.getFilledQuantity();
 
-            if (tokenHolding.getCurrentQuantity() + oldQuantity < updateQuantity) {
+            if (tokenHolding.getCurrentQuantity() + oldQuantity < newRemaining) {
                 throw new BusinessException(INSUFFICIENT_TOKEN_BALANCE);
             } else {
-                tokenHolding.relockQuantity(oldQuantity, updateQuantity);
+                tokenHolding.relockQuantity(oldQuantity, newRemaining);
             }
         }
 
         // DB update (변경 감지)
         findOrder.updateOrder(dto.getUpdatePrice(), dto.getUpdateQuantity());
 
-        // match 전달
-        matchClient.updateOrder(UpdateMatchOrderRequestDto.builder()
-                .orderId(orderId)
-                .orderSequence(findOrder.getOrderSequence())
-                .updatePrice(dto.getUpdatePrice())
-                .updateQuantity(dto.getUpdateQuantity())
-                .build());
+        // match 전달 — newRemaining: match는 filledQuantity를 모르므로 남은 수량만 전달
+        MatchResultDto matchResult;
+        try {
+            matchResult = matchClient.updateOrder(UpdateMatchOrderRequestDto.builder()
+                    .orderId(orderId)
+                    .tokenId(findOrder.getToken().getTokenId())
+                    .updatePrice(dto.getUpdatePrice())
+                    .updateQuantity(newRemaining)
+                    .build());
+        } catch (RestClientException e) {
+            log.error("match 서버 호출 실패. orderId={}, tokenId={}", orderId, findOrder.getToken().getTokenId(), e);
+            throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
+        }
+
+        // ORDERS 테이블 업데이트 (더티 체킹)
+        // filledQuantity: 재매칭으로 새로 체결된 수량을 기존 filledQuantity에 합산
+        long newTotalFilled = findOrder.getFilledQuantity() + matchResult.getFilledQuantity();
+        findOrder.applyMatchResult(newTotalFilled, matchResult.getRemainingQuantity(), matchResult.getFinalStatus());
+        findOrder.updateSequence(matchResult.getOrderSequence());
+
+        // TRADES 테이블 저장 — 체결 건별로 레코드 생성
+        boolean isBuy = OrderType.BUY.equals(findOrder.getOrderType());
+        Member findMember = findOrder.getMember();
+        Token findToken = findOrder.getToken();
+        Long tokenId = findToken.getTokenId();
+
+        // findMember Account/Holding — 체결 건이 있을 때만 조회
+        Account findMemberAccount = null;
+        MemberTokenHolding findMemberHolding = null;
+
+        if (!matchResult.getExecutions().isEmpty()) {
+            findMemberAccount = accountRepository.findWithLockByMember(findMember)
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            // BUY/SELL 모두 Holding 미리 잠금 — BUY는 받을 토큰, SELL은 차감할 토큰
+            findMemberHolding = memberTokenHoldingRepository
+                    .findWithLockByMemberAndToken(findMember, findToken)
+                    .orElse(null);
+        }
+
+        Map<Long, Account> counterAccountCache = new HashMap<>();
+        Map<Long, MemberTokenHolding> counterHoldingCache = new HashMap<>();
+
+        for (TradeExecutionDto execution : matchResult.getExecutions()) {
+            Member counterMember = memberRepository.findById(execution.getCounterMemberId())
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            Order counterOrder = orderRepository.findById(execution.getCounterOrderId())
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+            Trade trade = Trade.builder()
+                    .tradePrice(execution.getTradePrice())
+                    .tradeQuantity(execution.getTradeQuantity())
+                    .totalTradePrice(Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity()))
+                    .feeAmount(0L)
+                    .settlementStatus(SettlementStatus.ON_CHAIN_PENDING)
+                    .executedAt(LocalDateTime.now())
+                    .token(findToken)
+                    .buyer(isBuy ? findMember : counterMember)
+                    .seller(isBuy ? counterMember : findMember)
+                    .buyOrder(isBuy ? findOrder : counterOrder)
+                    .sellOrder(isBuy ? counterOrder : findOrder)
+                    .build();
+
+            tradeRepository.save(trade);
+
+            long tradeAmount = Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity());
+
+            // counterMember Account 캐시 조회 — 비관적 락으로 체결 루프 잔고 lost update 방지
+            Account counterAccount = counterAccountCache.get(execution.getCounterMemberId());
+            if (counterAccount == null) {
+                counterAccount = accountRepository.findWithLockByMember(counterMember)
+                        .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+                counterAccountCache.put(execution.getCounterMemberId(), counterAccount);
+            }
+
+            Account buyerAccount  = isBuy ? findMemberAccount : counterAccount;
+            Account sellerAccount = isBuy ? counterAccount : findMemberAccount;
+
+            // 매수자가 주문 시 잠근 금액 (주문가 기준)
+            long buyerOrderPrice = isBuy ? findOrder.getOrderPrice() : counterOrder.getOrderPrice();
+            long lockedAmount = Math.multiplyExact(buyerOrderPrice, execution.getTradeQuantity());
+
+            buyerAccount.settleBuyTrade(tradeAmount, lockedAmount);
+            sellerAccount.settleSellTrade(tradeAmount);
+
+            // 매수자 Holding 반영
+            MemberTokenHolding buyerHolding;
+            if (isBuy) {
+                buyerHolding = findMemberHolding;
+            } else {
+                buyerHolding = counterHoldingCache.get(execution.getCounterMemberId());
+                if (buyerHolding == null) {
+                    buyerHolding = memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, findToken)
+                            .orElse(null);
+                    if (buyerHolding != null) {
+                        counterHoldingCache.put(execution.getCounterMemberId(), buyerHolding);
+                    }
+                }
+            }
+
+            if (buyerHolding == null) {
+                Member buyer = isBuy ? findMember : counterMember;
+                buyerHolding = MemberTokenHolding.createForBuyer(
+                        buyer, findToken,
+                        execution.getTradeQuantity(),
+                        execution.getTradePrice());
+                memberTokenHoldingRepository.save(buyerHolding);
+                if (isBuy) {
+                    findMemberHolding = buyerHolding;
+                } else {
+                    counterHoldingCache.put(execution.getCounterMemberId(), buyerHolding);
+                }
+            } else {
+                buyerHolding.settleBuyTrade(execution.getTradeQuantity(), execution.getTradePrice());
+            }
+
+            // 매도자 Holding 반영
+            MemberTokenHolding sellerHolding;
+            if (isBuy) {
+                sellerHolding = counterHoldingCache.get(execution.getCounterMemberId());
+                if (sellerHolding == null) {
+                    sellerHolding = memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, findToken)
+                            .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+                    counterHoldingCache.put(execution.getCounterMemberId(), sellerHolding);
+                }
+            } else {
+                sellerHolding = findMemberHolding;
+            }
+
+            if (sellerHolding == null) throw new BusinessException(ENTITY_NOT_FOUNT_ERROR);
+            sellerHolding.settleSellTrade(execution.getTradeQuantity());
+            blockchainOutboxService.saveTradeOutbox(trade, findToken);
+
+            // 상대방 주문 상태 DB 업데이트
+            long newFilledQty = counterOrder.getFilledQuantity() + execution.getTradeQuantity();
+            long newRemainingQty = counterOrder.getRemainingQuantity() - execution.getTradeQuantity();
+            OrderStatus counterStatus = newRemainingQty == 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL;
+            counterOrder.applyMatchResult(newFilledQty, newRemainingQty, counterStatus);
+
+            // trades_duplicated 저장
+            tradeDuplicatedRepository.save(TradeDuplicated.builder()
+                    .tradeId(trade.getTradeId())
+                    .sellerId(trade.getSeller().getMemberId())
+                    .buyerId(trade.getBuyer().getMemberId())
+                    .sellOrderId(trade.getSellOrder().getOrderId())
+                    .buyOrderId(trade.getBuyOrder().getOrderId())
+                    .tokenId(tokenId)
+                    .tradePrice(trade.getTradePrice())
+                    .tradeQuantity(trade.getTradeQuantity())
+                    .settlementStatus(trade.getSettlementStatus())
+                    .executedAt(trade.getExecutedAt())
+                    .feeAmount(trade.getFeeAmount())
+                    .totalTradePrice(trade.getTotalTradePrice())
+                    .createdAt(LocalDateTime.now())
+                    .build());
+
+            // orders_duplicated — 상대방 주문 FILLED 시
+            if (counterStatus == OrderStatus.FILLED) {
+                orderDuplicatedRepository.save(OrderDuplicated.builder()
+                        .orderId(counterOrder.getOrderId())
+                        .memberId(execution.getCounterMemberId())
+                        .tokenId(tokenId)
+                        .orderPrice(counterOrder.getOrderPrice())
+                        .orderQuantity(counterOrder.getOrderQuantity())
+                        .filledQuantity(newFilledQty)
+                        .remainingQuantity(newRemainingQty)
+                        .orderType(counterOrder.getOrderType())
+                        .orderStatus(counterStatus)
+                        .orderSequence(counterOrder.getOrderSequence())
+                        .createdAt(counterOrder.getCreatedAt())
+                        .updatedAt(counterOrder.getUpdatedAt())
+                        .archivedAt(LocalDateTime.now())
+                        .build());
+            }
+        }
+
+        // orders_duplicated — 내 주문 FILLED 시 (루프 밖: 체결 건수와 무관하게 1번만 저장)
+        if (matchResult.getFinalStatus() == OrderStatus.FILLED) {
+            orderDuplicatedRepository.save(OrderDuplicated.builder()
+                    .orderId(findOrder.getOrderId())
+                    .memberId(memberId)
+                    .tokenId(tokenId)
+                    .orderPrice(findOrder.getOrderPrice())
+                    .orderQuantity(findOrder.getOrderQuantity())
+                    .filledQuantity(findOrder.getFilledQuantity())
+                    .remainingQuantity(findOrder.getRemainingQuantity())
+                    .orderType(findOrder.getOrderType())
+                    .orderStatus(findOrder.getOrderStatus())
+                    .orderSequence(findOrder.getOrderSequence())
+                    .createdAt(findOrder.getCreatedAt())
+                    .updatedAt(findOrder.getUpdatedAt())
+                    .archivedAt(LocalDateTime.now())
+                    .build());
+        }
+
+        // 체결이 끝나면 웹소켓으로 '대기' 창에 push
+        messagingTemplate.convertAndSend(
+                "/topic/pendingOrders/" + tokenId + "/" + memberId,
+                orderMapper.toPendingDtoList(orderRepository.findPendingOrderByMemberAndToken(memberId, tokenId))
+        );
+
+        matchResult.getExecutions().stream()
+                .map(TradeExecutionDto::getCounterMemberId)
+                .distinct()
+                .forEach(counterMemberId -> messagingTemplate.convertAndSend(
+                        "/topic/pendingOrders/" + tokenId + "/" + counterMemberId,
+                        orderMapper.toPendingDtoList(orderRepository.findPendingOrderByMemberAndToken(counterMemberId, tokenId))
+                ));
     }
 
     @Transactional
@@ -481,8 +683,8 @@ public class OrderServiceImpl implements OrderService {
         // 주문 삭제 (soft delete)
         findOrder.removeOrder();
 
-        // match 전달
-        matchClient.cancelOrder(orderId);
+        // match 전달 — tokenId는 match가 어느 오더북에서 찾을지 식별하는 데 사용
+        matchClient.cancelOrder(orderId, findOrder.getToken().getTokenId());
     }
 
     @Override
