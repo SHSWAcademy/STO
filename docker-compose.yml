@@ -85,7 +85,8 @@ services:
 
 #젠킨스 컨테이너
   jenkins:
-    image: jenkins/jenkins:lts
+    build:
+      context: ./jenkins
     container_name: jenkins
     restart: always
     ports:
