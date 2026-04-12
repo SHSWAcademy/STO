@@ -45,4 +45,8 @@ public class Member extends BaseEntity {
         return member;
     }
 
+    // 멤버 활성/비활성화 처리 (admin)
+    public void updateIsActive(boolean isActive) {
+        this.isActive = isActive;
+    }
 }

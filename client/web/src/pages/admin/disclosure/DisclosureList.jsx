@@ -1,4 +1,12 @@
-import { Edit3, FileText, Filter, PlusCircle, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Edit3,
+  FileText,
+  Filter,
+  PlusCircle,
+  Trash2,
+} from "lucide-react";
 import { SearchInput } from "../../../components/ui/SearchInput.jsx";
 import { Badge } from "../../../components/ui/Badge.jsx";
 import { cn } from "../../../lib/utils.js";
@@ -8,19 +16,64 @@ import {
   getDisclosureDeletedLabel,
 } from "./disclosureUtils.jsx";
 
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
+
+function PageButton({ children, active, disabled, onClick, ariaLabel }) {
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex h-9 min-w-9 items-center justify-center rounded-lg border px-3 text-xs font-bold transition-colors",
+        active
+          ? "border-stone-800 bg-stone-800 text-white"
+          : "border-stone-200 bg-white text-stone-500 hover:bg-stone-100",
+        disabled && "cursor-not-allowed opacity-40 hover:bg-white",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function DisclosureList({
   disclosures,
   disclosureTypeTab,
   loading,
   error,
   searchTerm,
+  pageMeta,
+  pageSize,
   onTypeTabChange,
   onSearchChange,
+  onPageChange,
+  onPageSizeChange,
   onAdd,
   onSelect,
   onEdit,
   onDelete,
 }) {
+  const totalPages = pageMeta?.totalPages ?? 0;
+  const currentPage = pageMeta?.number ?? 0;
+  const pageNumbers = Array.from(
+    { length: Math.min(5, totalPages) },
+    (_, index) => Math.max(0, Math.min(currentPage - 2, totalPages - 5)) + index,
+  ).filter((pageNumber) => pageNumber < totalPages);
+
+  const totalElements = pageMeta?.totalElements ?? 0;
+  const currentSize = pageMeta?.size ?? pageSize;
+  const from = totalElements === 0 ? 0 : currentPage * currentSize + 1;
+  const to = Math.min((currentPage + 1) * currentSize, totalElements);
+
+  function goToPage(nextPage) {
+    if (nextPage < 0 || nextPage >= totalPages || nextPage === currentPage) return;
+    onSearchChange("");
+    onTypeTabChange("전체");
+    onPageChange(nextPage);
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -85,11 +138,27 @@ export function DisclosureList({
                 variant="light"
                 value={searchTerm}
                 onChange={onSearchChange}
-                placeholder="공시 제목 검색..."
+                placeholder="현재 페이지에서 공시 제목 검색"
               />
-              <button className="rounded-md border border-stone-200 bg-white p-3 text-stone-500 transition-all hover:bg-stone-100">
-                <Filter className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-xs font-bold text-stone-400">
+                  페이지당 표시
+                  <select
+                    value={pageSize}
+                    onChange={(event) => onPageSizeChange(Number(event.target.value))}
+                    className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 outline-none focus:border-brand-blue"
+                  >
+                    {PAGE_SIZE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}개
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button className="rounded-md border border-stone-200 bg-white p-3 text-stone-500 transition-all hover:bg-stone-100">
+                  <Filter className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             <div className="flex gap-1">
               {["전체", "배당", "일반"].map((tab) => (
@@ -136,7 +205,7 @@ export function DisclosureList({
               <tbody className="divide-y divide-stone-200">
                 {loading && (
                   <tr>
-                    <td colSpan="7" className="px-6 py-16 text-center text-sm text-stone-400">
+                    <td colSpan="8" className="px-6 py-16 text-center text-sm text-stone-400">
                       불러오는 중...
                     </td>
                   </tr>
@@ -174,12 +243,13 @@ export function DisclosureList({
                       </td>
                       <td className="px-6 py-4 text-center">
                         {item.originName ? (
-                          <div className="inline-flex max-w-[220px] items-center gap-2">
+                          <span
+                            className="inline-flex items-center justify-center rounded-lg p-2 text-brand-red"
+                            title={item.originName}
+                            aria-label={`첨부 파일: ${item.originName}`}
+                          >
                             <FileText className="h-4 w-4 shrink-0 text-brand-red" />
-                            <span className="truncate text-xs font-medium text-stone-600">
-                              {item.originName}
-                            </span>
-                          </div>
+                          </span>
                         ) : (
                           <span className="text-xs text-stone-400">파일 없음</span>
                         )}
@@ -233,6 +303,43 @@ export function DisclosureList({
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-stone-200 bg-stone-50 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs font-bold text-stone-400">
+              전체 {totalElements.toLocaleString()}개 중 {from.toLocaleString()}-
+              {to.toLocaleString()} 표시
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <PageButton
+                disabled={pageMeta?.first || loading || totalPages === 0}
+                onClick={() => goToPage(currentPage - 1)}
+                ariaLabel="이전 페이지"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </PageButton>
+
+              {pageNumbers.map((pageNumber) => (
+                <PageButton
+                  key={pageNumber}
+                  active={pageNumber === currentPage}
+                  disabled={loading}
+                  onClick={() => goToPage(pageNumber)}
+                  ariaLabel={`${pageNumber + 1} 페이지`}
+                >
+                  {pageNumber + 1}
+                </PageButton>
+              ))}
+
+              <PageButton
+                disabled={pageMeta?.last || loading || totalPages === 0}
+                onClick={() => goToPage(currentPage + 1)}
+                ariaLabel="다음 페이지"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </PageButton>
+            </div>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ package server.main.notice.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,8 +21,9 @@ public class NoticeController {
 
     // 공지사항 리스트 조회
     @GetMapping("/admin/notice")
-    public ResponseEntity<List<NoticeListResponseDTO>> getNoticeList() {
-        List<NoticeListResponseDTO> list = noticeService.getNoticeList();
+    public ResponseEntity<Page<NoticeListResponseDTO>> getNoticeList(@RequestParam(defaultValue = "0")int page,
+                                                                     @RequestParam(defaultValue = "10")int size) {
+        Page<NoticeListResponseDTO> list = noticeService.getNoticeList(page, size);
         return ResponseEntity.ok(list);
     }
 
