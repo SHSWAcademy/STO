@@ -7,14 +7,16 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.*;
-import server.main.admin.entity.Common;
-import server.main.admin.entity.PlatformTokenHolding;
+import server.main.admin.entity.*;
 import server.main.admin.mapper.AdminMapper;
 import server.main.admin.repository.CommonRepository;
+import server.main.admin.repository.PlatformBankingRepository;
 import server.main.admin.repository.PlatformTokenHoldingsRepository;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
 import server.main.asset.entity.Asset;
+import server.main.asset.entity.AssetAccount;
+import server.main.asset.repository.AssetAccountRepository;
 import server.main.asset.service.AssetService;
 import server.main.blockchain.service.ContractGatewayService;
 import server.main.disclosure.service.DisclosureService;
@@ -47,6 +49,8 @@ public class AdminServiceImpl implements AdminService {
     private final AllocationEventRepository allocationEventRepository;
     private final CommonRepository commonsRepository;
     private final ContractGatewayService contractGatewayService;
+    private final PlatformBankingRepository platformBankingRepository;
+    private final AssetAccountRepository assetAccountRepository;
 
     // 자산등록
     // 자산 이미지 등록 -> 자산 등록 ->  토큰 등록 -> 플랫폼 소유 토큰 등록 -> 자산 계좌 생성 및 입금 -> 공시 / 공지 등록 -> 첨부파일 등록
@@ -265,6 +269,66 @@ public class AdminServiceImpl implements AdminService {
         }
     }
 
+    // 플랫폼 수익/보유 현황 조회
+    @Override
+    public PlatformProfitAccountResponseDTO getPlatformProfitAccount() {
+        // 플랫폼 계좌 내역 조회
+        List<PlatformBanking> platformBankingList = platformBankingRepository.getPlatformBankingList();
+        log.info("플랫폼 계좌 내역 조회 {}", platformBankingList);
+
+        // 플랫폼 계좌 수수료 총 수익 조회
+        long platformBankingTotalAmount = 0L;
+        // 플랫폼 배당 수익 총 수익 조회
+        long platformAllocationTotalAmount = 0L;
+        for (PlatformBanking p : platformBankingList) {
+            // 총 수수료 수익 계산
+            if (p.getAccountType().equals(PlatformAccountType.FEE) && p.getPlatformBankingDirection().equals(PlatformDirection.DEPOSIT)) {
+                platformBankingTotalAmount += p.getPlatformBankingAmount();
+            }
+            // 총 배당수익 계산
+            if (p.getAccountType().equals(PlatformAccountType.DIVIDEND) && p.getPlatformBankingDirection().equals(PlatformDirection.DEPOSIT)) {
+                platformAllocationTotalAmount += p.getPlatformBankingAmount();
+            }
+        }
+
+        // 플랫폼 소유 토큰 조회
+        List<PlatformTokenHolding> platformTokenHolding = platformTokenHoldingsRepository.getPlatformTokenHoldingWithToken();
+
+        log.info("플랫폼 소유 토큰 조회 : {} ", platformTokenHolding);
+        // 플랫폼 보유 자산가치
+        long platformInitPrice = 0L;
+        long platformCurrentPrice = 0L;
+        for (PlatformTokenHolding token : platformTokenHolding) {
+            // 토큰 초기가로 계싼
+            platformInitPrice += token.getHoldingSupply() * token.getInitPrice();
+            // 현재가로 계산
+            platformCurrentPrice += (long) (token.getHoldingSupply() * token.getToken().getCurrentPrice());
+        }
+
+        // entity -> dto 변환
+        // 플랫폼 계좌 내역
+        List<PlatformBankingListDTO> platformBankingListDTOList = platformBankingList.stream()
+                .map(platformBanking -> adminMapper.toPlatformBankingListDTO(platformBanking))
+                .toList();
+        // 플랫폼 소유 토큰
+        List<PlatformTokenHoldingsDetailDTO> platformTokenHoldingsDetailDTOList = platformTokenHolding.stream()
+                .map(platformTokenHoldingList -> adminMapper.toPlatformTokenHoldingsDetailDTO(platformTokenHoldingList))
+                .toList();
+
+        // 최종DTO 생성
+        PlatformProfitAccountResponseDTO dto = PlatformProfitAccountResponseDTO.builder()
+                .platformTokenHoldingsDetailList(platformTokenHoldingsDetailDTOList)
+                .platformBankingList(platformBankingListDTOList)
+                .platformCommRevenue(platformBankingTotalAmount)        // 수수료 총액
+                .platformAllocationTotalAmount(platformAllocationTotalAmount)  // 배당 수익 총액
+                .PlatformAssetValue(platformInitPrice)                  // 보유 자산가치 (토큰 발행가)
+                .PlatformAssetValueCurrent(platformCurrentPrice)        // 보유 자산가치 (토큰 현재가)
+                .build();
+
+        log.info("플랫폼 수익/보유 DTO : {} ", dto);
+        return dto;
+    }
+
     // 플랫폼 기본설정 (최초 등록 및 수정)
     @Transactional
     @Override
@@ -300,10 +364,10 @@ public class AdminServiceImpl implements AdminService {
     }
 
     // 마감월 리턴 메서드
-    // 플랫폼설정 테이블에서 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
+    // 플랫폼설정 테이블에서 관리자 입력 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
     private YearMonth getTargetMonth() {
         Common commons = commonsRepository.findCommon();
-        return LocalDate.now().getDayOfMonth() > commons.getAllocateDate()
+        return LocalDate.now().getDayOfMonth() > commons.getAllocateSetDate()
                 ? YearMonth.now().plusMonths(1)
                 : YearMonth.now();
     }

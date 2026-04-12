@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import { cn } from "../lib/utils.js";
+import { API_BASE_URL } from "../lib/config.js";
 import { ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
 import { TabSwitcher } from "../components/ui/TabSwitcher.jsx";
 
-const API = 'http://localhost:8080';
+const API = API_BASE_URL;
 
 const SELECT_TYPE_MAP = {
   "전체": "BASIC",

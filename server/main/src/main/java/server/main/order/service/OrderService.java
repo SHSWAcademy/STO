@@ -1,5 +1,6 @@
 package server.main.order.service;
 
+import server.main.order.dto.OrderCapacityResponseDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.UpdateOrderRequestDto;
@@ -20,4 +21,5 @@ public interface OrderService {
     // 대기창 - 매수, 매도 요청 수정
     void updateOrder(Long orderId, UpdateOrderRequestDto dto);
 
+    OrderCapacityResponseDto getOrderCapacity(Long tokenId);
 }

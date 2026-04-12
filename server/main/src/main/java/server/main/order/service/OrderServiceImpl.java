@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -26,13 +28,7 @@ import server.main.member.entity.MemberTokenHolding;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
-import server.main.order.dto.MatchOrderRequestDto;
-import server.main.order.dto.MatchResultDto;
-import server.main.order.dto.OrderRequestDto;
-import server.main.order.dto.PendingOrderResponseDto;
-import server.main.order.dto.TradeExecutionDto;
-import server.main.order.dto.UpdateMatchOrderRequestDto;
-import server.main.order.dto.UpdateOrderRequestDto;
+import server.main.order.dto.*;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderDuplicated;
 import server.main.order.entity.OrderStatus;
@@ -67,6 +63,8 @@ public class OrderServiceImpl implements OrderService {
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderDuplicatedRepository orderDuplicatedRepository;
     private final TradeDuplicatedRepository tradeDuplicatedRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     @Override
@@ -199,6 +197,20 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             tradeRepository.save(trade);
+
+            // 캔들 차트 push
+            try {
+                String payload = objectMapper.writeValueAsString(Map.of(
+                        "tradePrice",    execution.getTradePrice(),
+                        "tradeQuantity", execution.getTradeQuantity(),
+                        "isBuy",         OrderType.BUY.equals(dto.getOrderType()),
+                        "tradeTime",     LocalDateTime.now().toLocalTime().toString()
+                ));
+                redisTemplate.convertAndSend("trades:" + tokenId, payload);
+            } catch (Exception e) {
+                log.warn("trades Redis publish 실패 tokenId={}", tokenId, e);
+            }
+
 
             long tradeAmount = Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity());
 
@@ -675,4 +687,20 @@ public class OrderServiceImpl implements OrderService {
         matchClient.cancelOrder(orderId, findOrder.getToken().getTokenId());
     }
 
+    @Override
+    public OrderCapacityResponseDto getOrderCapacity(Long tokenId) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Long availableBalance = accountRepository.findByMemberId(memberId)
+                .map(Account::getAvailableBalance)
+                .orElse(0L);
+
+        Long availableQuantity = memberTokenHoldingRepository
+                .findByMemberIdAndTokenId(memberId, tokenId)
+                .map(MemberTokenHolding::getCurrentQuantity)
+                .orElse(0L);
+
+        return new OrderCapacityResponseDto(availableBalance, availableQuantity);
+    }
 }
