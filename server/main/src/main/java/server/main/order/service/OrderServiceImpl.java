@@ -149,9 +149,19 @@ public class OrderServiceImpl implements OrderService {
         Member findMember = findOrder.getMember();
         Long memberId = findMember.getMemberId();
 
-        // ORDERS 테이블 업데이트
+        // ORDERS 테이블 업데이트 — match 서버는 누적 체결을 모르므로 main에서 상태 재계산
         long newTotalFilled = findOrder.getFilledQuantity() + matchResult.getFilledQuantity();
-        findOrder.applyMatchResult(newTotalFilled, matchResult.getRemainingQuantity(), matchResult.getFinalStatus());
+
+        OrderStatus finalStatus;
+        if (matchResult.getRemainingQuantity() == 0) {
+            finalStatus = OrderStatus.FILLED;
+        } else if (newTotalFilled > 0) {
+            finalStatus = OrderStatus.PARTIAL;
+        } else {
+            finalStatus = OrderStatus.OPEN;
+        }
+
+        findOrder.applyMatchResult(newTotalFilled, matchResult.getRemainingQuantity(), finalStatus);
         findOrder.updateSequence(matchResult.getOrderSequence());
 
         boolean isBuy = OrderType.BUY.equals(findOrder.getOrderType());

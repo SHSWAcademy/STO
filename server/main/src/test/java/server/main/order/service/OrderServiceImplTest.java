@@ -739,4 +739,47 @@ class OrderServiceImplTest {
         verify(sellerHolding).settleSellTrade(5L);
         verify(tradeRepository).save(any());
     }
+
+    @Test
+    void processMatchResult_수정후_체결없음_PARTIAL유지_OPEN다운그레이드방지() {
+        // given — 기존에 5개 중 3개 체결된 PARTIAL 주문이 가격 수정 후 재매칭했지만 체결 0건
+        Long orderId = 1L;
+
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
+        when(member.getMemberId()).thenReturn(MEMBER_ID);
+
+        Order findOrder = Order.builder()
+                .orderId(orderId)
+                .orderPrice(900L)        // 수정된 가격
+                .orderQuantity(5L)
+                .filledQuantity(3L)      // 이전에 3개 체결됨
+                .remainingQuantity(2L)
+                .orderType(OrderType.BUY)
+                .orderStatus(OrderStatus.PENDING)
+                .token(token)
+                .member(member)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(findOrder));
+        when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+
+        // match 서버: 이번 호출에서 체결 0건 → OPEN 반환 (match는 누적을 모름)
+        MatchResultDto matchResult = MatchResultDto.builder()
+                .orderId(orderId)
+                .tokenId(TOKEN_ID)
+                .finalStatus(OrderStatus.OPEN)  // match가 보낸 값 (잘못된 값)
+                .filledQuantity(0L)
+                .remainingQuantity(2L)
+                .executions(List.of())
+                .build();
+
+        // when
+        orderService.processMatchResult(orderId, TOKEN_ID, matchResult);
+
+        // then — main이 누적 기준으로 재계산하므로 PARTIAL이어야 함 (OPEN 다운그레이드 방지)
+        assertThat(findOrder.getOrderStatus()).isEqualTo(OrderStatus.PARTIAL);
+        assertThat(findOrder.getFilledQuantity()).isEqualTo(3L);  // 3+0=3
+        assertThat(findOrder.getRemainingQuantity()).isEqualTo(2L);
+    }
 }
