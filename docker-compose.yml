@@ -1,6 +1,6 @@
 
 services:
-#db 컨테이너
+  #db 컨테이너
   db:
     image: postgres:18
     container_name: postgres
@@ -14,7 +14,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
 
-#redis 컨테이너
+  #redis 컨테이너
   redis:
     image: redis:7
     container_name: redis
@@ -22,7 +22,7 @@ services:
     ports:
       - "6379:6379"
 
-#메인 컨테이너
+  #메인 컨테이너
   main:
     build: ./main
     container_name: app-main
@@ -40,7 +40,7 @@ services:
       - db
       - redis
 
-#매치 컨테이너
+  #매치 컨테이너
   match:
     build: ./match
     container_name: app-match
@@ -56,7 +56,7 @@ services:
       - db
       - redis
 
-#배치 컨테이너
+  #배치 컨테이너
   batch:
     build: ./batch
     container_name: app-batch
@@ -69,7 +69,7 @@ services:
     depends_on:
       - db
       - redis
-#F/E 컨테이너
+  #F/E 컨테이너
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -83,9 +83,10 @@ services:
     depends_on:
       - main
 
-#젠킨스 컨테이너
+  #젠킨스 컨테이너
   jenkins:
-    image: jenkins/jenkins:lts
+    build:
+      context: ./jenkins
     container_name: jenkins
     restart: always
     ports:
@@ -100,4 +101,3 @@ services:
 volumes:
   postgres_data:
   jenkins_data:
-
