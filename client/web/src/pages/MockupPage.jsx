@@ -19,7 +19,9 @@ import { OrderPanel }        from '../components/trading/OrderPanel.jsx';
 import { HogaRow }           from '../components/trading/HogaRow.jsx';
 import { PriceRow }          from '../components/trading/PriceRow.jsx';
 import { cn } from '../lib/utils.js';
-import api from '../lib/api.js';
+import { API_BASE_URL } from '../lib/config.js';
+
+const API = API_BASE_URL;
 
 // JWT payload에서 memberId(sub 클레임) 추출
 function parseJwtMemberId(token) {
@@ -151,7 +153,7 @@ function LoginRequiredModal({ message, onClose }) {
 // ── MockupPage ───────────────────────────────────────────────────
 export function MockupPage() {
   const { tokenId }    = useParams();
-  const { user, watchlist, toggleWatchlist } = useApp();
+  const { user, likedTokenIds, toggleLike } = useApp();
   const TOKEN_ID = Number(tokenId) || 1;
   const memberId = parseJwtMemberId(user?.accessToken);
 
@@ -265,7 +267,7 @@ export function MockupPage() {
     pdfUrl: null,
   };
 
-  const inWatchlist = watchlist.includes(TOKEN_ID);
+  const isLiked = likedTokenIds.includes(TOKEN_ID);
 
   // ── 캔들 API 조회 ────────────────────────────────────────────
   const fetchCandles = useCallback(async () => {
@@ -352,11 +354,16 @@ export function MockupPage() {
             basePrice={basePrice}
             activeTab={activeTab}
             onTabChange={setActiveTab}
-            inWatchlist={inWatchlist}
-            onToggleWatchlist={() => toggleWatchlist(TOKEN_ID)}
+            isLiked={isLiked}
+            onToggleLike={async () => {
+                try {
+                    await toggleLike(TOKEN_ID);
+                } catch (err) {
+                    console.error('[MockupPage] like toggle failed:', err);
+                }
+            }}
             hideStats
         />
-
         {/* 메인 콘텐츠 */}
         <div className="flex-1 flex overflow-hidden p-6 gap-6">
 

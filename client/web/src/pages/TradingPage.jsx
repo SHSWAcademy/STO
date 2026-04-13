@@ -31,12 +31,12 @@ import { OrderPanel }  from '../components/trading/OrderPanel.jsx';
 export function TradingPage() {
   const [activeTab, setActiveTab]           = useState('chart');
   const [currentAssetId, setCurrentAssetId] = useState('SEOULST');
-  const { user, watchlist, toggleWatchlist } = useApp();
+  const { user, likedTokenIds, toggleLike } = useApp();
 
   const asset        = TOKENS.find(t => t.id === currentAssetId) || TOKENS[0];
   const currentPrice = asset.price;   // 실서비스: 실시간 가격 상태로 교체
-  const inWatchlist  = watchlist.includes(asset.id);
   const tokenId      = TOKEN_ID_MAP[asset.id] ?? null;
+  const isLiked      = tokenId != null && likedTokenIds.includes(tokenId);
   const token        = user?.accessToken ?? null;
 
   return (
@@ -51,8 +51,8 @@ export function TradingPage() {
         currentPrice={currentPrice}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        inWatchlist={inWatchlist}
-        onToggleWatchlist={toggleWatchlist}
+        isLiked={isLiked}
+        onToggleLike={() => tokenId != null && toggleLike(tokenId)}
       />
 
       {/* 메인 콘텐츠 영역 */}
