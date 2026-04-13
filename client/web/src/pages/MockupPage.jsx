@@ -147,6 +147,7 @@ export function MockupPage() {
   const [tokenAssetInfo, setTokenAssetInfo] = useState(null);
 
   useEffect(() => {
+    if (activeTab !== 'info' || tokenAssetInfo !== null) return;
     const headers = user?.accessToken
         ? { Authorization: `Bearer ${user.accessToken}` }
         : {};
@@ -154,7 +155,7 @@ export function MockupPage() {
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(data => setTokenAssetInfo(data))
         .catch(e => console.warn('[MockupPage] 종목정보 조회 실패:', e));
-  }, [TOKEN_ID, user?.accessToken]);
+  }, [activeTab, TOKEN_ID, user?.accessToken]);
 
   // ── 배당금 / 공시 탭 데이터 ──────────────────────────────────
   const [allocations, setAllocations]   = useState(null);
