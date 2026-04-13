@@ -10,12 +10,13 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - app_postgres_data:/var/lib/postgresql
     deploy:
       resources:
         limits:
           memory: 1g
           cpus: '0.2'
+
   redis:
     image: redis:7
     container_name: redis
@@ -27,8 +28,9 @@ services:
         limits:
           memory: 256m
           cpus: '0.1'
+
   main:
-    build: ./main
+    build: ./server/main
     container_name: app-main
     restart: always
     ports:
@@ -48,8 +50,9 @@ services:
         limits:
           memory: 2g
           cpus: '0.3'
+
   match:
-    build: ./match
+    build: ./server/match
     container_name: app-match
     restart: always
     ports:
@@ -67,8 +70,9 @@ services:
         limits:
           memory: 1.5g
           cpus: '0.2'
+
   batch:
-    build: ./batch
+    build: ./server/batch
     container_name: app-batch
     restart: always
     environment:
@@ -84,6 +88,7 @@ services:
         limits:
           memory: 1g
           cpus: '0.1'
+
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -91,8 +96,8 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./client/web/dist:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - /srv/stone/app:/srv/stone/app
     depends_on:
       - main
@@ -101,5 +106,7 @@ services:
         limits:
           memory: 256m
           cpus: '0.1'
+
 volumes:
-  postgres_data:
+  app_postgres_data:
+    external: true
