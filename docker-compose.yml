@@ -90,22 +90,15 @@ services:
           cpus: '0.1'
 
   nginx:
-    image: nginx:latest
+    build:
+      context: .
+      dockerfile: ./nginx/Dockerfile
     container_name: nginx
     restart: always
     ports:
       - "80:80"
-    volumes:
-      - ./client/web/dist:/usr/share/nginx/html:ro
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - /srv/stone/app:/srv/stone/app
     depends_on:
       - main
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-          cpus: '0.1'
 
 volumes:
   app_postgres_data:
