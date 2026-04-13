@@ -23,7 +23,7 @@ const PERIOD_TYPE_MAP = {
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { watchlist, toggleWatchlist, user } = useApp();
+  const { likedTokenIds, toggleLike, user } = useApp();
 
   const [chartFilter, setChartFilter] = useState("전체");
   const [timeRange, setTimeRange]     = useState("1일");
@@ -121,31 +121,43 @@ export function DashboardPage() {
                       onMouseEnter={() => setPreviewToken(t)}
                       onClick={() => navigate(`/token/${t.tokenId}`)}
                     >
-                      <td className="py-4">
-                        <div className="flex items-center gap-4">
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              toggleWatchlist(t.tokenId);
-                            }}
-                            className={cn(
-                              "transition-colors",
-                              watchlist.includes(t.tokenId)
-                                ? "text-brand-red"
-                                : "text-stone-400 hover:text-brand-red",
-                            )}
+                      <td className="py-0">
+                        <div className="flex min-h-[72px] items-stretch">
+                          <div
+                            className="flex w-20 shrink-0 items-center justify-center"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <Heart
-                              size={16}
-                              fill={watchlist.includes(t.tokenId) ? "currentColor" : "none"}
-                            />
-                          </button>
-                          <span className="text-stone-400 font-mono w-4">
-                            {page * 10 + i + 1}
-                          </span>
-                          <p className="font-bold text-stone-800 group-hover:text-stone-600 transition-colors">
-                            {t.assetName}
-                          </p>
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await toggleLike(t.tokenId);
+                                } catch (err) {
+                                  console.error('[Dashboard] like toggle failed:', err);
+                                }
+                              }}
+                              className={cn(
+                                "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                                likedTokenIds.includes(t.tokenId)
+                                  ? "bg-brand-red-light/70 text-brand-red"
+                                  : "text-stone-400 hover:bg-stone-200 hover:text-brand-red",
+                              )}
+                            >
+                              <Heart
+                                size={16}
+                                fill={likedTokenIds.includes(t.tokenId) ? "currentColor" : "none"}
+                              />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-4 py-4">
+                            <span className="text-stone-400 font-mono w-4">
+                              {page * 10 + i + 1}
+                            </span>
+                            <p className="font-bold text-stone-800 group-hover:text-stone-600 transition-colors">
+                              {t.assetName}
+                            </p>
+                          </div>
                         </div>
                       </td>
                       <td className="py-4 text-right font-mono font-bold text-stone-800">

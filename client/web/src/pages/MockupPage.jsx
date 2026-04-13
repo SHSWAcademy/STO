@@ -113,7 +113,7 @@ function LoginRequiredModal({ message, onClose }) {
 // ── MockupPage ───────────────────────────────────────────────────
 export function MockupPage() {
   const { tokenId }    = useParams();
-  const { user, watchlist, toggleWatchlist } = useApp();
+  const { user, likedTokenIds, toggleLike } = useApp();
   const TOKEN_ID = Number(tokenId) || 1;
   const memberId = parseJwtMemberId(user?.accessToken);
 
@@ -239,7 +239,7 @@ export function MockupPage() {
     pdfUrl: null,
   };
 
-  const inWatchlist = watchlist.includes(TOKEN_ID);
+  const isLiked = likedTokenIds.includes(TOKEN_ID);
 
   // ── 캔들 API 조회 ────────────────────────────────────────────
   const fetchCandles = useCallback(async () => {
@@ -321,13 +321,19 @@ export function MockupPage() {
 
       {/* 상단: 종목 헤더 — tokenInfo 로드 여부와 관계없이 항상 렌더 (탭 접근 보장) */}
       <AssetHeader
-        asset={asset}
-        currentPrice={currentPrice}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        inWatchlist={inWatchlist}
-        onToggleWatchlist={() => toggleWatchlist(TOKEN_ID)}
-        hideStats
+          asset={asset}
+          currentPrice={currentPrice}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          isLiked={isLiked}
+          onToggleLike={async () => {
+            try {
+              await toggleLike(TOKEN_ID);
+            } catch (err) {
+              console.error('[MockupPage] like toggle failed:', err);
+            }
+          }}
+          hideStats
       />
 
       {/* 메인 콘텐츠 */}

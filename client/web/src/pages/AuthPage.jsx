@@ -5,6 +5,7 @@ import { Eye, EyeOff, CheckCircle, Wallet, Landmark, Play } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 import { StoneLogo } from '../components/ui/StoneLogo.jsx';
 import { Modal } from '../components/ui/Modal.jsx';
+import { API_BASE_URL } from '../lib/config.js';
 
 // AuthPage — 로그인 / 회원가입 (탭 전환)
 
@@ -19,6 +20,14 @@ export function AuthPage() {
   const [password, setPassword]     = useState('');
   const [error, setError]           = useState('');
 
+  const [signupName, setSignupName] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupPasswordConfirm, setSignupPasswordConfirm] = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
+  const [signupError, setSignupError] = useState('');
+  const [isSigningUp, setIsSigningUp] = useState(false);
+
   async function handleLogin() {
     if (!email.trim() || !password.trim()) return;
     setError('');
@@ -32,13 +41,78 @@ export function AuthPage() {
     }
   }
 
-  function handleSignup() {
-    setShowComplete(true);
+  async function handleSignup() {
+    if (!signupName.trim()) {
+      setSignupError('이름을 입력해주세요.');
+      return;
+    }
+
+    if (!signupEmail.trim()) {
+      setSignupError('이메일을 입력해주세요.');
+      return;
+    }
+
+    if (!signupPassword.trim()) {
+      setSignupError('비밀번호를 입력해주세요.');
+      return;
+    }
+
+    if (!signupPasswordConfirm.trim()) {
+      setSignupError('비밀번호 확인을 입력해주세요.');
+      return;
+    }
+
+    if (!accountPassword.trim()) {
+      setSignupError('계좌 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    if (signupPassword !== signupPasswordConfirm) {
+      setSignupError('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
+      return;
+    }
+
+    setSignupError('');
+    setIsSigningUp(true);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/member/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: signupEmail,
+          password: signupPassword,
+          name: signupName,
+          accountPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      setShowComplete(true);
+    } catch (err) {
+      console.error('[Signup] failed:', err);
+      setSignupError('회원가입에 실패했습니다. 입력값과 서버 상태를 확인해주세요.');
+    } finally {
+      setIsSigningUp(false);
+    }
   }
 
+
   async function handleSignupComplete() {
-    await login('demo@sto.exchange', 'user');
-    navigate('/');
+    try {
+      await login(signupEmail, signupPassword);
+      navigate('/');
+    } catch (err) {
+      console.error('[SignupComplete] auto login failed:', err);
+      setSignupError('회원가입은 완료됐지만 자동 로그인에 실패했습니다. 로그인 화면에서 다시 로그인해주세요.');
+      setShowComplete(false);
+      setTab('login');
+      setEmail(signupEmail);
+      setPassword(signupPassword);
+    }
   }
 
   return (
@@ -141,22 +215,62 @@ export function AuthPage() {
           <div className="bg-white rounded-2xl p-8 border border-stone-200 shadow-xl space-y-5">
             <h2 className="text-xl font-black text-stone-800 uppercase tracking-tight">회원가입</h2>
 
-            {[
-              { label: '이름',           type: 'text',     placeholder: '홍길동' },
-              { label: '이메일 주소',     type: 'email',    placeholder: 'example@email.com' },
-              { label: '비밀번호',        type: 'password', placeholder: '8자 이상, 영문+숫자+특수문자' },
-              { label: '비밀번호 재입력', type: 'password', placeholder: '비밀번호를 다시 입력해주세요' },
-              { label: '계좌 비밀번호',   type: 'password', placeholder: '4자리 숫자' },
-            ].map((field, i) => (
-              <div key={i} className="space-y-1.5">
-                <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest">{field.label}</label>
-                <input
-                  type={field.type}
-                  placeholder={field.placeholder}
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest">이름</label>
+              <input
+                  type="text"
+                  value={signupName}
+                  onChange={(e) => setSignupName(e.target.value)}
+                  placeholder="홍길동"
                   className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none font-bold focus:border-brand-blue transition-all"
-                />
-              </div>
-            ))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest">이메일 주소</label>
+              <input
+                  type="email"
+                  value={signupEmail}
+                  onChange={(e) => setSignupEmail(e.target.value)}
+                  placeholder="example@email.com"
+                  className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none font-bold focus:border-brand-blue transition-all"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest">비밀번호</label>
+              <input
+                  type="password"
+                  value={signupPassword}
+                  onChange={(e) => setSignupPassword(e.target.value)}
+                  placeholder="8자 이상 입력"
+                  className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none font-bold focus:border-brand-blue transition-all"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest">비밀번호 확인</label>
+              <input
+                  type="password"
+                  value={signupPasswordConfirm}
+                  onChange={(e) => setSignupPasswordConfirm(e.target.value)}
+                  placeholder="비밀번호를 다시 입력해주세요"
+                  className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none font-bold focus:border-brand-blue transition-all"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest">계좌 비밀번호</label>
+              <input
+                  type="password"
+                  value={accountPassword}
+                  onChange={(e) => setAccountPassword(e.target.value)}
+                  placeholder="4자리 숫자"
+                  maxLength={4}
+                  className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 outline-none font-bold focus:border-brand-blue transition-all"
+              />
+            </div>
+
 
             <div className="p-4 bg-stone-100 rounded-xl border border-stone-200">
               <p className="text-[10px] font-black text-stone-600 mb-2 flex items-center gap-1.5 uppercase tracking-widest">
@@ -181,12 +295,20 @@ export function AuthPage() {
               </label>
             </div>
 
+            {signupError && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold text-red-600">
+                  {signupError}
+                </div>
+            )}
+
             <button
-              onClick={handleSignup}
-              className="w-full bg-stone-800 hover:bg-black text-white font-black py-3.5 rounded-xl transition-all shadow-lg uppercase tracking-widest text-xs"
+                onClick={handleSignup}
+                disabled={isSigningUp}
+                className="w-full bg-stone-800 hover:bg-black disabled:bg-stone-400 text-white font-black py-3.5 rounded-xl transition-all shadow-lg uppercase tracking-widest text-xs"
             >
-              회원가입 완료
+              {isSigningUp ? '회원가입 처리 중...' : '회원가입 완료'}
             </button>
+
           </div>
         )}
       </div>

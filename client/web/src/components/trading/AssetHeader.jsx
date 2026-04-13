@@ -15,7 +15,7 @@ const TABS = [
   { id: 'news',     label: '공시' },
 ];
 
-export function AssetHeader({ asset, currentPrice, activeTab, onTabChange, inWatchlist, onToggleWatchlist, hideStats = false }) {
+export function AssetHeader({ asset, currentPrice, activeTab, onTabChange, isLiked, onToggleLike, hideStats = false }) {
   const isUp = asset.change >= 0;
   const changeAmount = Math.abs(Math.round((currentPrice * asset.change) / 100));
 
@@ -79,15 +79,15 @@ export function AssetHeader({ asset, currentPrice, activeTab, onTabChange, inWat
           )}
 
           <button
-            onClick={() => onToggleWatchlist?.(asset.id)}
+            onClick={() => onToggleLike?.(asset.id)}
             className={cn(
-              'p-2 rounded-lg transition-colors',
-              inWatchlist
+              'flex h-12 w-12 items-center justify-center rounded-full transition-colors',
+              isLiked
                 ? 'bg-brand-red-light text-brand-red'
-                : 'bg-stone-200 hover:bg-stone-200 text-stone-500'
+                : 'bg-stone-200 text-stone-500 hover:bg-stone-300'
             )}
           >
-            <Heart size={18} fill={inWatchlist ? 'currentColor' : 'none'} />
+            <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
           </button>
         </div>
       </div>

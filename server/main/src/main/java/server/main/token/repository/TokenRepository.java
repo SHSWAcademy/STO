@@ -22,5 +22,8 @@ public interface TokenRepository extends JpaRepository<Token, Long> , TokenRepos
     @Query("SELECT t FROM Token t JOIN FETCH t.asset a WHERE t.tokenStatus = 'TRADING' AND a.isAllocated = true ")
     List<Token> findAllTokensWithAssetAllocationList();
 
+    @Query("SELECT t FROM Token t JOIN FETCH t.asset a WHERE a.assetId = :assetId")
+    Optional<Token> findByAssetIdWithAsset(@Param("assetId") Long assetId);
+
     Long tokenId(Long tokenId);
 }
