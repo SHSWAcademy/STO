@@ -19,8 +19,7 @@ public class CandleController {
 
     @GetMapping("/{tokenId}/candle")
     public ResponseEntity<List<CandleResponseDto>> getCandleMinutes (@PathVariable Long tokenId, @RequestParam CandleType type) {
-        List<CandleResponseDto> dtos = candleService.getCandles(tokenId, type);
 
-        return ResponseEntity.ok(dtos);
+        return ResponseEntity.ok(candleService.getCandles(tokenId, type));
     }
 }

@@ -12,6 +12,7 @@ import server.main.global.util.MatchClient;
 @Component
 @RequiredArgsConstructor
 public class OrderBookSubscribeHandler {
+    // // 상세 페이지 접속 시 처음 호가창 스냅샷을 전달
 
     //- Stomp 에서는 순수 웹소켓과 다르게 직접 클라이언트 세션들을 개발자가 관리하지 않는다.
     //- 클라이언트 세션들은 Stomp 에서 자동으로 편리하게 관리하고 있다.
@@ -20,7 +21,6 @@ public class OrderBookSubscribeHandler {
 
     private final SimpMessagingTemplate template;
     private final MatchClient matchClient;
-    private final JwtTokenProvider jwtTokenProvider;
 
     // 클라이언트가 상세 페이지 접속 시 stomp 실행 -> 그 때 발생하는 일을 이벤트 리스너가 확인 (처음 1회만)
     @EventListener
@@ -31,12 +31,6 @@ public class OrderBookSubscribeHandler {
 
         // 검증, 구독 : /topic 이 추가되도록 WebsocketConfig 에서 설정
         if (destination == null || !destination.startsWith("/topic/orderBook/")) return;
-
-        // JWT 검증 추가 (로그인 여부 확인)
-        String token = (String) event.getMessage().getHeaders().get("Authorization");
-        if (token == null || !token.startsWith("Bearer ")) return;
-        token = token.substring(7);
-        if (!jwtTokenProvider.validateToken(token)) return;
 
         String tokenId = destination.replace("/topic/orderBook/", "");
 

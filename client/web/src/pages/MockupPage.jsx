@@ -154,7 +154,7 @@ export function MockupPage() {
     fetch(`${API}/api/token/${TOKEN_ID}/info`, { headers })
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
         .then(data => setTokenAssetInfo(data))
-        .catch(e => console.warn('[MockupPage] 종목정보 조회 실패:', e));
+        .catch(e => { console.warn('[MockupPage] 종목정보 조회 실패:', e); setTokenAssetInfo({}); });
   }, [activeTab, TOKEN_ID, user?.accessToken]);
 
   // ── 배당금 / 공시 탭 데이터 ──────────────────────────────────

@@ -1,9 +1,7 @@
 package server.main.order.service;
 
-import server.main.order.dto.CancelOrderContext;
 import server.main.order.dto.MatchOrderRequestDto;
 import server.main.order.dto.MatchResultDto;
-import server.main.order.dto.OrderCapacityResponseDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.UpdateMatchOrderRequestDto;
@@ -43,5 +41,10 @@ public interface OrderService {
     void compensateFailedCancel(CancelOrderContext ctx);
 
     // 주문 가능 금액/수량 조회
+    OrderCapacityResponseDto getOrderCapacity(Long tokenId);
+    // 대기창 - 매수, 매도 요청 취소
+    void cancelOrder(Long orderId);
+
+    // 10%, 25%, 50%, 최대 주문 가능 금액/수량 조회
     OrderCapacityResponseDto getOrderCapacity(Long tokenId);
 }

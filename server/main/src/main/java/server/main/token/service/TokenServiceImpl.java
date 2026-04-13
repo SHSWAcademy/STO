@@ -145,7 +145,7 @@ public class TokenServiceImpl implements TokenService{
         List<Long> tokenIds = tokens.stream().map(Token::getTokenId).toList();
 
         // 3. 토큰 별 1일 (1개월, 1년) 시가 조회, Map<tokenId, openPrice> : key 토큰 id, value 시가 (등락률 계산에 필요)
-        Map<Long, Double> basePriceMap = getBasePriceMap(tokenIds, periodType);
+        Map<Long, Long> basePriceMap = getBasePriceMap(tokenIds, periodType);
 
         // 4. 스파크라인 조회 - 토큰 id 별 최근 7일 (월, 년) 종가 : Map<tokenId, List<closePrice>> (스파크 라인에 필요)
         Map<Long, List<Long>> sparklineMap = getSparklineMap(tokenIds, periodType);
@@ -162,8 +162,8 @@ public class TokenServiceImpl implements TokenService{
         // dto 로 만들어서 전달
         return tokens.stream().map(t -> {
             Long tokenId = t.getTokenId();
-            double currentPrice = t.getCurrentPrice() != null ? t.getCurrentPrice() : 0.0;
-            Double basePrice = basePriceMap.get(tokenId);
+            Long currentPrice = t.getCurrentPrice() != null ? t.getCurrentPrice() : 0L;
+            Long basePrice = basePriceMap.get(tokenId);
             long[] agg = tradeAggMap.getOrDefault(tokenId, new long[]{0L, 0L});
 
             double fluctuationRate = (basePrice != null && basePrice > 0) ? (currentPrice - basePrice) / basePrice * 100 : 0.0;
@@ -171,7 +171,7 @@ public class TokenServiceImpl implements TokenService{
             return TokenMainResponseDto.builder()
                     .tokenId(tokenId)
                     .assetName(t.getAsset().getAssetName())
-                    .currentPrice((long) currentPrice)
+                    .currentPrice(currentPrice)
                     .fluctuationRate(Math.round(fluctuationRate * 100.0) / 100.0)
                     .totalTradeValue(agg[0])
                     .totalTradeQuantity(agg[1])
@@ -200,13 +200,13 @@ public class TokenServiceImpl implements TokenService{
         // 캔들 리스트 -> Map<Long, List<Long>> 리턴 (토큰 자산 id, 캔들 종가 리스트)
         return candles.stream().collect(Collectors.groupingBy(
                 c -> c.getToken().getTokenId(),
-                Collectors.mapping(c -> c.getClosePrice().longValue(), Collectors.toList())
+                Collectors.mapping(c -> c.getClosePrice(), Collectors.toList())
         ));
     }
 
 
     // 토큰 id 별로 파라미터로 받은 기간의 (일, 월, 년) 시작가 조회 (key : tokenId, value : 시가) - 등락률 계산 전용
-    private Map<Long, Double> getBasePriceMap(List<Long> tokenIds, PeriodType periodType) {
+    private Map<Long, Long> getBasePriceMap(List<Long> tokenIds, PeriodType periodType) {
         LocalDateTime now = LocalDateTime.now();
         return switch (periodType) {
             case DAY -> {

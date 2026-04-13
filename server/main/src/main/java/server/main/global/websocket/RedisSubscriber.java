@@ -35,7 +35,6 @@ public class RedisSubscriber implements MessageListener {
         String channel = new String(message.getChannel()); // byte -> String, Redis로 받을 채널
         String body = new String(message.getBody());       // byte -> String, Redis 에서 publish 받을 데이터 body
 
-        // Redis checks if the message being published is related to the orderBook or trades or pendingOrders
         // 레디스가 받은 메시지가 어떤 것인지 확인 (호가창, 거래 완료, 대기 주문)
         String[] parts = channel.split(":");
         String type = parts[0];
@@ -48,9 +47,9 @@ public class RedisSubscriber implements MessageListener {
 
             // 캔들 차트
             try {
-                JsonNode node         = objectMapper.readTree(body);
-                Double tradePrice     = node.get("tradePrice").asDouble();
-                Double tradeQuantity  = node.get("tradeQuantity").asDouble();
+                JsonNode node        = objectMapper.readTree(body);
+                Long tradePrice      = node.get("tradePrice").asLong();
+                Long tradeQuantity   = node.get("tradeQuantity").asLong();
                 candleLiveManager.update(tokenId, tradePrice, tradeQuantity);
 
                 // 주문 체결 로그 DB에 저장

@@ -20,5 +20,4 @@ public class MatchResultDto {
     private Long filledQuantity;                // 체결된 수량
     private Long remainingQuantity;             // 남은 수량
     private List<TradeExecutionDto> executions; // 체결 목록
-    private Long orderSequence;
 }
