@@ -26,7 +26,7 @@ export function AdminLayout() {
 
   function handleLogout() {
     logout();
-    navigate('/');
+    navigate('/admin');
   }
 
   // exact match for /admin, prefix match for sub-pages

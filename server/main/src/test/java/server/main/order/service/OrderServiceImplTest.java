@@ -411,17 +411,17 @@ class OrderServiceImplTest {
     // ──────────────── cancelOrder ────────────────
 
     @Test
-    void cancelOrder_PENDING상태_취소불가_예외발생() {
+    void validateAndCancelOrder_PENDING상태_취소불가_예외발생() {
         // given
         Long orderId = 1L;
         Order order = mock(Order.class);
         when(order.getOrderStatus()).thenReturn(OrderStatus.PENDING);
-        when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId))
+        when(orderRepository.findWithLockByMemberIdAndOrderId(MEMBER_ID, orderId))
                 .thenReturn(Optional.of(order));
 
         // when & then
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> orderService.cancelOrder(orderId));
+                () -> orderService.validateAndCancelOrder(orderId));
         assertThat(ex.getErrorCode()).isEqualTo(ORDER_CANNOT_CANCEL);
     }
 
@@ -470,8 +470,8 @@ class OrderServiceImplTest {
                 .member(counterMember)
                 .build();
 
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(findOrder));
-        when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(findOrder));
+        when(orderRepository.findWithLockById(counterOrderId)).thenReturn(Optional.of(counterOrder));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
@@ -549,8 +549,8 @@ class OrderServiceImplTest {
                 .member(counterMember)
                 .build();
 
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(findOrder));
-        when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(findOrder));
+        when(orderRepository.findWithLockById(counterOrderId)).thenReturn(Optional.of(counterOrder));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
@@ -626,8 +626,8 @@ class OrderServiceImplTest {
                 .member(counterMember)
                 .build();
 
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(findOrder));
-        when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(findOrder));
+        when(orderRepository.findWithLockById(counterOrderId)).thenReturn(Optional.of(counterOrder));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
@@ -798,8 +798,8 @@ class OrderServiceImplTest {
                 .member(counterMember)
                 .build();
 
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(findOrder));
-        when(orderRepository.findById(counterOrderId)).thenReturn(Optional.of(counterOrder));
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(findOrder));
+        when(orderRepository.findWithLockById(counterOrderId)).thenReturn(Optional.of(counterOrder));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(sellerAccount));
@@ -858,7 +858,7 @@ class OrderServiceImplTest {
                 .member(member)
                 .build();
 
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(findOrder));
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(findOrder));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
 
         // match 서버: 이번 호출에서 체결 0건 → OPEN 반환 (match는 누적을 모름)

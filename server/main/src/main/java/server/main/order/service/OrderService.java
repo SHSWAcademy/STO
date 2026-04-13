@@ -1,7 +1,9 @@
 package server.main.order.service;
 
+import server.main.order.dto.CancelOrderContext;
 import server.main.order.dto.MatchOrderRequestDto;
 import server.main.order.dto.MatchResultDto;
+import server.main.order.dto.OrderCapacityResponseDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.UpdateMatchOrderRequestDto;
@@ -31,6 +33,15 @@ public interface OrderService {
     // 미체결 주문 조회
     List<PendingOrderResponseDto> getPendingOrders(Long tokenId);
 
-    // 대기창 - 매수, 매도 요청 취소
-    void cancelOrder(Long orderId);
+    // cancelOrder Phase 1: 검증 + 잔고 복구 + PENDING 전환 → 커밋
+    CancelOrderContext validateAndCancelOrder(Long orderId);
+
+    // cancelOrder Phase 2: CANCELLED 최종 전환 → 커밋
+    void completeCancelOrder(Long orderId);
+
+    // cancel match 실패 시 보상: 잔고 재잠금 + 상태 복원
+    void compensateFailedCancel(CancelOrderContext ctx);
+
+    // 주문 가능 금액/수량 조회
+    OrderCapacityResponseDto getOrderCapacity(Long tokenId);
 }

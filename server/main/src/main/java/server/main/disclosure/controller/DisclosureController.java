@@ -2,6 +2,7 @@ package server.main.disclosure.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,8 +23,9 @@ public class DisclosureController {
 
     // 공시 내역 조회
     @GetMapping("/admin/disclosure")
-    public ResponseEntity<List<DisclosureListResponseDTO>> getDisclosure() {
-        List<DisclosureListResponseDTO> list = disclosureService.getDisclosureList();
+    public ResponseEntity<Page<DisclosureListResponseDTO>> getDisclosure(@RequestParam(defaultValue = "0") int page,
+                                                                         @RequestParam(defaultValue = "10") int size) {
+        Page<DisclosureListResponseDTO> list = disclosureService.getDisclosureList(page, size);
         return ResponseEntity.ok(list);
     }
 

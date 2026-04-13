@@ -78,6 +78,11 @@ public class Order extends BaseEntity {
         this.orderStatus = this.filledQuantity > 0 ? OrderStatus.PARTIAL : OrderStatus.OPEN;
     }
 
+    // 취소 진행 중 표시 — match 서버 호출 전 PENDING으로 전환
+    public void markCancelPending() {
+        this.orderStatus = OrderStatus.PENDING;
+    }
+
     public void removeOrder() {
         // updatedAd은 자동으로 값이 채워진다
         this.orderStatus = OrderStatus.CANCELLED; // 주문 취소

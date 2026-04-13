@@ -66,7 +66,7 @@ public class OrderController {
     // 호가 삭제 (soft delete)
     @DeleteMapping("/order/cancel/{orderId}")
     public ResponseEntity<Void> orderCancel(@PathVariable Long orderId) {
-        orderService.cancelOrder(orderId);
+        orderFacade.cancelOrder(orderId);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 

@@ -21,6 +21,7 @@ import { NoticeManagement }     from './pages/admin/notice/index.jsx';
 import { DisclosureManagement } from './pages/admin/disclosure/index.jsx';
 import { SystemLogs }           from './pages/admin/SystemLogs.jsx';
 import { SystemSettings }       from './pages/admin/SystemSettings.jsx';
+import { AdminLoginPage }       from './pages/admin/AdminLoginPage.jsx';
 
 // 일반 페이지 공통 패딩 래퍼
 function PageWrapper({ children }) {
@@ -61,11 +62,16 @@ function Auth({ children }) {
   return user ? children : <AuthPage />;
 }
 
+function AdminAuth({ children }) {
+  const { user } = useApp();
+  return user?.role === 'admin' ? children : <AdminLoginPage />;
+}
+
 function AppContent() {
   return (
     <Routes>
       {/* 관리자 라우트 */}
-      <Route path="/admin" element={<Auth><AdminLayout /></Auth>}>
+      <Route path="/admin" element={<AdminAuth><AdminLayout /></AdminAuth>}>
         <Route index             element={<AdminDashboard />} />
         <Route path="users"     element={<UserManagement />} />
         <Route path="assets"    element={<AssetManagement />} />

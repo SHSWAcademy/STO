@@ -16,8 +16,38 @@ const EMPTY_NOTICE_FORM = {
   noticeContent: "",
 };
 
+const DEFAULT_PAGE_META = {
+  number: 0,
+  size: 10,
+  totalElements: 0,
+  totalPages: 0,
+  first: true,
+  last: true,
+};
+
+function unwrapNoticePage(data) {
+  return data?.content ? data : data?.data?.content ? data.data : data?.result?.content ? data.result : data;
+}
+
+function buildArrayPage(data, page, size) {
+  if (!Array.isArray(data)) return null;
+
+  return {
+    content: data,
+    number: page,
+    size,
+    totalElements: data.length,
+    totalPages: data.length ? Math.ceil(data.length / size) : 0,
+    first: page === 0,
+    last: true,
+  };
+}
+
 export function NoticeManagement() {
   const [notices, setNotices] = useState([]);
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [pageMeta, setPageMeta] = useState(DEFAULT_PAGE_META);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,13 +63,36 @@ export function NoticeManagement() {
   async function loadNotices() {
     setLoading(true);
     setError("");
+
     try {
-      const { data } = await api.get("/admin/notice");
-      setNotices((data ?? []).map(mapNoticeListItem));
+      const { data } = await api.get("/admin/notice", {
+        params: { page, size },
+      });
+      const noticePage = buildArrayPage(data, page, size) ?? unwrapNoticePage(data);
+      const content = noticePage?.content;
+
+      if (!Array.isArray(content)) {
+        console.error("[NoticeManagement] unexpected list response:", data);
+        setNotices([]);
+        setPageMeta({ ...DEFAULT_PAGE_META, size });
+        setError("공지사항 응답 형식이 올바르지 않습니다.");
+        return;
+      }
+
+      setNotices(content.map(mapNoticeListItem));
+      setPageMeta({
+        number: noticePage?.number ?? page,
+        size: noticePage?.size ?? size,
+        totalElements: noticePage?.totalElements ?? 0,
+        totalPages: noticePage?.totalPages ?? 0,
+        first: noticePage?.first ?? page === 0,
+        last: noticePage?.last ?? (noticePage?.totalPages ?? 0) <= page + 1,
+      });
     } catch (loadError) {
-      console.error("[NoticeManagement] 목록 조회 실패:", loadError);
+      console.error("[NoticeManagement] list load failed:", loadError);
       setError("공지사항 목록을 불러오지 못했습니다.");
       setNotices([]);
+      setPageMeta({ ...DEFAULT_PAGE_META, size });
     } finally {
       setLoading(false);
     }
@@ -47,7 +100,7 @@ export function NoticeManagement() {
 
   useEffect(() => {
     loadNotices();
-  }, []);
+  }, [page, size]);
 
   function handleAdd() {
     setEditingNotice(null);
@@ -59,6 +112,7 @@ export function NoticeManagement() {
 
   async function handleEdit(notice) {
     setFormError("");
+
     try {
       const { data } = await api.get(`/admin/notice/${notice.noticeId}`);
       setEditingNotice(notice);
@@ -66,7 +120,7 @@ export function NoticeManagement() {
       setForm(mapNoticeDetail(data));
       setIsModalOpen(true);
     } catch (detailError) {
-      console.error("[NoticeManagement] 상세 조회 실패:", detailError);
+      console.error("[NoticeManagement] detail load failed:", detailError);
       setError("공지사항 상세 정보를 불러오지 못했습니다.");
     }
   }
@@ -75,11 +129,12 @@ export function NoticeManagement() {
     setDetailLoading(true);
     setDetailError("");
     setSelectedNotice(null);
+
     try {
       const { data } = await api.get(`/admin/notice/${notice.noticeId}`);
       setSelectedNotice({ ...notice, ...mapNoticeDetail(data) });
     } catch (detailLoadError) {
-      console.error("[NoticeManagement] 상세 조회 실패:", detailLoadError);
+      console.error("[NoticeManagement] detail load failed:", detailLoadError);
       setDetailError("공지사항 상세 정보를 불러오지 못했습니다.");
     } finally {
       setDetailLoading(false);
@@ -109,15 +164,18 @@ export function NoticeManagement() {
     try {
       setSaving(true);
       setFormError("");
+
       if (editingNotice) {
         await api.patch(`/admin/notice/${editingNotice.noticeId}`, payload);
       } else {
         await api.post("/admin/notice", payload);
+        setPage(0);
       }
+
       await loadNotices();
       closeModal();
     } catch (saveError) {
-      console.error("[NoticeManagement] 저장 실패:", saveError);
+      console.error("[NoticeManagement] save failed:", saveError);
       setFormError("공지사항 저장에 실패했습니다.");
     } finally {
       setSaving(false);
@@ -125,29 +183,21 @@ export function NoticeManagement() {
   }
 
   async function handleDelete(notice) {
-    if (notice.deletedAt) {
-      return;
-    }
+    if (notice.deletedAt) return;
 
     try {
       await api.delete(`/admin/notice/${notice.noticeId}`);
-      const deletedAt = new Date().toISOString();
-      setNotices((prev) =>
-        prev.map((item) =>
-          item.noticeId === notice.noticeId
-            ? { ...item, deletedAt }
-            : item,
-        ),
-      );
       setSelectedNotice((prev) =>
-        prev?.noticeId === notice.noticeId ? { ...prev, deletedAt } : prev,
+        prev?.noticeId === notice.noticeId
+          ? { ...prev, deletedAt: new Date().toISOString() }
+          : prev,
       );
       setEditingNotice((prev) =>
         prev?.noticeId === notice.noticeId ? null : prev,
       );
       await loadNotices();
     } catch (deleteError) {
-      console.error("[NoticeManagement] 삭제 실패:", deleteError);
+      console.error("[NoticeManagement] delete failed:", deleteError);
       setError("공지사항 삭제에 실패했습니다.");
     }
   }
@@ -159,7 +209,15 @@ export function NoticeManagement() {
         loading={loading}
         error={error}
         searchTerm={searchTerm}
+        pageMeta={pageMeta}
+        pageSize={size}
         onSearch={setSearchTerm}
+        onPageChange={setPage}
+        onPageSizeChange={(nextSize) => {
+          setSize(nextSize);
+          setPage(0);
+          setSearchTerm("");
+        }}
         onAdd={handleAdd}
         onSelect={handleSelect}
         onEdit={handleEdit}

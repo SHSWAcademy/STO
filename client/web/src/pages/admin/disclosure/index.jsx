@@ -20,9 +20,21 @@ const EMPTY_CREATE_FORM = {
   file: null,
 };
 
+const DEFAULT_PAGE_META = {
+  number: 0,
+  size: 10,
+  totalElements: 0,
+  totalPages: 0,
+  first: true,
+  last: true,
+};
+
 export function DisclosureManagement() {
   const [items, setItems] = useState([]);
   const [assets, setAssets] = useState([]);
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [pageMeta, setPageMeta] = useState(DEFAULT_PAGE_META);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [disclosureTypeTab, setDisclosureTypeTab] = useState("전체");
@@ -46,16 +58,29 @@ export function DisclosureManagement() {
     setError("");
     try {
       const [{ data }, { data: assetData }] = await Promise.all([
-        api.get("/admin/disclosure"),
+        api.get("/admin/disclosure", {
+          params: { page, size },
+        }),
         api.get("/admin/asset"),
       ]);
-      setItems((data ?? []).map(mapDisclosureListItem));
+      const content = data?.content ?? [];
+
+      setItems(content.map(mapDisclosureListItem));
+      setPageMeta({
+        number: data?.number ?? page,
+        size: data?.size ?? size,
+        totalElements: data?.totalElements ?? 0,
+        totalPages: data?.totalPages ?? 0,
+        first: data?.first ?? page === 0,
+        last: data?.last ?? (data?.totalPages ?? 0) <= page + 1,
+      });
       setAssets(assetData ?? []);
     } catch (loadError) {
       console.error("[DisclosureManagement] 목록 조회 실패:", loadError);
       setError("공시 목록을 불러오지 못했습니다.");
       setItems([]);
       setAssets([]);
+      setPageMeta({ ...DEFAULT_PAGE_META, size });
     } finally {
       setLoading(false);
     }
@@ -63,7 +88,7 @@ export function DisclosureManagement() {
 
   useEffect(() => {
     loadDisclosures();
-  }, []);
+  }, [page, size]);
 
   function handleSelect(item) {
     setSelectedDisclosure(item);
@@ -201,6 +226,7 @@ export function DisclosureManagement() {
       await api.post("/admin/disclosure", payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      setPage(0);
       await loadDisclosures();
       closeCreateModal();
     } catch (createError) {
@@ -219,8 +245,17 @@ export function DisclosureManagement() {
         loading={loading}
         error={error}
         searchTerm={searchTerm}
+        pageMeta={pageMeta}
+        pageSize={size}
         onTypeTabChange={setDisclosureTypeTab}
         onSearchChange={setSearchTerm}
+        onPageChange={setPage}
+        onPageSizeChange={(nextSize) => {
+          setSize(nextSize);
+          setPage(0);
+          setSearchTerm("");
+          setDisclosureTypeTab("전체");
+        }}
         onAdd={() => {
           setFormError("");
           setIsCreateOpen(true);

@@ -4,6 +4,9 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -61,10 +64,12 @@ public class DisclosureServiceImpl implements DisclosureService{
 
     // 공시 전체 조회
     @Override
-    public List<DisclosureListResponseDTO> getDisclosureList() {
+    public Page<DisclosureListResponseDTO> getDisclosureList(int page, int size) {
         // 테이블 연관관계 미설정으로 공시, 자산, 파일테이블 조회하여 키값으로 매핑 (N+1 방지를위해 테이블미리 다 조회 후 조합)
         // 공시 테이블 먼저 조회
-        List<Disclosure> disclosures = disclosureRepository.findAll(Sort.by(Sort.Order.desc("createdAt")));
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Disclosure> disclosures = disclosureRepository.findAll(pageable);
+
         // 자산id 추출
         List<Long> assetIds = disclosures.stream()
                 .map(disclosure -> disclosure.getAssetId())
@@ -89,14 +94,12 @@ public class DisclosureServiceImpl implements DisclosureService{
                 ));
 
         // 자산, 파일 map에서 disclosures의 키값으로 값 추출
-        return disclosures.stream()
-                .map(disclosure -> {
+        return disclosures.map(disclosure -> {
                     Asset asset = assetMap.get(disclosure.getAssetId());
                     File file = fileMap.get(disclosure.getDisclosureId());
                     // mapper 호출
                     return disclosureMapper.toDisclosureListResponseDTO(disclosure, asset, file);
-                })
-                .toList();
+                });
     }
 
     // 공시 등록 (admin)
