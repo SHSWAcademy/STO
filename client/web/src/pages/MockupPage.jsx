@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  ResponsiveContainer, ComposedChart, Bar,
+  ResponsiveContainer, ComposedChart, BarChart, Bar,
   XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
 import {
@@ -19,9 +19,7 @@ import { OrderPanel }        from '../components/trading/OrderPanel.jsx';
 import { HogaRow }           from '../components/trading/HogaRow.jsx';
 import { PriceRow }          from '../components/trading/PriceRow.jsx';
 import { cn } from '../lib/utils.js';
-import { API_BASE_URL } from '../lib/config.js';
-
-const API = API_BASE_URL;
+import api from '../lib/api.js';
 
 // JWT payload에서 memberId(sub 클레임) 추출
 function parseJwtMemberId(token) {
@@ -61,8 +59,21 @@ function formatCandleTime(candleTime, period) {
   return d.toTimeString().slice(0, 5);
 }
 
+// WebSocket tradeTime 포맷 (Jackson 배열 [y,mo,d,h,m,s] 또는 ISO 문자열 모두 처리)
+function formatTradeTime(t) {
+  if (!t) return '';
+  if (Array.isArray(t)) {
+    const [, , , h = 0, m = 0, s = 0] = t;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  try {
+    return new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  } catch { return String(t); }
+}
+
 function mapCandle(dto, period) {
   return {
+    ts:    dto.candleTime ? new Date(dto.candleTime).getTime() : 0,
     time:  formatCandleTime(dto.candleTime, period),
     open:  Math.round(dto.openPrice  || 0),
     high:  Math.round(dto.highPrice  || 0),
@@ -73,20 +84,47 @@ function mapCandle(dto, period) {
 }
 
 // ── 캔들스틱 shape ───────────────────────────────────────────────
-function CandlestickShape({ x, y, width, height, payload }) {
-  if (!payload) return null;
-  const { open, close, high, low } = payload;
-  const isUp    = close >= open;
-  const color   = isUp ? 'var(--color-brand-red)' : 'var(--color-brand-blue)';
-  const ph      = Math.abs(open - close);
-  const ratio   = ph === 0 ? 1 : height / ph;
-  const wickTop = y - (high - Math.max(open, close)) * ratio;
-  const wickBot = y + height + (Math.min(open, close) - low) * ratio;
+// dataKey={d => [d.low, d.high]} 와 함께 사용
+// Recharts: y = high 의 픽셀 위치(위쪽), y+height = low 의 픽셀 위치(아래쪽)
+// → Y축 auto domain이 high/low 전체를 포함하므로 wick 이 잘리지 않음
+function CandlestickShape(props) {
+  const { x, y, width, height } = props;
+  const open  = props.payload?.open;
+  const close = props.payload?.close;
+  const high  = props.payload?.high;
+  const low   = props.payload?.low;
+
+  if (open == null || close == null || high == null || low == null) return null;
+  if (width <= 0 || height <= 0) return null;
+
+  const priceRange = high - low;
+  if (priceRange <= 0) return null;
+
+  const isUp  = close >= open;
+  const color = isUp ? '#e54d4d' : '#3b82f6';
+  const cx    = x + width / 2;
+  const ratio = height / priceRange;  // px per price unit
+
+  // y      = high 픽셀 (차트 위쪽)
+  // y+height = low 픽셀 (차트 아래쪽)
+  const highPx = y;
+  const lowPx  = y + height;
+
+  const bodyTopPx    = y + (high - Math.max(open, close)) * ratio;
+  const bodyBottomPx = y + (high - Math.min(open, close)) * ratio;
+  const bodyH        = Math.max(bodyBottomPx - bodyTopPx, 1);
+
   return (
       <g>
-        <line x1={x + width / 2} y1={wickTop} x2={x + width / 2} y2={wickBot}
-              stroke={color} strokeWidth={1} />
-        <rect x={x} y={y} width={width} height={Math.max(height, 1)} fill={color} />
+        {/* 위 꼬리: high → body 상단 */}
+        <line x1={cx} y1={highPx} x2={cx} y2={bodyTopPx}
+              stroke={color} strokeWidth={1.2} />
+        {/* 아래 꼬리: body 하단 → low */}
+        <line x1={cx} y1={bodyBottomPx} x2={cx} y2={lowPx}
+              stroke={color} strokeWidth={1.2} />
+        {/* 몸통 */}
+        <rect x={x + 1} y={bodyTopPx} width={Math.max(width - 2, 1)} height={bodyH}
+              fill={color} rx={1} />
       </g>
   );
 }
@@ -127,12 +165,8 @@ export function MockupPage() {
   const [tokenInfo, setTokenInfo] = useState(null);
 
   useEffect(() => {
-    const headers = user?.accessToken
-        ? { Authorization: `Bearer ${user.accessToken}` }
-        : {};
-    fetch(`${API}/api/token/${TOKEN_ID}/chart`, { headers })
-        .then(r => r.ok ? r.json() : Promise.reject(r.status))
-        .then(data => setTokenInfo(data))
+    api.get(`/api/token/${TOKEN_ID}/chart`)
+        .then(r => setTokenInfo(r.data))
         .catch(e => console.warn('[MockupPage] 토큰 상세 조회 실패:', e));
   }, [TOKEN_ID, user?.accessToken]);
 
@@ -148,12 +182,8 @@ export function MockupPage() {
 
   useEffect(() => {
     if (activeTab !== 'info' || tokenAssetInfo !== null) return;
-    const headers = user?.accessToken
-        ? { Authorization: `Bearer ${user.accessToken}` }
-        : {};
-    fetch(`${API}/api/token/${TOKEN_ID}/info`, { headers })
-        .then(r => r.ok ? r.json() : Promise.reject(r.status))
-        .then(data => setTokenAssetInfo(data))
+    api.get(`/api/token/${TOKEN_ID}/info`)
+        .then(r => setTokenAssetInfo(r.data))
         .catch(e => { console.warn('[MockupPage] 종목정보 조회 실패:', e); setTokenAssetInfo({}); });
   }, [activeTab, TOKEN_ID, user?.accessToken]);
 
@@ -163,23 +193,15 @@ export function MockupPage() {
 
   useEffect(() => {
     if (activeTab !== 'dividend' || allocations !== null) return;
-    const headers = user?.accessToken
-        ? { Authorization: `Bearer ${user.accessToken}` }
-        : {};
-    fetch(`${API}/api/token/${TOKEN_ID}/allocation`, { headers })
-        .then(r => r.ok ? r.json() : Promise.reject(r.status))
-        .then(data => setAllocations(data))
+    api.get(`/api/token/${TOKEN_ID}/allocation`)
+        .then(r => setAllocations(r.data))
         .catch(e => { console.warn('[MockupPage] 배당금 조회 실패:', e); setAllocations([]); });
   }, [activeTab, TOKEN_ID, user?.accessToken]);
 
   useEffect(() => {
     if (activeTab !== 'news' || disclosures !== null) return;
-    const headers = user?.accessToken
-        ? { Authorization: `Bearer ${user.accessToken}` }
-        : {};
-    fetch(`${API}/api/token/${TOKEN_ID}/disclosure`, { headers })
-        .then(r => r.ok ? r.json() : Promise.reject(r.status))
-        .then(data => setDisclosures(data))
+    api.get(`/api/token/${TOKEN_ID}/disclosure`)
+        .then(r => setDisclosures(r.data))
         .catch(e => { console.warn('[MockupPage] 공시 조회 실패:', e); setDisclosures([]); });
   }, [activeTab, TOKEN_ID, user?.accessToken]);
 
@@ -195,10 +217,9 @@ export function MockupPage() {
     const headers = user?.accessToken
         ? { Authorization: `Bearer ${user.accessToken}` }
         : {};
-    fetch(`${API}/api/token/${TOKEN_ID}/trades`, { headers })
-        .then(r => r.ok ? r.json() : Promise.reject(r.status))
-        .then(data => {
-          setTrades(data.map(d => ({
+    api.get(`/api/token/${TOKEN_ID}/trades`)
+        .then(r => {
+          setTrades(r.data.map(d => ({
             price:      d.tradePrice,
             qty:        d.tradeQuantity,
             changeRate: d.percentageChange ?? 0,
@@ -227,11 +248,15 @@ export function MockupPage() {
 
   // AssetHeader 가 기대하는 asset 객체 형태로 변환
   // tokenInfo 로드 전에도 탭이 보여야 하므로 항상 객체를 반환
+  const changeRate = basePrice > 0 && currentPrice > 0
+      ? Math.round(((currentPrice - basePrice) / basePrice) * 10000) / 100
+      : 0;
+
   const asset = {
     id:     TOKEN_ID,
     name:   tokenInfo?.tokenName  || tokenInfo?.assetName || '-',
     symbol: tokenInfo?.tokenSymbol || '-',
-    change: 0,
+    change: changeRate,
     high:   dailyHigh || currentPrice || 0,
     low:    dailyLow  || currentPrice || 0,
     price:  currentPrice,
@@ -246,17 +271,9 @@ export function MockupPage() {
   const fetchCandles = useCallback(async () => {
     setLoading(true);
     try {
-      const type    = PERIOD_TO_TYPE[chartPeriod];
-      const headers = user?.accessToken
-          ? { Authorization: `Bearer ${user.accessToken}` }
-          : {};
-      const res = await fetch(
-          `${API}/api/token/${TOKEN_ID}/candle?type=${type}`,
-          { headers }
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setChartData(data.map(d => mapCandle(d, chartPeriod)));
+      const type = PERIOD_TO_TYPE[chartPeriod];
+      const res = await api.get(`/api/token/${TOKEN_ID}/candle?type=${type}`);
+      setChartData(res.data.map(d => mapCandle(d, chartPeriod)));
     } catch (e) {
       console.warn('[MockupPage] 캔들 조회 실패:', e.message);
     } finally {
@@ -264,7 +281,10 @@ export function MockupPage() {
     }
   }, [chartPeriod, TOKEN_ID, user?.accessToken]);
 
-  useEffect(() => { fetchCandles(); }, [fetchCandles]);
+  useEffect(() => {
+    setChartData([]);   // 기간 변경 시 이전 기간 데이터 초기화 (분/시/일 혼재 방지)
+    fetchCandles();
+  }, [fetchCandles]);
 
   // ── 대기 주문 WS 업데이트 ────────────────────────────────────
   // match 서버가 pendingOrders:{tokenId}:{memberId} publish 시 LoginGateOrderPanel로 전달
@@ -279,28 +299,33 @@ export function MockupPage() {
     token:      user?.accessToken,
     memberId,
     onOrderBook: (data) => {
-      if (data.asks) setAsks(data.asks);
-      if (data.bids) setBids(data.bids);
+      if (data.asks) setAsks(data.asks.map(r => ({ price: r.price, amount: r.quantity })));
+      if (data.bids) setBids(data.bids.map(r => ({ price: r.price, amount: r.quantity })));
     },
     onTrades: (data) => {
       setExecutions(prev =>
           [{ price: data.tradePrice, qty: data.tradeQuantity, isBuy: data.isBuy }, ...prev].slice(0, 15)
       );
-      setTrades(prev =>
-          [{
-            price:      data.tradePrice,
-            qty:        data.tradeQuantity,
-            changeRate: data.percentageChange ?? 0,
-            vol:        data.totalVolume ?? 0,
-            time:       data.tradeTime ?? '',
-          }, ...prev].slice(0, 50)
-      );
+      setTrades(prev => {
+        const cumulativeVol = (prev[0]?.vol ?? 0) + (data.tradeQuantity ?? 0);
+        // REST와 동일한 체결 간 등락률 (이전 체결가 대비) — basePrice 클로저 의존 제거
+        const prevPrice = prev[0]?.price;
+        const rate = prevPrice > 0 ? ((data.tradePrice - prevPrice) / prevPrice) * 100 : 0;
+        return [{
+          price:      data.tradePrice,
+          qty:        data.tradeQuantity,
+          changeRate: Math.round(rate * 100) / 100,
+          vol:        cumulativeVol,
+          time:       formatTradeTime(data.tradeTime),
+        }, ...prev].slice(0, 50);
+      });
     },
     onCandle: (data) => {
       const newCandle = mapCandle(data, chartPeriod);
       setChartData(prev => {
         if (prev.length === 0) return [newCandle];
         const last = prev[prev.length - 1];
+        // 같은 봉: 마지막 캔들 교체 / 새 봉: 끝에 추가
         return last.time === newCandle.time
             ? [...prev.slice(0, -1), newCandle]
             : [...prev, newCandle];
@@ -324,6 +349,7 @@ export function MockupPage() {
         <AssetHeader
             asset={asset}
             currentPrice={currentPrice}
+            basePrice={basePrice}
             activeTab={activeTab}
             onTabChange={setActiveTab}
             inWatchlist={inWatchlist}
@@ -368,9 +394,9 @@ export function MockupPage() {
                       </button>
                     </div>
 
-                    <div className="h-[400px] p-6 relative">
+                    <div className="h-[400px] flex flex-col">
                       {/* OHLCV 인디케이터 */}
-                      <div className="absolute top-6 left-6 z-10 flex items-center gap-3 pointer-events-none">
+                      <div className="px-6 pt-4 pb-1 flex items-center gap-3">
                         {[
                           { label: '시', val: displayData?.open },
                           { label: '고', val: displayData?.high, color: 'var(--color-brand-red)' },
@@ -379,58 +405,76 @@ export function MockupPage() {
                         ].map(({ label, val, color }) => (
                             <div key={label} className="flex items-center gap-1">
                               <span className="text-[10px] font-bold text-stone-400">{label}</span>
-                              <span className="text-[11px] font-mono font-bold text-stone-800"
-                                    style={color ? { color } : {}}>
-                          {val?.toLocaleString() ?? '-'}
-                        </span>
+                              <span className="text-[11px] font-mono font-bold"
+                                    style={{ color: color ?? 'var(--color-stone-800)' }}>
+                                {val?.toLocaleString() ?? '-'}
+                              </span>
                             </div>
                         ))}
                       </div>
 
                       {chartData.length === 0 ? (
-                          <div className="w-full h-full flex items-center justify-center text-stone-400 text-sm font-bold">
+                          <div className="flex-1 flex items-center justify-center text-stone-400 text-sm font-bold">
                             {loading ? '데이터 로딩 중...' : '캔들 데이터 없음 (백엔드 확인 필요)'}
                           </div>
                       ) : (
-                          <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart
-                                data={chartData}
-                                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                                onMouseMove={e => {
-                                  if (e?.activePayload?.length > 0) setHoveredData(e.activePayload[0].payload);
-                                }}
-                                onMouseLeave={() => setHoveredData(null)}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-stone-200)" vertical={false} />
-                              <XAxis dataKey="time" axisLine={false} tickLine={false}
-                                     tick={{ fontSize: 10, fill: 'var(--color-stone-400)' }} minTickGap={30} />
-                              <YAxis yAxisId="price" domain={['auto', 'auto']} orientation="right"
-                                     tick={{ fontSize: 10, fill: 'var(--color-stone-400)', fontWeight: 'bold' }}
-                                     axisLine={false} tickLine={false} />
-                              <YAxis yAxisId="vol" orientation="left"
-                                     domain={[0, dataMax => dataMax * 4]}
-                                     tick={{ fontSize: 9, fill: 'var(--color-stone-400)' }}
-                                     axisLine={false} tickLine={false}
-                                     tickFormatter={val => `${(val / 10000).toFixed(0)}만`} />
-                              <Tooltip
-                                  contentStyle={{
-                                    backgroundColor: 'var(--color-stone-100)',
-                                    border: '1px solid var(--color-stone-200)',
-                                    borderRadius: '12px', fontSize: '11px',
-                                    color: 'var(--color-stone-800)',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                                  }}
-                                  formatter={(value, name) => {
-                                    if (name === 'vol') return [`${value.toLocaleString()}주`, '거래량'];
-                                    return [`${value.toLocaleString()}원`, '가격'];
-                                  }}
-                              />
-                              <Bar yAxisId="vol" dataKey="vol" name="vol"
-                                   fill="var(--color-stone-400)" opacity={0.1} radius={[2, 2, 0, 0]} />
-                              <Bar yAxisId="price" dataKey={d => [d.open, d.close]}
-                                   shape={<CandlestickShape />} animationDuration={0} />
-                            </ComposedChart>
-                          </ResponsiveContainer>
+                          <>
+                            {/* 캔들 차트 */}
+                            <div className="flex-1 px-2">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <ComposedChart
+                                    data={chartData}
+                                    margin={{ top: 8, right: 48, left: 0, bottom: 0 }}
+                                    onMouseMove={e => {
+                                      if (e?.activePayload?.length > 0) setHoveredData(e.activePayload[0].payload);
+                                    }}
+                                    onMouseLeave={() => setHoveredData(null)}
+                                >
+                                  <CartesianGrid strokeDasharray="3 3" stroke="#f0efee" vertical={false} />
+                                  <XAxis dataKey="time" hide />
+                                  <YAxis orientation="right"
+                                         domain={([min, max]) => {
+                                           const pad = Math.max(Math.ceil((max - min) * 0.05), 1);
+                                           return [min - pad, max + pad];
+                                         }}
+                                         tickCount={5}
+                                         tick={{ fontSize: 10, fill: '#a8a29e', fontWeight: 'bold' }}
+                                         axisLine={false} tickLine={false}
+                                         tickFormatter={v => v.toLocaleString()} width={56} />
+                                  <Tooltip
+                                      contentStyle={{
+                                        background: '#fafaf9', border: '1px solid #e7e5e4',
+                                        borderRadius: 12, fontSize: 11, color: '#292524',
+                                        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                                      }}
+                                      formatter={(value, name, props) => {
+                                        const d = props?.payload;
+                                        if (!d) return [value, name];
+                                        return [
+                                          `시 ${d.open?.toLocaleString()}  고 ${d.high?.toLocaleString()}  저 ${d.low?.toLocaleString()}  종 ${d.close?.toLocaleString()}`,
+                                          d.time,
+                                        ];
+                                      }}
+                                      labelFormatter={() => ''}
+                                  />
+                                  <Bar dataKey={d => [d.low, d.high]}
+                                       shape={<CandlestickShape />} animationDuration={0} isAnimationActive={false} />
+                                </ComposedChart>
+                              </ResponsiveContainer>
+                            </div>
+
+                            {/* 거래량 차트 */}
+                            <div className="h-[64px] px-2 border-t border-stone-100">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={chartData} margin={{ top: 2, right: 48, left: 0, bottom: 0 }}>
+                                  <XAxis dataKey="time" axisLine={false} tickLine={false}
+                                         tick={{ fontSize: 9, fill: '#a8a29e' }} minTickGap={30} />
+                                  <YAxis hide domain={[0, 'auto']} />
+                                  <Bar dataKey="vol" fill="#d6d3d1" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </>
                       )}
                     </div>
                   </div>
@@ -593,9 +637,11 @@ export function MockupPage() {
                       <div className="space-y-1">
                         <p className="text-[8px] font-bold text-stone-400">거래량</p>
                         <p className="text-[9px] font-black text-stone-800">
-                          {trades.length > 0 && trades[0].vol > 0
-                              ? `${(trades[0].vol / 10000).toFixed(0)}만`
-                              : '-'}
+                          {(() => {
+                            const vol = trades.length > 0 ? trades[0].vol : 0;
+                            if (vol <= 0) return '-';
+                            return vol >= 10000 ? `${(vol / 10000).toFixed(1)}만` : vol.toLocaleString();
+                          })()}
                         </p>
                       </div>
                     </div>
@@ -681,8 +727,9 @@ export function MockupPage() {
                 </div>
 
                 {/* 모달 차트 */}
-                <div className="flex-1 p-6 relative">
-                  <div className="absolute top-6 left-6 z-10 flex items-center gap-3 pointer-events-none">
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {/* OHLCV */}
+                  <div className="px-6 pt-4 pb-1 flex items-center gap-3">
                     {[
                       { label: '시', val: displayData?.open },
                       { label: '고', val: displayData?.high, color: 'var(--color-brand-red)' },
@@ -691,58 +738,73 @@ export function MockupPage() {
                     ].map(({ label, val, color }) => (
                         <div key={label} className="flex items-center gap-1">
                           <span className="text-[10px] font-bold text-stone-400">{label}</span>
-                          <span className="text-[11px] font-mono font-bold text-stone-800"
-                                style={color ? { color } : {}}>
-                      {val?.toLocaleString() ?? '-'}
-                    </span>
+                          <span className="text-[11px] font-mono font-bold"
+                                style={{ color: color ?? 'var(--color-stone-800)' }}>
+                            {val?.toLocaleString() ?? '-'}
+                          </span>
                         </div>
                     ))}
                   </div>
 
                   {chartData.length === 0 ? (
-                      <div className="w-full h-full flex items-center justify-center text-stone-400 text-sm font-bold">
+                      <div className="flex-1 flex items-center justify-center text-stone-400 text-sm font-bold">
                         {loading ? '데이터 로딩 중...' : '캔들 데이터 없음'}
                       </div>
                   ) : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart
-                            data={chartData}
-                            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                            onMouseMove={e => {
-                              if (e?.activePayload?.length > 0) setHoveredData(e.activePayload[0].payload);
-                            }}
-                            onMouseLeave={() => setHoveredData(null)}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-stone-200)" vertical={false} />
-                          <XAxis dataKey="time" axisLine={false} tickLine={false}
-                                 tick={{ fontSize: 10, fill: 'var(--color-stone-400)' }} minTickGap={30} />
-                          <YAxis yAxisId="price" domain={['auto', 'auto']} orientation="right"
-                                 tick={{ fontSize: 10, fill: 'var(--color-stone-400)', fontWeight: 'bold' }}
-                                 axisLine={false} tickLine={false} />
-                          <YAxis yAxisId="vol" orientation="left"
-                                 domain={[0, dataMax => dataMax * 4]}
-                                 tick={{ fontSize: 9, fill: 'var(--color-stone-400)' }}
-                                 axisLine={false} tickLine={false}
-                                 tickFormatter={val => `${(val / 10000).toFixed(0)}만`} />
-                          <Tooltip
-                              contentStyle={{
-                                backgroundColor: 'var(--color-stone-100)',
-                                border: '1px solid var(--color-stone-200)',
-                                borderRadius: '12px', fontSize: '11px',
-                                color: 'var(--color-stone-800)',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                              }}
-                              formatter={(value, name) => {
-                                if (name === 'vol') return [`${value.toLocaleString()}주`, '거래량'];
-                                return [`${value.toLocaleString()}원`, '가격'];
-                              }}
-                          />
-                          <Bar yAxisId="vol" dataKey="vol" name="vol"
-                               fill="var(--color-stone-400)" opacity={0.1} radius={[2, 2, 0, 0]} />
-                          <Bar yAxisId="price" dataKey={d => [d.open, d.close]}
-                               shape={<CandlestickShape />} animationDuration={0} />
-                        </ComposedChart>
-                      </ResponsiveContainer>
+                      <>
+                        <div className="flex-1 px-2">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart
+                                data={chartData}
+                                margin={{ top: 8, right: 60, left: 0, bottom: 0 }}
+                                onMouseMove={e => {
+                                  if (e?.activePayload?.length > 0) setHoveredData(e.activePayload[0].payload);
+                                }}
+                                onMouseLeave={() => setHoveredData(null)}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f0efee" vertical={false} />
+                              <XAxis dataKey="time" hide />
+                              <YAxis orientation="right"
+                                     domain={([min, max]) => {
+                                       const pad = Math.max(Math.ceil((max - min) * 0.05), 1);
+                                       return [min - pad, max + pad];
+                                     }}
+                                     tickCount={5}
+                                     tick={{ fontSize: 10, fill: '#a8a29e', fontWeight: 'bold' }}
+                                     axisLine={false} tickLine={false}
+                                     tickFormatter={v => v.toLocaleString()} width={64} />
+                              <Tooltip
+                                  contentStyle={{
+                                    background: '#fafaf9', border: '1px solid #e7e5e4',
+                                    borderRadius: 12, fontSize: 11, color: '#292524',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                                  }}
+                                  formatter={(value, name, props) => {
+                                    const d = props?.payload;
+                                    if (!d) return [value, name];
+                                    return [
+                                      `시 ${d.open?.toLocaleString()}  고 ${d.high?.toLocaleString()}  저 ${d.low?.toLocaleString()}  종 ${d.close?.toLocaleString()}`,
+                                      d.time,
+                                    ];
+                                  }}
+                                  labelFormatter={() => ''}
+                              />
+                              <Bar dataKey={d => [d.low, d.high]}
+                                   shape={<CandlestickShape />} animationDuration={0} isAnimationActive={false} />
+                            </ComposedChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="h-[72px] px-2 border-t border-stone-100">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData} margin={{ top: 2, right: 60, left: 0, bottom: 0 }}>
+                              <XAxis dataKey="time" axisLine={false} tickLine={false}
+                                     tick={{ fontSize: 9, fill: '#a8a29e' }} minTickGap={30} />
+                              <YAxis hide domain={[0, 'auto']} />
+                              <Bar dataKey="vol" fill="#d6d3d1" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </>
                   )}
                 </div>
               </div>
@@ -996,12 +1058,8 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
     if (!isLoggedIn || !token) return;
     setPendingLoading(true);
     try {
-      const res = await fetch(`${API}/api/token/${tokenId}/order/pending`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setPendingOrders(data);
+      const res = await api.get(`/api/token/${tokenId}/order/pending`);
+      setPendingOrders(res.data);
     } catch (e) {
       console.warn('[OrderPanel] 대기 주문 조회 실패:', e.message);
     } finally {
@@ -1017,14 +1075,10 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   const fetchCapacity = useCallback(async () => {
     if (!isLoggedIn || !tokenId) return;
     try {
-      const res = await fetch(`${API}/api/token/${tokenId}/order/capacity`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
+      const res = await api.get(`/api/token/${tokenId}/order/capacity`);
       setCapacity({
-        availableBalance:  data.availableBalance  ?? 0,
-        availableQuantity: data.availableQuantity ?? 0,
+        availableBalance:  res.data.availableBalance  ?? 0,
+        availableQuantity: res.data.availableQuantity ?? 0,
       });
     } catch (e) {
       console.warn('[OrderPanel] capacity 조회 실패:', e.message);
@@ -1072,24 +1126,13 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
         orderQuantity: numQty,
         orderType:     isBuy ? 'BUY' : 'SELL',
       };
-      const res = await fetch(`${API}/api/token/${tokenId}/order`, {
-        method:  'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          Authorization:   `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `HTTP ${res.status}`);
-      }
+      await api.post(`/api/token/${tokenId}/order`, body);
       setOrderMsg({ type: 'success', text: `${isBuy ? '매수' : '매도'} 주문이 접수되었습니다.` });
       setQty('');
       setAmount('');
       fetchCapacity();
     } catch (e) {
-      setOrderMsg({ type: 'error', text: e.message || '주문 접수에 실패했습니다.' });
+      setOrderMsg({ type: 'error', text: e.response?.data?.message || e.message || '주문 접수에 실패했습니다.' });
     } finally {
       setSubmitting(false);
     }
@@ -1098,11 +1141,7 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   async function handleCancelOrder(orderId) {
     if (!token) return;
     try {
-      const res = await fetch(`${API}/api/token/order/cancel/${orderId}`, {
-        method:  'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await api.delete(`/api/token/order/cancel/${orderId}`);
       setPendingOrders(prev => prev.filter(o => o.orderId !== orderId));
     } catch (e) {
       console.warn('[OrderPanel] 주문 취소 실패:', e.message);
@@ -1131,18 +1170,7 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
       return;
     }
     try {
-      const res = await fetch(`${API}/api/token/order/update/${orderId}`, {
-        method:  'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization:  `Bearer ${token}`,
-        },
-        body: JSON.stringify({ updatePrice: p, updateQuantity: q }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `HTTP ${res.status}`);
-      }
+      await api.put(`/api/token/order/update/${orderId}`, { updatePrice: p, updateQuantity: q });
       setPendingOrders(prev =>
           prev.map(o => {
             if (o.orderId !== orderId) return o;
@@ -1154,7 +1182,7 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
       setEditingOrderId(null);
       setUpdateMsg(null);
     } catch (e) {
-      setUpdateMsg({ orderId, type: 'error', text: e.message || '수정에 실패했습니다.' });
+      setUpdateMsg({ orderId, type: 'error', text: e.response?.data?.message || e.message || '수정에 실패했습니다.' });
     }
   }
 
