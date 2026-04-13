@@ -8,8 +8,13 @@ import server.main.candle.entity.CandleMonth;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface CandleMonthRepository extends JpaRepository<CandleMonth, Long> {
+
+    @Query("SELECT c FROM CandleMonth c WHERE c.token.tokenId = :tokenId ORDER BY c.candleTime DESC LIMIT 1")
+    Optional<CandleMonth> findLatest(@Param("tokenId") Long tokenId);
+
     @Query("SELECT c FROM CandleMonth c WHERE c.token.tokenId = :tokenId AND c.candleTime < :before ORDER BY c.candleTime DESC LIMIT 35")
     List<CandleMonth> findTop35Before(@Param("tokenId") Long tokenId, @Param("before") LocalDateTime before);
 

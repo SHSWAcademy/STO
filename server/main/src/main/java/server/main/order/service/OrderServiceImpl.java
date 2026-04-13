@@ -155,7 +155,7 @@ public class OrderServiceImpl implements OrderService {
         Member findMember = findOrder.getMember();
         Long memberId = findMember.getMemberId();
 
-        // ORDERS 테이블 업데이트 — match 서버는 누적 체결을 모르므로 main에서 상태 재계산
+        // ORDERS 테이블 업데이트 — match 서버는 누적 체결을 모르므로 main 에서 상태 재계산
         long newTotalFilled = findOrder.getFilledQuantity() + matchResult.getFilledQuantity();
 
         OrderStatus finalStatus;
@@ -208,19 +208,6 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             tradeRepository.save(trade);
-
-            // 캔들 차트 push
-            try {
-                String payload = objectMapper.writeValueAsString(Map.of(
-                        "tradePrice",    execution.getTradePrice(),
-                        "tradeQuantity", execution.getTradeQuantity(),
-                        "isBuy",         isBuy,
-                        "tradeTime",     LocalDateTime.now().toLocalTime().toString()
-                ));
-                redisTemplate.convertAndSend("trades:" + tokenId, payload);
-            } catch (Exception e) {
-                log.warn("trades Redis publish 실패 tokenId={}", tokenId, e);
-            }
 
 
             long tradeAmount = Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity());

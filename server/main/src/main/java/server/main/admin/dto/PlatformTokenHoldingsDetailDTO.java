@@ -15,7 +15,7 @@ public class PlatformTokenHoldingsDetailDTO {
     private String tokenName;           // 토큰 이름
     private String tokenSymbol;         // 토큰 심볼 (줄임 표현)
     private Long initPrice;             // 토큰 초기 가격
-    private Double currentPrice;        // 토큰 현재 가격
+    private Long currentPrice;          // 토큰 현재 가격
     private String imgUrl;              // 자산이미지
     private Long allocationAmount;      // 배당수익
 }

@@ -28,7 +28,7 @@ public class Token extends BaseEntity {
     private String contractAddress;     // 온체인 토큰ID
     private String tokenDecimals;         // ERC20 토큰 메타데이터
     private Long initPrice;             // 토큰 초기 가격
-    private Double currentPrice;          // 토큰 현재 가격
+    private Long currentPrice;            // 토큰 현재 가격
     private LocalDateTime issuedAt;     // 실제 거래 가능한 상태로 게시된 시간
 
     @Enumerated(value = EnumType.STRING)
@@ -47,6 +47,10 @@ public class Token extends BaseEntity {
 
 
     // 토큰 수정용 메서드만듬 dto -> entity 변환 (bgchoi)
+    public void updateCurrentPrice(Long price) {
+        this.currentPrice = price;
+    }
+
     public void update (TokenStatus tokenStatus, String tokenSymbol) {
         if (tokenStatus != null) this.tokenStatus = tokenStatus;
         if (tokenSymbol != null) this.tokenSymbol = tokenSymbol;

@@ -37,5 +37,5 @@ public class Order {
     public void updateQuantity(Long newQuantity) {
         this.remainingQuantity = newQuantity;
     }
-    
+
 }
