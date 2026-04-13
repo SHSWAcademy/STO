@@ -7,8 +7,6 @@ import { StoneLogo } from '../components/ui/StoneLogo.jsx';
 import { Modal } from '../components/ui/Modal.jsx';
 
 // AuthPage — 로그인 / 회원가입 (탭 전환)
-// mock 인증: 이메일·비밀번호 모두 ADMIN → 관리자, 그 외 아무 값 → 일반 유저
-// API 연결 시: login() 내부만 교체
 
 export function AuthPage() {
   const navigate = useNavigate();
@@ -19,11 +17,19 @@ export function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail]           = useState('');
   const [password, setPassword]     = useState('');
+  const [error, setError]           = useState('');
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) return;
-    const isAdmin = await login(email, password);
-    navigate(isAdmin ? '/admin' : '/');
+    setError('');
+
+    try {
+      await login(email, password);
+      navigate('/');
+    } catch (err) {
+      console.error('[Login] failed:', err);
+      setError('로그인에 실패했습니다. 계정 정보를 확인해 주세요.');
+    }
   }
 
   function handleSignup() {
@@ -81,7 +87,7 @@ export function AuthPage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                placeholder="이메일 또는 ADMIN"
+                placeholder="이메일 주소"
                 className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 focus:border-brand-blue outline-none transition-all font-bold"
               />
             </div>
@@ -94,7 +100,7 @@ export function AuthPage() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                  placeholder="비밀번호 또는 ADMIN"
+                  placeholder="비밀번호"
                   className="w-full bg-stone-100 border border-stone-200 rounded-xl px-4 py-3 pr-12 text-sm text-stone-800 focus:border-brand-blue outline-none transition-all font-bold"
                 />
                 <button
@@ -115,16 +121,18 @@ export function AuthPage() {
               <button className="text-stone-600 hover:underline">비밀번호 찾기</button>
             </div>
 
+            {error && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-xs font-bold text-red-600">
+                {error}
+              </div>
+            )}
+
             <button
               onClick={handleLogin}
               className="w-full bg-stone-800 hover:bg-black text-white font-black py-3.5 rounded-xl transition-all shadow-lg uppercase tracking-widest text-xs"
             >
               로그인하기
             </button>
-
-            <p className="text-[10px] text-stone-400 text-center font-bold">
-              테스트: 아무 값 입력 → 일반 유저 | ADMIN / ADMIN → 관리자
-            </p>
           </div>
         )}
 

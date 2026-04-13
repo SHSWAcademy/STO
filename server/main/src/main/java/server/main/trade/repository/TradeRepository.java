@@ -16,4 +16,9 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
 
     @Query("SELECT t.token.tokenId, SUM(t.totalTradePrice), SUM(t.tradeQuantity) FROM Trade t WHERE t.token.tokenId IN :tokenIds GROUP BY t.token.tokenId")
     List<Object[]> findAggregatesByTokenIds(@Param("tokenIds") List<Long> tokenIds);
+
+    // 구매유저의 통 추자 금액 조회 (admin)
+    @Query("SELECT t.buyer.memberId , SUM(t.totalTradePrice) FROM Trade t "
+    + "WHERE t.buyer.memberId IN :memberIds GROUP BY t.buyer.memberId")
+    List<Object[]> sumTotalBuyerUser(@Param("memberIds") List<Long> memberIds);
 }

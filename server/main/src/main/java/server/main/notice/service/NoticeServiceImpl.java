@@ -3,6 +3,9 @@ package server.main.notice.service;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import server.main.admin.dto.AssetRegisterRequestDTO;
@@ -39,12 +42,12 @@ public class NoticeServiceImpl implements NoticeService{
 
     // 공지사항 조회 (admin)
     @Override
-    public List<NoticeListResponseDTO> getNoticeList() {
-        List<Notice> notices = noticeRepository.findAll(Sort.by(Sort.Order.desc("createdAt")));
-        return notices.stream()
-                .map(notice -> noticeMapper.toNoticeAdmin(notice))
-                .collect(Collectors.toList());
+    public Page<NoticeListResponseDTO> getNoticeList(int page, int size) {
+        // 전체조회 (생성일 내림차순)
+        Pageable pageable = PageRequest.of(page,size, Sort.by("createdAt").descending());
+        Page<Notice> notices = noticeRepository.findAll(pageable);
 
+        return notices.map(notice -> noticeMapper.toNoticeAdmin(notice));
     }
 
     // 공지사항 등록 (admin)
