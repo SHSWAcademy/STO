@@ -15,6 +15,8 @@ import server.main.asset.entity.Asset;
 import server.main.disclosure.entity.Disclosure;
 import server.main.disclosure.repository.DisclosureRepository;
 import server.main.global.error.BusinessException;
+import server.main.global.util.TickSizePolicy;
+import static server.main.global.error.ErrorCode.TOKEN_NOT_FOUND;
 import server.main.global.file.File;
 import server.main.global.file.FileRepository;
 import server.main.token.dto.*;
@@ -240,5 +242,12 @@ public class TokenServiceImpl implements TokenService{
                         ));
             }
         };
+    }
+
+    @Override
+    public long getTickSize(Long tokenId) {
+        Token findToken = tokenRepository.findById(tokenId)
+                .orElseThrow(() -> new BusinessException(TOKEN_NOT_FOUND));
+        return TickSizePolicy.getTickSize(findToken.getCurrentPrice());
     }
 }

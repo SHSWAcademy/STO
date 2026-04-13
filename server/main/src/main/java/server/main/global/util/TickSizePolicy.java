@@ -1,11 +1,12 @@
 package server.main.global.util;
 
+import static server.main.global.error.ErrorCode.*;
+
 import server.main.global.error.BusinessException;
-import static server.main.global.error.ErrorCode.INVALID_TICK_SIZE;
 
 public class TickSizePolicy {
 
-    public static long getTicksize(long price) {
+    public static long getTickSize(long price) {
 
         if (price < 100) {
             return 10;
@@ -19,7 +20,7 @@ public class TickSizePolicy {
     }
 
     public static void validate(long price) {
-        long tickSize = getTicksize(price);
+        long tickSize = getTickSize(price);
         if (price % tickSize != 0) {
             throw new BusinessException(INVALID_TICK_SIZE);
         }
