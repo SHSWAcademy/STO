@@ -19,7 +19,7 @@ public class TokenChartDetailResponseDto {
     private String tokenName;           // 토큰 이름
     private String tokenSymbol;         // 토큰 고유이름
 
-    // private Long currentPrice;          // 토큰 현재 가격 -> 웹소켓으로 실시간 변화하기
+    private Long currentPrice;           // 토큰 현재 가격 (초기 로딩용, 이후 웹소켓으로 갱신)
     private LocalDateTime issuedAt;     // 실제 거래 가능한 상태로 게시된 시간
 
     // asset 자산에서 가져올 데이터
