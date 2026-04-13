@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell, CheckCheck } from 'lucide-react';
 import { TOKENS } from '../data/mock.js';
 import { useApp } from '../context/AppContext.jsx';
+import { useAlarmSocket } from '../hooks/useAlarmSocket.js';
 import { cn } from '../lib/utils.js';
 import { StoneLogo } from './ui/StoneLogo.jsx';
+import api from '../lib/api.js';
 
-// 원본 MainLayout의 navItems와 동일한 경로
 const NAV_ITEMS = [
   { label: '홈',    path: '/',           end: true },
   { label: '내 계좌', path: '/portfolio' },
@@ -15,16 +16,114 @@ const NAV_ITEMS = [
   { label: '공지',   path: '/notice' },
 ];
 
-export function AppHeader() {
-  const [searchQuery, setSearchQuery]   = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
-  const navigate = useNavigate();
-  const { user, logout } = useApp();
+// alarmType → 내계좌 탭 이동 대상
+function resolveAlarmTab(alarmType) {
+  if (alarmType === 'ORDER_FILLED' || alarmType === 'ORDER_PARTIAL') return 'orders';
+  if (alarmType === 'DIVIDEND') return 'dividends';
+  return null;
+}
 
+// 알람 생성 시각 → "방금 전 / N분 전 / N시간 전 / 날짜" 포맷
+function formatAlarmTime(createdAt) {
+  const diff = Date.now() - new Date(createdAt).getTime();
+  const min  = Math.floor(diff / 60000);
+  if (min < 1)   return '방금 전';
+  if (min < 60)  return `${min}분 전`;
+  const hr = Math.floor(min / 60);
+  if (hr  < 24)  return `${hr}시간 전`;
+  return new Date(createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+}
+
+export function AppHeader() {
+  const [searchQuery, setSearchQuery]       = useState('');
+  const [showDropdown, setShowDropdown]     = useState(false);
+  const [showAlarms, setShowAlarms]         = useState(false);
+  const [alarms, setAlarms]                 = useState([]);
+  const alarmDropdownRef                    = useRef(null);
+  const navigate                            = useNavigate();
+  const { user, logout }                    = useApp();
+
+  const unreadCount = alarms.filter(a => !a.isRead).length;
+
+  // ── REST: 초기 알람 목록 로드 ──────────────────────────────
+  const loadAlarms = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await api.get('/api/alarm');
+      setAlarms(res.data);
+    } catch (e) {
+      console.warn('[Alarm] 목록 로드 실패', e);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadAlarms();
+  }, [loadAlarms]);
+
+  // ── WebSocket: 구독 직후 스냅샷 + 실시간 신규 알람 ─────────
+  useAlarmSocket({
+    memberId: user?.memberId,
+    token:    user?.accessToken,
+    // 구독 직후 백엔드가 미읽음 목록을 배열로 전송
+    onSnapshot: (snapshot) => {
+      setAlarms(prev => {
+        // 기존 목록에 스냅샷을 머지 (alarmId 기준 중복 제거, 최신순)
+        const existingIds = new Set(prev.map(a => a.alarmId));
+        const newItems    = snapshot.filter(a => !existingIds.has(a.alarmId));
+        return [...newItems, ...prev].sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+        );
+      });
+    },
+    // 체결/배당 이벤트 발생 시 단건 수신
+    onNewAlarm: (alarm) => {
+      setAlarms(prev => [alarm, ...prev].slice(0, 50));
+    },
+  });
+
+  // ── 드롭다운 외부 클릭 시 닫기 ────────────────────────────
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (alarmDropdownRef.current && !alarmDropdownRef.current.contains(e.target)) {
+        setShowAlarms(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // ── 알람 단건 읽음 + 페이지 이동 ──────────────────────────
+  async function handleAlarmClick(alarm) {
+    if (!alarm.isRead) {
+      try {
+        await api.patch(`/api/alarm/${alarm.alarmId}/read`);
+        setAlarms(prev =>
+          prev.map(a => a.alarmId === alarm.alarmId ? { ...a, isRead: true } : a),
+        );
+      } catch (e) {
+        console.warn('[Alarm] 읽음 처리 실패', e);
+      }
+    }
+    setShowAlarms(false);
+    const tab = resolveAlarmTab(alarm.alarmType);
+    if (tab) navigate('/portfolio', { state: { tab } });
+  }
+
+  // ── 전체 읽음 ─────────────────────────────────────────────
+  async function handleMarkAllAsRead() {
+    try {
+      await api.patch('/api/alarm/read/all');
+      setAlarms(prev => prev.map(a => ({ ...a, isRead: true })));
+    } catch (e) {
+      console.warn('[Alarm] 전체 읽음 실패', e);
+    }
+  }
+
+  // ── 검색 ──────────────────────────────────────────────────
   const searchResults = searchQuery.trim()
     ? TOKENS.filter(t =>
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.id.toLowerCase().includes(searchQuery.toLowerCase())
+        t.id.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : [];
 
@@ -51,7 +150,7 @@ export function AppHeader() {
               end={item.end}
               className={({ isActive }) => cn(
                 'text-sm font-bold transition-colors hover:text-stone-800',
-                isActive ? 'text-stone-800' : 'text-stone-500'
+                isActive ? 'text-stone-800' : 'text-stone-500',
               )}
             >
               {item.label}
@@ -105,12 +204,90 @@ export function AppHeader() {
         </div>
       </div>
 
-      {/* 우측: 알림 + 유저 */}
+      {/* 우측: 알림(로그인 시만) + 유저 */}
       <div className="flex items-center gap-3">
-        <button className="p-2 text-stone-400 hover:text-stone-800 transition-colors relative">
-          <Bell size={20} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand-red rounded-full border-2 border-white" />
-        </button>
+
+        {/* 알람 벨 — 로그인한 사용자만 표시 */}
+        {user && (
+          <div className="relative" ref={alarmDropdownRef}>
+            <button
+              onClick={() => setShowAlarms(prev => !prev)}
+              className="p-2 text-stone-400 hover:text-stone-800 transition-colors relative"
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* 알람 드롭다운 */}
+            {showAlarms && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-stone-200 rounded-2xl shadow-2xl overflow-hidden z-50">
+                {/* 헤더 */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-stone-100">
+                  <span className="text-sm font-black text-stone-800">
+                    알림
+                    {unreadCount > 0 && (
+                      <span className="ml-1.5 text-xs font-bold text-red-500">{unreadCount}</span>
+                    )}
+                  </span>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllAsRead}
+                      className="flex items-center gap-1 text-[11px] font-bold text-stone-400 hover:text-stone-700 transition-colors"
+                    >
+                      <CheckCheck size={13} />
+                      전체 읽음
+                    </button>
+                  )}
+                </div>
+
+                {/* 알람 목록 */}
+                <ul className="max-h-80 overflow-y-auto divide-y divide-stone-50">
+                  {alarms.length === 0 ? (
+                    <li className="px-4 py-8 text-center text-xs font-bold text-stone-400">
+                      새로운 알림이 없습니다.
+                    </li>
+                  ) : (
+                    alarms.map(alarm => (
+                      <li key={alarm.alarmId}>
+                        <button
+                          onClick={() => handleAlarmClick(alarm)}
+                          className={cn(
+                            'w-full text-left px-4 py-3 hover:bg-stone-50 transition-colors',
+                            !alarm.isRead && 'bg-blue-50/60 hover:bg-blue-50',
+                          )}
+                        >
+                          <div className="flex items-start gap-2">
+                            {/* 미읽음 도트 */}
+                            <span className={cn(
+                              'mt-1.5 w-1.5 h-1.5 rounded-full shrink-0',
+                              !alarm.isRead ? 'bg-red-500' : 'bg-transparent',
+                            )} />
+                            <div className="flex-1 min-w-0">
+                              <p className={cn(
+                                'text-xs leading-relaxed break-words',
+                                alarm.isRead ? 'text-stone-500 font-medium' : 'text-stone-800 font-bold',
+                              )}>
+                                {alarm.message}
+                              </p>
+                              <p className="text-[10px] text-stone-400 font-bold mt-0.5">
+                                {formatAlarmTime(alarm.createdAt)}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
         <Link
           to="/portfolio"
           className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black bg-stone-800 hover:scale-105 transition-transform"

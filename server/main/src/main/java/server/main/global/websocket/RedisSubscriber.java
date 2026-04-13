@@ -65,6 +65,8 @@ public class RedisSubscriber implements MessageListener {
 
         } else if ("pendingOrders".equals(type)) { // 호가창 메시지를 받았을 경우
             messagingTemplate.convertAndSend("/topic/pendingOrders/" + parts[1] + "/" + parts[2], body);
+        } else if ("alarm".equals(type)) {  // 알람창 메시지를 받았을 경우 alarm:{memberId} 으로 들어오면 /topic/alarm/{memberId} 로 convertAndSend
+            messagingTemplate.convertAndSend("/topic/alarm/" + parts[1], body);
         }
     }
 }

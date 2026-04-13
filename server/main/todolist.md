@@ -348,3 +348,135 @@ stompClient.subscribe(`/topic/candle/live/${tokenId}`, callback);
 // 변경 후 (현재 선택된 타입만 구독)
 stompClient.subscribe(`/topic/candle/live/${tokenId}/${candleType}`, callback);
 // 예: /topic/candle/live/1/MINUTE
+
+---
+
+## 알람 기능 (실시간 헤더 알람)
+
+### 개요
+
+> 로그인한 회원 전용. 매수/매도 주문 체결 또는 배당 지급 시 실시간으로 헤더에 알람 표시.
+> STOMP WebSocket + Redis Pub/Sub 방식. 모든 페이지 헤더에 공통 적용.
+
+**알람 발생 조건**
+1. 로그인한 회원의 매수 또는 매도 호가가 체결(FILLED/PARTIAL) 되었을 때
+2. 배당(allocation)이 지급되는 시점
+
+**DB 부하 여부**
+> WebSocket 연결 자체는 persistent connection — 연결 수립 시 1회만 JWT 검증할 뿐, 이후에는 아무 DB 쿼리도 발생하지 않음. 폴링 없음.
+> DB 쿼리는 이벤트 발생 시에만 실행 (알람 저장, 읽음 처리). 1만 명이 동시 접속해도 조용하고, 체결·배당 이벤트가 많아지면 그만큼만 INSERT가 늘어나는 구조.
+> 결론: **DB 부하 없음** (이벤트 드리븐 단순 INSERT/UPDATE).
+
+---
+
+### [A] 백엔드
+
+#### [A-1] Alarm 엔티티 및 Repository
+
+- [ ] `alarm/entity/AlarmType.java` enum 생성
+  ```java
+  public enum AlarmType { ORDER_FILLED, DIVIDEND }
+  ```
+- [ ] `alarm/entity/Alarm.java` 엔티티 생성 (BaseEntity 상속)
+  - 필드: `memberId (Long)`, `alarmType (AlarmType)`, `tokenId (Long)`, `message (String)`, `isRead (boolean, default false)`, `createdAt`
+  - 인덱스: `(memberId, isRead)` — 미읽음 조회 최적화
+- [ ] `alarm/repository/AlarmRepository.java` 생성
+  - `findByMemberIdOrderByCreatedAtDesc(Long memberId)` — 전체 목록 (최신순 50건)
+  - `findByMemberIdAndIsReadFalse(Long memberId)` — 미읽음 목록
+  - `countByMemberIdAndIsReadFalse(Long memberId)` — 미읽음 수
+  - `markAllAsRead(Long memberId)` — `@Modifying @Query` bulk update
+
+#### [A-2] AlarmService
+
+- [ ] `alarm/service/AlarmService.java` 인터페이스 생성
+- [ ] `alarm/service/AlarmServiceImpl.java` 구현 생성
+  - `createAlarm(Long memberId, AlarmType type, Long tokenId, String message)` — DB 저장 + Redis publish
+  - `getAlarms(Long memberId)` — 최신순 50건 조회
+  - `markAsRead(Long alarmId, Long memberId)` — 단건 읽음 처리 (본인 확인)
+  - `markAllAsRead(Long memberId)` — 전체 읽음 처리
+
+#### [A-3] Redis 채널 설정 및 Publisher
+
+- [ ] `RedisPublisher.java`에 `publishAlarm(Long memberId, Object payload)` 메서드 추가
+  - 채널: `alarm:{memberId}`
+- [ ] `RedisConfig.java`에 `alarm:*` 패턴 구독 리스너 추가
+  - `MessageListenerAdapter` + `RedisSubscriber` 연결
+
+#### [A-4] RedisSubscriber — alarm 채널 처리 추가
+
+- [ ] `RedisSubscriber.java`에 `alarm` 타입 케이스 추가
+  - 채널명에서 `memberId` 추출 (`alarm:{memberId}` 파싱)
+  - `messagingTemplate.convertAndSend("/topic/alarm/{memberId}", payload)` 브로드캐스트
+
+#### [A-5] 체결 이벤트 → 알람 트리거
+
+- [ ] `OrderServiceImpl.processMatchResult()` (또는 match 결과 수신 콜백) 내에서
+  - `OrderStatus`가 `FILLED` 또는 `PARTIAL`로 변경될 때
+  - 매도자·매수자 각각 `alarmService.createAlarm()` 호출
+  - 메시지 예시: `"[토큰명] 매수 주문 12,000원 × 10주 체결 완료"`
+
+> **match 서버 팀원 공유**: match 서버가 체결 후 `trades:{tokenId}` publish 시 `buyerMemberId`, `sellerMemberId`, `tradePrice`, `tradeQuantity` 필드를 포함시켜야 main 서버에서 알람 생성 가능
+
+#### [A-6] 배당 이벤트 → 알람 트리거
+
+- [ ] 배당 지급 서비스(allocation batch 또는 `DividendService`)에서
+  - 지급 완료 후 해당 `memberId`에 `alarmService.createAlarm()` 호출
+  - 메시지 예시: `"[토큰명] 배당금 3,000원이 지급되었습니다"`
+
+#### [A-7] REST API
+
+- [ ] `alarm/controller/AlarmController.java` 생성 (`@RequestMapping("/api/alarm")`)
+  - `GET /api/alarm` — 알람 목록 조회 (JWT memberId 기반)
+  - `PATCH /api/alarm/{alarmId}/read` — 단건 읽음 처리
+  - `PATCH /api/alarm/read/all` — 전체 읽음 처리
+- [ ] `alarm/dto/AlarmResponseDto.java` 생성
+  - 필드: `alarmId`, `alarmType`, `tokenId`, `message`, `isRead`, `createdAt`
+
+#### [A-8] Security 설정
+
+- [ ] `SecurityConfig.java` — 아래 경로 인증 필요 추가
+  - `/api/alarm/**` — 로그인 필요
+  - `/ws/alarm/**` — 로그인 필요 (WebSocket 연결 시 JWT 검증)
+
+#### [A-9] WebSocket 엔드포인트 설정
+
+- [ ] `WebSocketConfig.java`에 `/ws/alarm` 엔드포인트 추가
+  - 또는 기존 `/ws/trading`을 공용으로 재활용 (경로 구분은 topic으로)
+  - 권장: 기존 `/ws/trading` 그대로 재활용 — 연결 수 줄임, 구독 topic만 추가
+- [ ] `AlarmSubscribeHandler.java` 생성
+  - `@EventListener(SessionSubscribeEvent)` — `/topic/alarm/{memberId}` 구독 감지
+  - JWT에서 추출한 `memberId`와 path variable `{memberId}` 일치 여부 검증 (타인 알람 구독 차단)
+  - 구독 시 미읽음 알람 목록 즉시 스냅샷 전송
+
+---
+
+### [B] 프론트엔드 ← 백엔드 완료 후 작업
+
+#### [B-1] `useAlarmSocket` 훅 생성
+
+- [ ] `client/web/src/hooks/useAlarmSocket.js` 생성
+  - 로그인 상태일 때만 `/ws/trading` (또는 `/ws/alarm`) 연결
+  - `/topic/alarm/{memberId}` 구독
+  - 수신 시 알람 목록 state 갱신, 미읽음 count 증가
+  - 페이지 이탈/로그아웃 시 구독 해제
+
+#### [B-2] Header 알람 벨 아이콘 + 미읽음 배지
+
+- [ ] `client/web/src/components/layout/Header.jsx` (또는 공통 헤더 컴포넌트)
+  - 로그인 상태일 때만 벨 아이콘 렌더링
+  - 미읽음 수 > 0 이면 빨간 배지 표시
+  - 클릭 시 알람 드롭다운 토글
+
+#### [B-3] 알람 드롭다운 컴포넌트
+
+- [ ] `client/web/src/components/alarm/AlarmDropdown.jsx` 생성
+  - 마운트 시 `GET /api/alarm` 호출 → 초기 목록 렌더링
+  - 각 항목 클릭 → `PATCH /api/alarm/{alarmId}/read` 호출 → isRead 상태 갱신
+  - "전체 읽음" 버튼 → `PATCH /api/alarm/read/all` 호출
+  - 읽지 않은 항목 강조 표시 (배경색 or dot)
+
+#### [B-4] 모든 페이지 레이아웃에 적용
+
+- [ ] 메인 페이지(자산 리스트), 상세 페이지, 홈, 내계좌, 관심, 공시·공지 — 공통 레이아웃 또는 각 페이지의 Header에 `useAlarmSocket` 연결 및 `AlarmDropdown` 삽입
+  - 공통 `Layout.jsx`가 있으면 거기서 한 번만 처리
+  - 없으면 각 페이지 상단에서 `useAlarmSocket` 호출 후 Header에 props 전달
