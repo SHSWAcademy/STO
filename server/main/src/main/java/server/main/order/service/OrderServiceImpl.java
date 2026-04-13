@@ -3,9 +3,7 @@ package server.main.order.service;
 import static server.main.global.error.ErrorCode.*;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -21,6 +19,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import server.main.alarm.entity.AlarmType;
+import server.main.alarm.event.AlarmEvent;
+import server.main.alarm.service.AlarmService;
 import server.main.blockchain.service.BlockchainOutboxService;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
@@ -75,6 +76,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderDuplicatedRepository orderDuplicatedRepository;
     private final TradeDuplicatedRepository tradeDuplicatedRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final AlarmService alarmService;
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -341,6 +343,53 @@ public class OrderServiceImpl implements OrderService {
                     .archivedAt(LocalDateTime.now())
                     .build());
         }
+
+
+        // 주문 체결 시 발생할 알람 리스트
+        List<AlarmEvent.AlarmRecord> alarmRecords = new ArrayList<>();
+        String tokenName = findToken.getTokenName();
+
+        // 알람 생성 : 주문이 체결되었을 때 알람 생성, FILLED, PARTIAL 구분 // 나와 상대 모두에게 알람 전달
+        if ((finalStatus == OrderStatus.FILLED || finalStatus == OrderStatus.PARTIAL) && !matchResult.getExecutions().isEmpty()) {
+            String orderTypeLabel = isBuy ? "매수" : "매도";
+            AlarmType myAlarmType = finalStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED : AlarmType.ORDER_PARTIAL; // 부분 체결, 전체 체결 판단
+            long totalFilled = matchResult.getExecutions().stream().mapToLong(TradeExecutionDto::getTradeQuantity).sum();
+            long tradePrice  = matchResult.getExecutions().get(0).getTradePrice();
+            String myMsg = String.format("[ %s ] %s 주문 %,d원 × %d주 %s",
+                    tokenName, orderTypeLabel, tradePrice, totalFilled,
+                    finalStatus == OrderStatus.FILLED ? "체결 완료" : "부분 체결");
+
+            alarmRecords.add(new AlarmEvent.AlarmRecord(memberId, myAlarmType, tokenId, myMsg));
+        }
+
+        // 상대방 알람 생성
+        Set<Long> notifiedCounters = new HashSet<>();
+        for (TradeExecutionDto execution : matchResult.getExecutions()) { // 매치에서 체결된 내역을 꺼낸다
+            Long counterMemberId = execution.getCounterMemberId();
+            if (notifiedCounters.contains(counterMemberId)) continue;
+
+            Order counterOrder = orderRepository.findById(execution.getCounterOrderId()).orElse(null);
+            if (counterOrder == null) continue;
+
+            OrderStatus counterStatus = counterOrder.getOrderStatus();
+            if (counterStatus != OrderStatus.FILLED && counterStatus != OrderStatus.PARTIAL) continue;
+
+            String counterTypeLabel = isBuy ? "매도" : "매수";  // 내가 매수자면 상대방은 매도자, 내가 매도자면 상대방은 매수자.
+            AlarmType counterAlarmType = counterStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED : AlarmType.ORDER_PARTIAL;
+            String counterMsg = String.format("[ %s ] %s 주문 %,d원 × %d주 %s",
+                    tokenName, counterTypeLabel, execution.getTradePrice(), execution.getTradeQuantity(),
+                    counterStatus == OrderStatus.FILLED ? "체결 완료" : "부분 체결");
+
+            alarmRecords.add(new AlarmEvent.AlarmRecord(counterMemberId, counterAlarmType, tokenId, counterMsg));
+            notifiedCounters.add(counterMemberId);
+        }
+
+        // 이벤트 발생
+        if (!alarmRecords.isEmpty()) {
+            eventPublisher.publishEvent(new AlarmEvent(alarmRecords));
+        }
+
+
 
         // WebSocket push 이벤트 발행 — 커밋 후 리스너가 실행
         List<Long> counterMemberIds = matchResult.getExecutions().stream()

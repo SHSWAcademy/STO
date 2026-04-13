@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   History, Wallet, ArrowUpRight, HandCoins, TrendingUp,
   Settings as SettingsIcon, Coins, User, Landmark,
@@ -38,7 +39,14 @@ const HISTORY_ITEMS = [
 ];
 
 export function MyAccountPage() {
+  const location = useLocation();
   const [activeSubTab, setActiveSubTab]       = useState('assets');
+
+  // 알람 클릭으로 넘어온 경우 해당 탭 자동 선택
+  useEffect(() => {
+    const tab = location.state?.tab;
+    if (tab) setActiveSubTab(tab);
+  }, [location.state]);
   const [historyFilter, setHistoryFilter]     = useState('전체');
   const [orderTab, setOrderTab]               = useState('all');
   const [openOrders, setOpenOrders]           = useState(OPEN_ORDERS);

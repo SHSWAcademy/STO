@@ -4,6 +4,15 @@ import { API_BASE_URL } from '../lib/config.js';
 
 const API = API_BASE_URL;
 
+// JWT payload에서 memberId(sub) 추출
+function getMemberIdFromJwt(token) {
+  try {
+    return Number(JSON.parse(atob(token.split('.')[1])).sub);
+  } catch {
+    return null;
+  }
+}
+
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
@@ -41,6 +50,7 @@ export function AppProvider({ children }) {
       name: email,
       email,
       role: 'user',
+      memberId: getMemberIdFromJwt(data.accessToken),
       accessToken: data.accessToken,
     });
     try {
