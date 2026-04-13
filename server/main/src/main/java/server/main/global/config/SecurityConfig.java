@@ -46,7 +46,8 @@ public class SecurityConfig {
                                 "/api/tokens/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/ws/trading/**"
+                                "/ws/trading/**",
+                                "/file/**"
                         ).permitAll()
                         .requestMatchers("/blockchain/**").hasRole("ADMIN")
                         .requestMatchers("/admin/**").hasRole("ADMIN")
