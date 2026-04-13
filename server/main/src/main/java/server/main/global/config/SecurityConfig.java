@@ -46,10 +46,10 @@ public class SecurityConfig {
                                 "/api/tokens/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/ws/trading/**",
-                                "/blockchain/**"
+                                "/ws/trading/**"
                         ).permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/blockchain/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception

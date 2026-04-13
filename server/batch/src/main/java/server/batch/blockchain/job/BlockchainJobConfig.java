@@ -9,6 +9,7 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import server.batch.blockchain.job.tasklet.BlockchainTasklet;
 
 @Configuration
@@ -32,4 +33,5 @@ public class BlockchainJobConfig {
                 .tasklet(blockchainTasklet, txManager)
                 .build();
     }
+
 }

@@ -17,11 +17,18 @@ public class Web3Config {
 
     @Bean
     public Web3j web3j() {
+
+        if (rpcUrl == null || rpcUrl.isBlank()) {
+            throw new IllegalStateException("blockchain.rpc-url이 설정되지 않음");
+        }
         return Web3j.build(new HttpService(rpcUrl));
     }
 
     @Bean
     public Credentials issuerCredentials() {
+        if (issuerPrivateKey == null || issuerPrivateKey.isBlank()) {
+            throw new IllegalStateException("blockchain.issuer-private-key가 설정되지 않음");
+        }
         return Credentials.create(issuerPrivateKey);
     }
 

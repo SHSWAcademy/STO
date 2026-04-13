@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,12 +17,22 @@ import org.springframework.stereotype.Component;
 public class BlockchainBatchScheduler {
 
     private final JobLauncher jobLauncher;
+    private final JobExplorer jobExplorer;
 
     @Qualifier("blockchainJob")
     private final Job blockchainJob;
 
+
     @Scheduled(cron = "0 * * * * *") // 매 분 0초
     public void runBlockchainJob() throws Exception {
+
+        int runningCount = jobExplorer
+                .findRunningJobExecutions("blockchainJob")
+                .size();
+        if (runningCount > 0) {
+            log.info("블록체인 배치 이미 실행 중 - 스킵");
+            return;
+        }
         JobParameters params = new JobParametersBuilder()
                 .addLong("currentTime", System.currentTimeMillis())
                 .toJobParameters();
