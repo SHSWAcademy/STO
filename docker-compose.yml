@@ -35,7 +35,7 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       BLOCKCHAIN_PRIVATE_KEY: ee8e8c36ec6bd55bd7206ca85598c52d5dac74695c45a94afc813b5e8a885a8f
       BLOCKCHAIN_RPC_URL: https://eth-sepolia.g.alchemy.com/...
-      BLOCKCHAIN_CONTRACT_ADDRESS: ""
+      BLOCKCHAIN_CONTRACT_ADDRESS: 0x5BcE111E4957319e1320433Db1EFD5219A127F34
     depends_on:
       - db
       - redis

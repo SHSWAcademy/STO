@@ -8,15 +8,15 @@ import { Client } from '@stomp/stompjs';
 import { API_BASE_URL } from '../lib/config.js';
 
 export function useTradingSocket({
-  tokenId,
-  candleType = 'MINUTE',
-  token,
-  memberId,
-  onOrderBook,
-  onTrades,
-  onCandle,
-  onPendingOrders,
-}) {
+                                   tokenId,
+                                   candleType = 'MINUTE',
+                                   token,
+                                   memberId,
+                                   onOrderBook,
+                                   onTrades,
+                                   onCandle,
+                                   onPendingOrders,
+                                 }) {
   const clientRef = useRef(null);
 
   useEffect(() => {

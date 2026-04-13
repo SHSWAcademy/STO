@@ -61,4 +61,8 @@ public class Trade {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "token_id")
     private Token token;
+
+    public void updateSettlementStatus(SettlementStatus status) {
+        this.settlementStatus = status;
+    }
 }
