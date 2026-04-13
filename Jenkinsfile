@@ -1,45 +1,37 @@
 pipeline {
     agent any
+
     environment {
-        DEPLOY_PATH = "/srv/stone/app"
+        DEPLOY_PATH = '/srv/stone/app/STO'
+        GIT_BRANCH  = 'dev'
     }
+
+    triggers {
+        pollSCM('H/5 * * * *')
+    }
+
     stages {
-        stage('Checkout') {
+        stage('Deploy') {
             steps {
-                checkout scm
-            }
-        }
-        stage('Build Backend') {
-            steps {
-                sh 'cd server/main && ./gradlew clean bootJar'
-                sh 'cd server/match && ./gradlew clean bootJar'
-                sh 'cd server/batch && ./gradlew clean bootJar'
-            }
-        }
-        stage('Build Frontend') {
-            steps {
-                dir('client/web') {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'deploy-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'DEPLOY_USER'
+                    )
+                ]) {
                     sh '''
-                        echo "VITE_API_BASE_URL=https://sto.shinhanacademy.co.kr" > .env.production
-                        npm install && npm run build
+                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "
+                            cd ${DEPLOY_PATH} &&
+                            git pull origin ${GIT_BRANCH} &&
+                            docker compose up -d --build
+                        "
                     '''
                 }
             }
         }
-        stage('Deploy') {
-            steps {
-                sh '''
-                    cp server/main/build/libs/*.jar ${DEPLOY_PATH}/main/app.jar
-                    cp server/match/build/libs/*.jar ${DEPLOY_PATH}/match/app.jar
-                    cp server/batch/build/libs/*.jar ${DEPLOY_PATH}/batch/app.jar
-                    cp -r client/web/dist/* ${DEPLOY_PATH}/frontend/dist/
-                    cd ${DEPLOY_PATH} && \
-                    docker compose up -d --build main match batch && \
-                    docker compose restart nginx
-                '''
-            }
-        }
     }
+
     post {
         success {
             echo '배포 성공'
