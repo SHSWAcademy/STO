@@ -10,11 +10,14 @@ import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +31,15 @@ import server.main.member.entity.MemberTokenHolding;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
-import server.main.order.dto.*;
+import server.main.order.dto.CancelOrderContext;
+import server.main.order.dto.MatchOrderRequestDto;
+import server.main.order.dto.OrderCapacityResponseDto;
+import server.main.order.dto.MatchResultDto;
+import server.main.order.dto.OrderRequestDto;
+import server.main.order.dto.PendingOrderResponseDto;
+import server.main.order.dto.TradeExecutionDto;
+import server.main.order.dto.UpdateMatchOrderRequestDto;
+import server.main.order.dto.UpdateOrderRequestDto;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderDuplicated;
 import server.main.order.entity.OrderStatus;
@@ -63,7 +74,8 @@ public class OrderServiceImpl implements OrderService {
     private final OrderDuplicatedRepository orderDuplicatedRepository;
     private final TradeDuplicatedRepository tradeDuplicatedRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final server.main.global.util.MatchClient matchClient;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     // createOrder Phase 1: 검증 + 잔고 차감 + 주문 저장
     @Transactional
@@ -136,7 +148,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     @Override
     public void processMatchResult(Long orderId, Long tokenId, MatchResultDto matchResult) {
-        Order findOrder = orderRepository.findById(orderId)
+        Order findOrder = orderRepository.findWithLockById(orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
         Token findToken = tokenRepository.findById(tokenId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
@@ -178,7 +190,7 @@ public class OrderServiceImpl implements OrderService {
         for (TradeExecutionDto execution : matchResult.getExecutions()) {
             Member counterMember = memberRepository.findById(execution.getCounterMemberId())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-            Order counterOrder = orderRepository.findById(execution.getCounterOrderId())
+            Order counterOrder = orderRepository.findWithLockById(execution.getCounterOrderId())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
             Trade trade = Trade.builder()
@@ -202,7 +214,7 @@ public class OrderServiceImpl implements OrderService {
                 String payload = objectMapper.writeValueAsString(Map.of(
                         "tradePrice",    execution.getTradePrice(),
                         "tradeQuantity", execution.getTradeQuantity(),
-                        "isBuy",         OrderType.BUY.equals(dto.getOrderType()),
+                        "isBuy",         isBuy,
                         "tradeTime",     LocalDateTime.now().toLocalTime().toString()
                 ));
                 redisTemplate.convertAndSend("trades:" + tokenId, payload);
@@ -473,21 +485,21 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.toPendingDtoList(pendingOrders);
     }
 
-    // 주문 취소
+    // cancelOrder Phase 1: 검증 + 잔고 복구 + PENDING 전환
     @Transactional
     @Override
-    public void cancelOrder(Long orderId) {
-        CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
-                .getPrincipal();
-        Long memberId = principal.getId();
+    public CancelOrderContext validateAndCancelOrder(Long orderId) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getId();
 
-        Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId)
+        Order findOrder = orderRepository.findWithLockByMemberIdAndOrderId(memberId, orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         if (!findOrder.getOrderStatus().equals(OrderStatus.OPEN) &&
                 !findOrder.getOrderStatus().equals(OrderStatus.PARTIAL)) {
             throw new BusinessException(ORDER_CANNOT_CANCEL);
         }
+
+        OrderStatus originalStatus = findOrder.getOrderStatus();
 
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
             Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
@@ -503,8 +515,62 @@ public class OrderServiceImpl implements OrderService {
             tokenHolding.cancelOrder(findOrder.getRemainingQuantity());
         }
 
-        findOrder.removeOrder();
+        findOrder.markCancelPending();
 
-        matchClient.cancelOrder(orderId, findOrder.getToken().getTokenId());
+        return CancelOrderContext.builder()
+                .orderId(orderId)
+                .tokenId(findOrder.getToken().getTokenId())
+                .orderType(findOrder.getOrderType())
+                .orderPrice(findOrder.getOrderPrice())
+                .remainingQuantity(findOrder.getRemainingQuantity())
+                .originalStatus(originalStatus)
+                .build();
+    }
+
+    // cancelOrder Phase 2: CANCELLED 최종 전환
+    @Transactional
+    @Override
+    public void completeCancelOrder(Long orderId) {
+        Order findOrder = orderRepository.findWithLockById(orderId)
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        findOrder.removeOrder();
+    }
+
+    // cancel match 실패 시 보상: 잔고 재잠금 + 상태 복원
+    @Transactional
+    @Override
+    public void compensateFailedCancel(CancelOrderContext ctx) {
+        Order findOrder = orderRepository.findWithLockById(ctx.getOrderId())
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+        if (OrderType.BUY.equals(ctx.getOrderType())) {
+            Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            long lockedAmount = Math.multiplyExact(ctx.getOrderPrice(), ctx.getRemainingQuantity());
+            findAccount.lockBalance(lockedAmount);
+        }
+
+        if (OrderType.SELL.equals(ctx.getOrderType())) {
+            MemberTokenHolding tokenHolding = memberTokenHoldingRepository
+                    .findWithLockByMemberAndToken(findOrder.getMember(), findOrder.getToken())
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            tokenHolding.lockQuantity(ctx.getRemainingQuantity());
+        }
+
+        findOrder.restoreOrder(ctx.getOrderPrice(), findOrder.getOrderQuantity());
+    }
+
+    // 주문 가능 금액/수량 조회
+    @Override
+    public OrderCapacityResponseDto getOrderCapacity(Long tokenId) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getId();
+        Long availableBalance = accountRepository.findByMemberId(memberId)
+                .map(Account::getAvailableBalance)
+                .orElse(0L);
+        Long availableQuantity = memberTokenHoldingRepository
+                .findByMemberIdAndTokenId(memberId, tokenId)
+                .map(MemberTokenHolding::getCurrentQuantity)
+                .orElse(0L);
+        return new OrderCapacityResponseDto(availableBalance, availableQuantity);
     }
 }
