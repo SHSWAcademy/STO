@@ -4,7 +4,9 @@ import static server.main.global.error.ErrorCode.*;
 
 import server.main.global.error.BusinessException;
 
-public class TickSizePolicy {
+public final class TickSizePolicy {
+
+    private TickSizePolicy() {}
 
     public static long getTickSize(long price) {
 

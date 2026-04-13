@@ -248,6 +248,9 @@ public class TokenServiceImpl implements TokenService{
     public long getTickSize(Long tokenId) {
         Token findToken = tokenRepository.findById(tokenId)
                 .orElseThrow(() -> new BusinessException(TOKEN_NOT_FOUND));
-        return TickSizePolicy.getTickSize(findToken.getCurrentPrice());
+        Long currentPrice = findToken.getCurrentPrice() != null
+                ? findToken.getCurrentPrice()
+                : findToken.getInitPrice();
+        return TickSizePolicy.getTickSize(currentPrice);
     }
 }
