@@ -71,7 +71,7 @@ function AppContent() {
   return (
     <Routes>
       {/* 관리자 라우트 */}
-      <Route path="/admin" element={<AdminAuth><AdminLayout /></AdminAuth>}>
+      <Route path="/admin-console" element={<AdminAuth><AdminLayout /></AdminAuth>}>
         <Route index             element={<AdminDashboard />} />
         <Route path="users"     element={<UserManagement />} />
         <Route path="assets"    element={<AssetManagement />} />

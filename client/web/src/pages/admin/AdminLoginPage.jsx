@@ -27,7 +27,7 @@ export function AdminLoginPage() {
     try {
       setIsSubmitting(true);
       await loginAdmin(adminLoginId.trim(), password);
-      navigate(location.pathname || '/admin', { replace: true });
+      navigate(location.pathname || '/admin-console', { replace: true });
     } catch (err) {
       console.error('[AdminLogin] login failed:', err);
       setError('관리자 로그인에 실패했습니다. 계정 정보를 확인해 주세요.');
@@ -62,7 +62,7 @@ export function AdminLoginPage() {
               </div>
             </div>
 
-            <p className="text-xs font-semibold text-white/35">/admin</p>
+            <p className="text-xs font-semibold text-white/35">/admin-console</p>
           </section>
 
           <section className="flex items-center p-8 sm:p-10">
