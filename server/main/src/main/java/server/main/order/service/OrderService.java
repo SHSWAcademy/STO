@@ -1,13 +1,6 @@
 package server.main.order.service;
 
-import server.main.order.dto.CancelOrderContext;
-import server.main.order.dto.MatchOrderRequestDto;
-import server.main.order.dto.MatchResultDto;
-import server.main.order.dto.OrderCapacityResponseDto;
-import server.main.order.dto.OrderRequestDto;
-import server.main.order.dto.PendingOrderResponseDto;
-import server.main.order.dto.UpdateMatchOrderRequestDto;
-import server.main.order.dto.UpdateOrderRequestDto;
+import server.main.order.dto.*;
 
 import java.util.List;
 
@@ -41,6 +34,7 @@ public interface OrderService {
 
     // cancel match 실패 시 보상: 잔고 재잠금 + 상태 복원
     void compensateFailedCancel(CancelOrderContext ctx);
+
 
     // 주문 가능 금액/수량 조회
     OrderCapacityResponseDto getOrderCapacity(Long tokenId);

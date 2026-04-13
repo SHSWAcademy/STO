@@ -89,6 +89,7 @@ public class AdminServiceImpl implements AdminService {
             // 플랫폼 보유 테이블 SAVE
             platformTokenHoldingsRepository.save(platformTokenHoldings);
 
+            // 블록체인 contractAddress 생성 및 토큰 저장
             String contractAddress = contractGatewayService.deployToken(saveToken, platformTokenHoldings);
             saveToken.updateContractAddress(contractAddress);
 

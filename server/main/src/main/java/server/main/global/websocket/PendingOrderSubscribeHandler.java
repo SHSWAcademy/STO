@@ -17,6 +17,7 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class PendingOrderSubscribeHandler {
+    // 상세 페이지 접속 시 처음 호가창 스냅샷을 전달
     // 상세 페이지 대기 탭을 누르면 스냅샷을 전달
     private final SimpMessagingTemplate template;
     private final OrderRepository orderRepository;

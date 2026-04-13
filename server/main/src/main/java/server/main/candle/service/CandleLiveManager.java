@@ -1,6 +1,8 @@
 package server.main.candle.service;
 
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -8,6 +10,7 @@ import server.main.candle.dto.CandleResponseDto;
 import server.main.candle.dto.LiveCandleDto;
 import server.main.candle.entity.*;
 import server.main.candle.mapper.CandleMapper;
+import server.main.candle.repository.*;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -15,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class CandleLiveManager {
 
     // 5개 주기별 현재 봉 상태 (key tokenId, value LiveCandle)
@@ -28,11 +32,17 @@ public class CandleLiveManager {
     private final SimpMessagingTemplate  messagingTemplate;
     private final CandleMapper           candleMapper;
 
+    private final CandleMinuteRepository candleMinuteRepository;
+    private final CandleHourRepository candleHourRepository;
+    private final CandleDayRepository candleDayRepository;
+    private final CandleMonthRepository candleMonthRepository;
+    private final CandleYearRepository candleYearRepository;
+
     // 토큰 ID 별로 락을 따로 구분 (key : tokenId, value : 락)
     private final ConcurrentHashMap<Long, Object> tokenLocks = new ConcurrentHashMap<>();
 
     // RedisSubscriber 에서 체결 수신 시 호출 — 5개 주기 동시 갱신
-    public void update(Long tokenId, Double tradePrice, Double tradeQuantity) { // 체결 토큰 id, 체결 가격, 수량
+    public void update(Long tokenId, Long tradePrice, Long tradeQuantity) { // 체결 토큰 id, 체결 가격, 수량
         LocalDateTime now = LocalDateTime.now();
 
         updateCandle(liveMinute, tokenId, tradePrice, tradeQuantity, now.truncatedTo(ChronoUnit.MINUTES), CandleType.MINUTE);
@@ -43,7 +53,7 @@ public class CandleLiveManager {
     }
 
     private void updateCandle(ConcurrentHashMap<Long, LiveCandleDto> map,
-                              Long tokenId, Double tradePrice, Double tradeQuantity,
+                              Long tokenId, Long tradePrice, Long tradeQuantity,
                               LocalDateTime bucketStart, CandleType type) { // bucketStart : 현재 체결이 속하는 봉의 시작 시각
         // 토큰 락 (토큰 id로 생성 또는 조회된다)
         Object lock = tokenLocks.computeIfAbsent(tokenId, k -> new Object());
@@ -89,14 +99,95 @@ public class CandleLiveManager {
         pushToWebSocket(tokenId, candleToSend, type); // 캔들 적용하여 화면으로 실시간 push
     }
 
-    // 구독 시 현재 봉 스냅샷 반환
+    // 상세 페이지 접근 시 현재 봉 스냅샷 반환
+    // 메모리에 없으면 (서버 재시작 후 체결이 아직 없는 경우) DB에서 가장 최근 봉을 읽어 복구
     public LiveCandleDto getSnapshot(Long tokenId, CandleType type) {
+        ConcurrentHashMap<Long, LiveCandleDto> map = getMap(type);
+        LiveCandleDto live = map.get(tokenId);
+        if (live != null) return live;
+
+        // DB에서 마지막 종가를 읽어 현재 봉의 초기값으로 세팅
+        Long lastClose = findLastClose(tokenId, type);
+        if (lastClose == null) return null;
+
+        LocalDateTime bucketStart = getCurrentBucket(type);
+        LiveCandleDto recovered = LiveCandleDto.builder()
+                .openPrice(lastClose)
+                .highPrice(lastClose)
+                .lowPrice(lastClose)
+                .closePrice(lastClose)
+                .volume(0L)
+                .tradeCount(0)
+                .candleTime(bucketStart)
+                .build();
+
+        // putIfAbsent: 동시 요청이 와도 최초 1개만 등록
+        map.putIfAbsent(tokenId, recovered);
+        return map.get(tokenId);
+    }
+
+    // 셧다운 전 메모리에 남아있는 모든 봉을 DB에 저장
+    @PreDestroy
+    public void flushAllOnShutdown() {
+        log.info("[CandleLiveManager] 셧다운 - 메모리 캔들 전체 flush 시작");
+        flushAll();
+        log.info("[CandleLiveManager] 셧다운 flush 완료");
+    }
+
+    private void flushAll() {
+        flushMapForce(liveMinute, CandleType.MINUTE);
+        flushMapForce(liveHour,   CandleType.HOUR);
+        flushMapForce(liveDay,    CandleType.DAY);
+        flushMapForce(liveMonth,  CandleType.MONTH);
+        flushMapForce(liveYear,   CandleType.YEAR);
+    }
+
+    // 구간 만료 여부에 상관없이 현재 메모리의 봉을 모두 DB 저장 (셧다운 전용)
+    private void flushMapForce(ConcurrentHashMap<Long, LiveCandleDto> map, CandleType type) {
+        map.forEach((tokenId, candle) -> {
+            Object lock = tokenLocks.computeIfAbsent(tokenId, k -> new Object());
+            synchronized (lock) {
+                try {
+                    candleFlushService.saveToDB(candle, tokenId, type);
+                } catch (Exception e) {
+                    log.error("[CandleLiveManager] flush 실패 tokenId={} type={}", tokenId, type, e);
+                }
+                map.remove(tokenId);
+            }
+        });
+    }
+
+    // type별 live map 반환
+    private ConcurrentHashMap<Long, LiveCandleDto> getMap(CandleType type) {
         return switch (type) {
-            case MINUTE -> liveMinute.get(tokenId);
-            case HOUR   -> liveHour.get(tokenId);
-            case DAY    -> liveDay.get(tokenId);
-            case MONTH  -> liveMonth.get(tokenId);
-            case YEAR   -> liveYear.get(tokenId);
+            case MINUTE -> liveMinute;
+            case HOUR   -> liveHour;
+            case DAY    -> liveDay;
+            case MONTH  -> liveMonth;
+            case YEAR   -> liveYear;
+        };
+    }
+
+    // 현재 시각 기준 봉 시작 시각 계산
+    private LocalDateTime getCurrentBucket(CandleType type) {
+        LocalDateTime now = LocalDateTime.now();
+        return switch (type) {
+            case MINUTE -> now.truncatedTo(ChronoUnit.MINUTES);
+            case HOUR   -> now.truncatedTo(ChronoUnit.HOURS);
+            case DAY    -> now.truncatedTo(ChronoUnit.DAYS);
+            case MONTH  -> now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS);
+            case YEAR   -> now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS);
+        };
+    }
+
+    // DB에서 해당 토큰의 가장 최근 캔들 종가 조회
+    private Long findLastClose(Long tokenId, CandleType type) {
+        return switch (type) {
+            case MINUTE -> candleMinuteRepository.findLatest(tokenId).map(Candle::getClosePrice).orElse(null);
+            case HOUR   -> candleHourRepository.findLatest(tokenId).map(Candle::getClosePrice).orElse(null);
+            case DAY    -> candleDayRepository.findLatest(tokenId).map(Candle::getClosePrice).orElse(null);
+            case MONTH  -> candleMonthRepository.findLatest(tokenId).map(Candle::getClosePrice).orElse(null);
+            case YEAR   -> candleYearRepository.findLatest(tokenId).map(Candle::getClosePrice).orElse(null);
         };
     }
 

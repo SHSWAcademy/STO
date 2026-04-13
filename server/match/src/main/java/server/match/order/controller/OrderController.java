@@ -1,24 +1,21 @@
 package server.match.order.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import lombok.RequiredArgsConstructor;
 import server.match.global.redis.RedisPublisher;
 import server.match.order.dto.MatchOrderRequestDto;
 import server.match.order.dto.MatchResultDto;
+import server.match.order.dto.OrderBookEventDto;
 import server.match.order.dto.UpdateMatchOrderRequestDto;
 import server.match.order.model.Order;
 import server.match.order.model.OrderBook;
 import server.match.order.service.MatchingService;
 import server.match.order.service.OrderBookRegistry;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/internal/orders")
@@ -28,6 +25,7 @@ public class OrderController {
     private final OrderBookRegistry orderBookRegistry;
     private final MatchingService matchingService;
     private final RedisPublisher redisPublisher;
+    private final ObjectMapper objectMapper;
 
     @PostMapping
     public ResponseEntity<MatchResultDto> order(@RequestBody MatchOrderRequestDto dto) {
@@ -84,6 +82,28 @@ public class OrderController {
             // 수정 후 즉시 재매칭 — 가격 변경으로 체결 조건이 맞아진 경우 즉시 체결
             MatchResultDto result = matchingService.match(updatedOrder, orderBook);
             return ResponseEntity.ok(result);
+        }
+    }
+
+    @GetMapping("/{tokenId}")
+    public ResponseEntity<String> getSnapshot(@PathVariable Long tokenId) throws Exception {
+        OrderBook orderBook = orderBookRegistry.getOrCreate(tokenId);
+        synchronized (orderBook) {
+            List<OrderBookEventDto.PriceLevel> asks = orderBook.getSellOrders().entrySet().stream()
+                    .map(e -> OrderBookEventDto.PriceLevel.builder()
+                            .price(e.getKey())
+                            .quantity(e.getValue().stream().mapToLong(Order::getRemainingQuantity).sum())
+                            .build())
+                    .toList();
+            List<OrderBookEventDto.PriceLevel> bids = orderBook.getBuyOrders().entrySet().stream()
+                    .map(e -> OrderBookEventDto.PriceLevel.builder()
+                            .price(e.getKey())
+                            .quantity(e.getValue().stream().mapToLong(Order::getRemainingQuantity).sum())
+                            .build())
+                    .toList();
+            OrderBookEventDto dto = OrderBookEventDto.builder()
+                    .tokenId(tokenId).asks(asks).bids(bids).build();
+            return ResponseEntity.ok(objectMapper.writeValueAsString(dto));
         }
     }
 }

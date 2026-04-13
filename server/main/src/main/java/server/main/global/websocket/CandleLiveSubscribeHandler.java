@@ -14,6 +14,8 @@ import server.main.candle.mapper.CandleMapper;
 @Component
 @RequiredArgsConstructor
 public class CandleLiveSubscribeHandler {
+    // 상세 페이지 접속 시 현재 캔들 차트 스냅샷을 전달
+    // 과거 데이터는 DB 에서 조회, 실시간 현재 데이터를 candleLiveManager 에서 가져온다
 
     private final SimpMessagingTemplate template;
     private final CandleLiveManager candleLiveManager;
