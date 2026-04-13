@@ -10,6 +10,7 @@ import server.main.global.file.File;
 import server.main.member.entity.Member;
 import server.main.token.entity.Token;
 import server.main.token.entity.TokenStatus;
+import server.main.trade.entity.Trade;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -161,6 +162,36 @@ public class AdminMapper {
                 .isActive(member.getIsActive())
                 .createdAt(member.getCreatedAt())
                 .totalTradeAmount(totalAmount)
+                .build();
+    }
+
+    // 거래내역 entity -> dto 변환
+    public DashBoardTradeListDTO toDashBoardTradeListDTO(Trade trade) {
+        return DashBoardTradeListDTO.builder()
+                .tradeId(trade.getTradeId())
+                .feeAmount(trade.getFeeAmount())
+                .tradePrice(trade.getTradePrice())
+                .tradeQuantity(trade.getTradeQuantity())
+                .sellerId(trade.getSeller().getMemberId())
+                .buyerId(trade.getBuyer().getMemberId())
+                .settlementStatus(String.valueOf(trade.getSettlementStatus()))
+                .totalTradePrice(trade.getTotalTradePrice())
+                .executedAt(trade.getExecutedAt())
+                .createdAt(trade.getCreatedAt())
+                .tokenId(trade.getToken().getTokenId())
+                .tokenName(trade.getToken().getTokenName())
+                .build();
+    }
+
+    // 대시보드 토큰 리스트 entity -> dto변환
+    public DashBoardTokenList toDashBoardTokenList(Token token, Long currentQuantity){
+        return DashBoardTokenList.builder()
+                .tokenId(token.getTokenId())
+                .tokenSymbol(token.getTokenSymbol())
+                .tokenName(token.getTokenName())
+                .totalSupply(token.getTotalSupply())
+                .holdingSupply(token.getTotalSupply() - token.getCirculatingSupply())
+                .currentQuantity(currentQuantity)
                 .build();
     }
 }

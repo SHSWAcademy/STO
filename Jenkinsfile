@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        DEPLOY_PATH = "${env.DEPLOY_PATH}"
+        DEPLOY_PATH = "/srv/stone/app"
     }
     stages {
         stage('Checkout') {
@@ -18,11 +18,12 @@ pipeline {
         }
         stage('Build Frontend') {
             steps {
-                sh '''
-                    cd client/web
-                    echo "VITE_API_BASE_URL=http://www.shinhan6th.com" > .env.production
-                    npm install && npm run build
-                '''
+                dir('client/web') {
+                    sh '''
+                        echo "VITE_API_BASE_URL=https://sto.shinhanacademy.co.kr" > .env.production
+                        npm install && npm run build
+                    '''
+                }
             }
         }
         stage('Deploy') {
@@ -32,8 +33,9 @@ pipeline {
                     cp server/match/build/libs/*.jar ${DEPLOY_PATH}/match/app.jar
                     cp server/batch/build/libs/*.jar ${DEPLOY_PATH}/batch/app.jar
                     cp -r client/web/dist/* ${DEPLOY_PATH}/frontend/dist/
-                    cd ${DEPLOY_PATH} && docker compose up -d --build main match batch
-                    docker restart nginx
+                    cd ${DEPLOY_PATH} && \
+                    docker compose up -d --build main match batch && \
+                    docker compose restart nginx
                 '''
             }
         }

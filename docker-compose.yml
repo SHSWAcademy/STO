@@ -1,28 +1,32 @@
-
 services:
-  #db 컨테이너
   db:
     image: postgres:18
     container_name: postgres
     restart: always
     environment:
-      POSTGRES_DB: mydb
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypass
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
-
-  #redis 컨테이너
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '0.2'
   redis:
     image: redis:7
     container_name: redis
     restart: always
     ports:
       - "6379:6379"
-
-  #메인 컨테이너
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.1'
   main:
     build: ./main
     container_name: app-main
@@ -33,14 +37,17 @@ services:
       - /srv/stone/app/files:/app/files
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      BLOCKCHAIN_PRIVATE_KEY: ee8e8c36ec6bd55bd7206ca85598c52d5dac74695c45a94afc813b5e8a885a8f
-      BLOCKCHAIN_RPC_URL: https://eth-sepolia.g.alchemy.com/...
-      BLOCKCHAIN_CONTRACT_ADDRESS: 0x5BcE111E4957319e1320433Db1EFD5219A127F34
+      BLOCKCHAIN_PRIVATE_KEY: ${BLOCKCHAIN_PRIVATE_KEY}
+      BLOCKCHAIN_RPC_URL: ${BLOCKCHAIN_RPC_URL}
+      BLOCKCHAIN_CONTRACT_ADDRESS: ${BLOCKCHAIN_CONTRACT_ADDRESS}
     depends_on:
       - db
       - redis
-
-  #매치 컨테이너
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: '0.3'
   match:
     build: ./match
     container_name: app-match
@@ -49,27 +56,34 @@ services:
       - "8081:8081"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      BLOCKCHAIN_PRIVATE_KEY: ee8e8c36ec6bd55bd7206ca85598c52d5dac74695c45a94afc813b5e8a885a8f
-      BLOCKCHAIN_RPC_URL: https://eth-sepolia.g.alchemy.com/...
-      BLOCKCHAIN_CONTRACT_ADDRESS: ""
+      BLOCKCHAIN_PRIVATE_KEY: ${BLOCKCHAIN_PRIVATE_KEY}
+      BLOCKCHAIN_RPC_URL: ${BLOCKCHAIN_RPC_URL}
+      BLOCKCHAIN_CONTRACT_ADDRESS: ${BLOCKCHAIN_CONTRACT_ADDRESS_MATCH}
     depends_on:
       - db
       - redis
-
-  #배치 컨테이너
+    deploy:
+      resources:
+        limits:
+          memory: 1.5g
+          cpus: '0.2'
   batch:
     build: ./batch
     container_name: app-batch
     restart: always
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      BLOCKCHAIN_PRIVATE_KEY: ee8e8c36ec6bd55bd7206ca85598c52d5dac74695c45a94afc813b5e8a885a8f
-      BLOCKCHAIN_RPC_URL: https://eth-sepolia.g.alchemy.com/...
-      BLOCKCHAIN_CONTRACT_ADDRESS: ""
+      BLOCKCHAIN_PRIVATE_KEY: ${BLOCKCHAIN_PRIVATE_KEY}
+      BLOCKCHAIN_RPC_URL: ${BLOCKCHAIN_RPC_URL}
+      BLOCKCHAIN_CONTRACT_ADDRESS: ${BLOCKCHAIN_CONTRACT_ADDRESS_BATCH}
     depends_on:
       - db
       - redis
-  #F/E 컨테이너
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '0.1'
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -82,22 +96,10 @@ services:
       - /srv/stone/app:/srv/stone/app
     depends_on:
       - main
-
-  #젠킨스 컨테이너
-  jenkins:
-    build:
-      context: ./jenkins
-    container_name: jenkins
-    restart: always
-    ports:
-      - "9090:8080"
-      - "50000:50000"
-    volumes:
-      - jenkins_data:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /srv/stone/app:/srv/stone/app
-    user: root
-
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.1'
 volumes:
   postgres_data:
-  jenkins_data:

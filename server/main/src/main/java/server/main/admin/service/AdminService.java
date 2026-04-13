@@ -20,4 +20,5 @@ public interface AdminService {
     CommonDTO getCommon();  // 플랫폼 기초설정 조회
     Page<MemberListResponseDTO> getMemberList(int page, int size);  // 멤버 리스트 조회
     void updateMember(Long memberId, boolean isActive);   // 멤버 활성/비활성화 처리
+    DashBoardResponseDTO getDashBoard(int page, int size);    // 대시보드 데이터 조회
 }
