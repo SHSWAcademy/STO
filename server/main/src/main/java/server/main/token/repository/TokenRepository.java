@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import server.main.token.entity.Token;
+import server.main.token.entity.TokenStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,5 +23,17 @@ public interface TokenRepository extends JpaRepository<Token, Long> , TokenRepos
     @Query("SELECT t FROM Token t JOIN FETCH t.asset a WHERE t.tokenStatus = 'TRADING' AND a.isAllocated = true ")
     List<Token> findAllTokensWithAssetAllocationList();
 
+    // 토큰테이블, 멤버 토큰 보유 테이블 조회 (admin)
+    @Query(""" 
+            SELECT t, COALESCE(SUM(h.currentQuantity + h.lockedQuantity), 0)  
+            FROM Token t 
+            LEFT JOIN MemberTokenHolding h ON h.token = t 
+            WHERE t.tokenStatus = 'TRADING' 
+            GROUP BY t 
+           """)
+    List<Object[]> findTradingTokensWithTotalHolding();
+
     Long tokenId(Long tokenId);
+
+    List<Token> findAllByTokenStatus(TokenStatus tokenStatus);
 }

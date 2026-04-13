@@ -32,7 +32,9 @@ import server.main.member.entity.Member;
 import server.main.member.repository.MemberRepository;
 import server.main.notice.service.NoticeService;
 import server.main.token.entity.Token;
+import server.main.token.entity.TokenStatus;
 import server.main.token.repository.TokenRepository;
+import server.main.trade.entity.Trade;
 import server.main.trade.repository.TradeRepository;
 
 import java.time.LocalDate;
@@ -411,6 +413,53 @@ public class AdminServiceImpl implements AdminService {
         member.updateIsActive(isActive);
     }
 
+    // 대시보드 데이터 조회
+    @Override
+    public DashBoardResponseDTO getDashBoard(int page, int size) {
+        // 활성화 유저수 조회
+        long totalUserCount = memberRepository.countByIsActiveTrue();
+        // 신규 가입자 수 조회
+        long newUserCount = memberRepository.countByCreatedAtBetweenAndIsActiveTrue(startOfToday(), startOfTomorrow());
+        // 일일, 누적 체결수 / 일일, 누적 체결금액 조회
+        Object[] tradeInfo = tradeRepository.findTradeStats(startOfToday(), startOfTomorrow());
+        log.info("거래 집계 조회 : {}", tradeInfo);
+        Object[] tradeRow = (Object[]) tradeInfo[0];
+        // 일일, 누적 체결수
+        long dailyExecutionCount  = ((Number) tradeRow[0]).longValue();
+        long totalExecutionCount  = ((Number) tradeRow[1]).longValue();
+        // 일일, 누적 체결금액 조회
+        long dailyExecutionAmount = ((Number) tradeRow[2]).longValue();
+        long totalExecutionAmount = ((Number) tradeRow[3]).longValue();
+
+        // 토큰 테이블 조회 (거래중인것만)
+        List<Object[]> result = tokenRepository.findTradingTokensWithTotalHolding();
+        // 토큰 리스트 조회후 dto변환
+        List<DashBoardTokenList> tokenList = result.stream()
+                .map(row -> {
+                    Token token = (Token) row[0];
+                    Long currentQuantity = ((Number) row[1]).longValue();
+                    return adminMapper.toDashBoardTokenList(token, currentQuantity);
+                })
+                .toList();
+
+        // 거래내역 전체 조회
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<DashBoardTradeListDTO> tradeList = tradeRepository.findAllWithDetails(pageable)
+                .map(trade -> adminMapper.toDashBoardTradeListDTO(trade));
+        log.info("거래내역 조회 : {}", tradeList);
+
+        return DashBoardResponseDTO.builder()
+                .totalUserCount(totalUserCount)
+                .dailyExecutionCount(dailyExecutionCount)
+                .totalExecutionCount(totalExecutionCount)
+                .dailyExecutionAmount(dailyExecutionAmount)
+                .totalExecutionAmount(totalExecutionAmount)
+                .newUserCount(newUserCount)
+                .tradeList(tradeList)
+                .tokenList(tokenList)
+                .build();
+    }
+
     // 마감월 리턴 메서드
     // 플랫폼설정 테이블에서 관리자 입력 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
     private YearMonth getTargetMonth() {
@@ -419,7 +468,6 @@ public class AdminServiceImpl implements AdminService {
                 ? YearMonth.now().plusMonths(1)
                 : YearMonth.now();
     }
-
     // 관리자 마감일 리턴
     private LocalDate getAdminTargetMonth() {
         Common commons = commonsRepository.findCommon();
@@ -428,4 +476,13 @@ public class AdminServiceImpl implements AdminService {
                 : YearMonth.now();
         return targetMonth.atDay(commons.getAllocateSetDate());
     }
+
+    // 현재 일자 조회용 메서드
+    private LocalDateTime startOfToday() {
+        return LocalDate.now().atStartOfDay();
+    }
+    private LocalDateTime startOfTomorrow() {
+        return LocalDate.now().plusDays(1).atStartOfDay();
+    }
 }
+

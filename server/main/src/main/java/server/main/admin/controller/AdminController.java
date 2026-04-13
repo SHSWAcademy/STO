@@ -129,4 +129,12 @@ public class AdminController {
         adminService.updateMember(memberId, isActive);
         return ResponseEntity.ok().build();
     }
+
+    // 대쉬보드 조회
+    @GetMapping("/dashboard")
+    public ResponseEntity<DashBoardResponseDTO> getDashBoard(@RequestParam(defaultValue = "0") int page,
+                                                             @RequestParam(defaultValue = "10") int size) {
+        DashBoardResponseDTO list = adminService.getDashBoard(page, size);
+        return ResponseEntity.ok(list);
+    }
  }
