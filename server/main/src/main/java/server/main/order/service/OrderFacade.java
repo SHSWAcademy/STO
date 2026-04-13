@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import server.main.global.error.BusinessException;
 import server.main.global.util.MatchClient;
+import server.main.order.dto.CancelOrderContext;
 import server.main.order.dto.MatchOrderRequestDto;
 import server.main.order.dto.MatchResultDto;
 import server.main.order.dto.OrderRequestDto;
@@ -58,5 +59,22 @@ public class OrderFacade {
 
         // phase 2
         orderService.processMatchResult(orderId, matchDto.getTokenId(), matchResult);
+    }
+
+    public void cancelOrder(Long orderId) {
+        // phase 1
+        CancelOrderContext ctx = orderService.validateAndCancelOrder(orderId);
+
+        // match 호출
+        try {
+            matchClient.cancelOrder(ctx.getOrderId(), ctx.getTokenId());
+        } catch (RestClientException e) {
+            log.error("match 서버 호출 실패. orderId={}", orderId, e);
+            orderService.compensateFailedCancel(ctx);
+            throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
+        }
+
+        // phase 2
+        orderService.completeCancelOrder(orderId);
     }
 }
