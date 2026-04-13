@@ -1,8 +1,12 @@
 package server.match.order.service;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+import server.match.global.redis.RedisPublisher;
 import server.match.order.dto.MatchResultDto;
 import server.match.order.entity.OrderStatus;
 import server.match.order.entity.OrderType;
@@ -11,14 +15,14 @@ import server.match.order.model.OrderBook;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(MockitoExtension.class)
 class MatchingServiceTest {
 
-    private MatchingService matchingService;
+    @Mock
+    RedisPublisher redisPublisher;
 
-    @BeforeEach
-    void setUp() {
-        matchingService = new MatchingService(); // spring 없이 직접 생성
-    }
+    @InjectMocks
+    MatchingService matchingService;
 
     @Test
     void buyOrder_matchesByPricePriority() {
