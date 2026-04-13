@@ -7,6 +7,7 @@ import server.main.admin.entity.PlatformTokenHolding;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.asset.entity.Asset;
 import server.main.global.file.File;
+import server.main.member.entity.Member;
 import server.main.token.entity.Token;
 import server.main.token.entity.TokenStatus;
 
@@ -148,6 +149,18 @@ public class AdminMapper {
                 .holdingSupply(platformTokenHolding.getHoldingSupply())
                 .imgUrl(platformTokenHolding.getToken().getAsset().getImgUrl())
                 .tokenId(platformTokenHolding.getToken().getTokenId())
+                .build();
+    }
+
+    // 멤버 리스트 관리 entity -> dto 변환
+    public MemberListResponseDTO toMemberListResponseDTO(Member member, Long totalAmount) {
+        return MemberListResponseDTO.builder()
+                .memberId(member.getMemberId())
+                .email(member.getEmail())
+                .memberName(member.getMemberName())
+                .isActive(member.getIsActive())
+                .createdAt(member.getCreatedAt())
+                .totalTradeAmount(totalAmount)
                 .build();
     }
 }

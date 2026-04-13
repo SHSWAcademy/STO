@@ -4,6 +4,10 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.*;
@@ -24,9 +28,12 @@ import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.file.File;
 import server.main.global.file.FileService;
+import server.main.member.entity.Member;
+import server.main.member.repository.MemberRepository;
 import server.main.notice.service.NoticeService;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
+import server.main.trade.repository.TradeRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -50,7 +57,8 @@ public class AdminServiceImpl implements AdminService {
     private final CommonRepository commonsRepository;
     private final ContractGatewayService contractGatewayService;
     private final PlatformBankingRepository platformBankingRepository;
-    private final AssetAccountRepository assetAccountRepository;
+    private final MemberRepository memberRepository;
+    private final TradeRepository tradeRepository;
 
     // 자산등록
     // 자산 이미지 등록 -> 자산 등록 ->  토큰 등록 -> 플랫폼 소유 토큰 등록 -> 자산 계좌 생성 및 입금 -> 공시 / 공지 등록 -> 첨부파일 등록
@@ -361,6 +369,46 @@ public class AdminServiceImpl implements AdminService {
                 .allocateDate(common.getAllocateDate())
                 .allocateSetDate(common.getAllocateSetDate())
                 .build();
+    }
+
+    // 멤버 리스트 조회
+    @Override
+    public Page<MemberListResponseDTO> getMemberList(int page, int size) {
+        // 멤버 먼저 조회
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Member> members = memberRepository.findAll(pageable);
+        log.info("멤버 리스트 조회 : {}", members);
+        // 멤버ID만 리스트로담기 (멤버별 거래내역 담기위해)
+        List<Long> memberIds = members.getContent().stream()
+                .map(member -> member.getMemberId())
+                .collect(Collectors.toList());
+
+        // 구매 유저 총 투자 금액 조회흐 맵으로 변환 Key:memberID, value:totalAmount
+        Map<Long, Long> tradeAmount = tradeRepository.sumTotalBuyerUser(memberIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],   // 멤버ID
+                        row -> (Long) row[1]    // 총 투자금
+                ));
+        log.info("멤버별 투자금액 조회 : {}", tradeAmount);
+
+        return members.map(member ->
+                // 멤버의 ID값으로 투자금액 MAP의 키값으로 추출후 DTO변환
+                adminMapper.toMemberListResponseDTO(
+                        member,
+                        tradeAmount.getOrDefault(member.getMemberId(), 0L)  // 투자금 없으면 0원
+                )
+        );
+    }
+
+    // 멤버 활성/비활성화 처리
+    @Transactional
+    @Override
+    public void updateMember(Long memberId, boolean isActive) {
+        // 활성/비활성화 멤버 대상 조회
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUNT_ERROR));
+
+        member.updateIsActive(isActive);
     }
 
     // 마감월 리턴 메서드

@@ -1,5 +1,6 @@
 package server.main.admin.controller;
 
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.RequestBody;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -111,5 +112,21 @@ public class AdminController {
     public ResponseEntity<PlatformProfitAccountResponseDTO> getPlatFormProfitAccount() {
         PlatformProfitAccountResponseDTO list = adminService.getPlatformProfitAccount();
         return ResponseEntity.ok(list);
+    }
+
+    // 유저관리 조회
+    @GetMapping("/memberlist")
+    public ResponseEntity<Page<MemberListResponseDTO>> getMemberList(@RequestParam(defaultValue = "0") int page,
+                                                                    @RequestParam(defaultValue = "10") int size) {
+        Page<MemberListResponseDTO> list = adminService.getMemberList(page, size);
+        return ResponseEntity.ok(list);
+    }
+
+    // 유저 활성/비활성화
+    @PatchMapping("/memberlist/{memberId}")
+    public ResponseEntity<Void> updateMember(@PathVariable Long memberId,
+                                             @RequestParam Boolean isActive) {
+        adminService.updateMember(memberId, isActive);
+        return ResponseEntity.ok().build();
     }
  }
