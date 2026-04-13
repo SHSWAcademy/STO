@@ -15,4 +15,6 @@ public interface TokenService {
     List<TokenDisclosureResponseDto> getDisclosureInfo(Long tokenId);
 
     List<TokenMainResponseDto> getTokenAssetsWith10Paging(int page, SelectType selectType, PeriodType periodType);
+
+    long getTickSize(Long tokenId);
 }

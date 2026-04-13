@@ -40,6 +40,7 @@ import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.TradeExecutionDto;
 import server.main.order.dto.UpdateMatchOrderRequestDto;
 import server.main.order.dto.UpdateOrderRequestDto;
+import server.main.global.util.TickSizePolicy;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderDuplicated;
 import server.main.order.entity.OrderStatus;
@@ -88,6 +89,9 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
         Token findToken = tokenRepository.findById(tokenId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+        // 호가 단위 검증
+        TickSizePolicy.validate(dto.getOrderPrice());
 
         // 매수일 경우
         if (OrderType.BUY.equals(dto.getOrderType())) {
@@ -380,6 +384,9 @@ public class OrderServiceImpl implements OrderService {
 
         Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+        // 호가 단위 검증
+        TickSizePolicy.validate(dto.getUpdatePrice());
 
         OrderStatus status = findOrder.getOrderStatus();
         if (status != OrderStatus.OPEN && status != OrderStatus.PARTIAL) {

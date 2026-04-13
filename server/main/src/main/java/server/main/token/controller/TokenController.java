@@ -60,4 +60,10 @@ public class TokenController {
         List<TokenDisclosureResponseDto> dtos = tokenService.getDisclosureInfo(tokenId);
         return ResponseEntity.ok(dtos);
     }
+
+    // 호가 단위 조회
+    @GetMapping("/{tokenId}/tick-size")
+    public ResponseEntity<Long> getTickSize(@PathVariable Long tokenId) {
+        return ResponseEntity.ok(tokenService.getTickSize(tokenId));
+    }
 }
