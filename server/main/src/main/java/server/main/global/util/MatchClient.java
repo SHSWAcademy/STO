@@ -1,14 +1,15 @@
 package server.main.global.util;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+
+import lombok.RequiredArgsConstructor;
 import server.main.order.dto.MatchOrderRequestDto;
 import server.main.order.dto.MatchResultDto;
 import server.main.order.dto.UpdateMatchOrderRequestDto;
-
-import java.util.Map;
 
 
 // main -> match 로 전달
@@ -28,22 +29,30 @@ public class MatchClient {
         return restTemplate.getForObject(url, String.class);
     }
 
-
     // 주문 생성
     public MatchResultDto sendOrder(MatchOrderRequestDto dto) {
-        return restTemplate.postForObject(matchServerUrl + "/internal/orders", dto, MatchResultDto.class);
+        MatchResultDto body = restTemplate.postForObject(matchServerUrl + "/internal/orders", dto, MatchResultDto.class);
+        if (body == null) {
+            throw new org.springframework.web.client.RestClientException("match 서버 응답 body가 null입니다. orderId=" + dto.getOrderId());
+        }
+        return body;
     }
 
-
-    // 수정 시 match에 던지는 파라미터, orderId, sequence 만 던지는 것이 아니라 updatePrice, updateQuantity도 같이 던집니다 !!! (혹시 필요없다면 말씀해주세요)
-    public void updateOrder(UpdateMatchOrderRequestDto dto) {
+    // 주문 수정 — 수정 후 재매칭 결과를 받아야 하므로 exchange() 사용 (put()은 응답 body를 버림)
+    public MatchResultDto updateOrder(UpdateMatchOrderRequestDto dto) {
         String url = matchServerUrl + "/internal/orders/" + dto.getOrderId();
-        restTemplate.put(url, dto);
+        MatchResultDto body = restTemplate.exchange(
+                url, HttpMethod.PUT, new HttpEntity<>(dto), MatchResultDto.class
+        ).getBody();
+        if (body == null) {
+            throw new org.springframework.web.client.RestClientException("match 서버 응답 body가 null입니다. orderId=" + dto.getOrderId());
+        }
+        return body;
     }
 
-    // 주문 삭제 시 match 에게 전달, dto 말고 orderId만 던지는데 혹시 값 더 필요하다면 말씀해주세요!
-    public void cancelOrder(Long orderId) {
-        String url = matchServerUrl + "/internal/orders/" + orderId;
+    // 주문 취소 — match가 어느 오더북에서 찾을지 알 수 있도록 tokenId를 쿼리 파라미터로 전달
+    public void cancelOrder(Long orderId, Long tokenId) {
+        String url = matchServerUrl + "/internal/orders/" + orderId + "?tokenId=" + tokenId;
         restTemplate.delete(url);
     }
 }

@@ -1,110 +1,103 @@
-version: '3.8'
 
 services:
-
-  # ── PostgreSQL 범근님 RDS 파면 엔드포인트 여기에 다시 넣기
-  postgres:
-    image: postgres:16-alpine
-    container_name: sto-postgres
+  #db 컨테이너
+  db:
+    image: postgres:18
+    container_name: postgres
+    restart: always
     environment:
-      POSTGRES_DB: sto
-      POSTGRES_USER: sto
-      POSTGRES_PASSWORD: sto1234
+      POSTGRES_DB: mydb
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypass
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sto"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - postgres_data:/var/lib/postgresql
 
-  # ── Redis 
+  #redis 컨테이너
   redis:
-    image: redis:7-alpine
-    container_name: sto-redis
+    image: redis:7
+    container_name: redis
+    restart: always
     ports:
       - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
-  # ──  Ethereum 
-  # 이곳에 써주세용 ~ 
-
-  # ── General API 컨테이너 (모든 API 처리)
-  general:
-    build:
-      context: ./server/main
-      dockerfile: Dockerfile
-    container_name: sto-general
+  #메인 컨테이너
+  main:
+    build: ./main
+    container_name: app-main
+    restart: always
     ports:
-      - "8082:8080"
+      - "8080:8080"
+    volumes:
+      - /srv/stone/app/files:/app/files
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      MATCH_URL: http://match:8081
-      JWT_SECRET: sto-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm-ok
-      JAVA_OPTS: "-Xms256m -Xmx512m"
+      BLOCKCHAIN_PRIVATE_KEY: ee8e8c36ec6bd55bd7206ca85598c52d5dac74695c45a94afc813b5e8a885a8f
+      BLOCKCHAIN_RPC_URL: https://eth-sepolia.g.alchemy.com/...
+      BLOCKCHAIN_CONTRACT_ADDRESS: ""
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: always
+      - db
+      - redis
 
-  # ── 스프링 매치 (주문 체결)
+  #매치 컨테이너
   match:
-    build:
-      context: ./server/match
-      dockerfile: Dockerfile
-    container_name: sto-match
+    build: ./match
+    container_name: app-match
+    restart: always
     ports:
       - "8081:8081"
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      JAVA_OPTS: "-Xms512m -Xmx1g"
+      BLOCKCHAIN_PRIVATE_KEY: ee8e8c36ec6bd55bd7206ca85598c52d5dac74695c45a94afc813b5e8a885a8f
+      BLOCKCHAIN_RPC_URL: https://eth-sepolia.g.alchemy.com/...
+      BLOCKCHAIN_CONTRACT_ADDRESS: ""
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      general:
-        condition: service_started
-    restart: always
-    deploy:
-      replicas: 1  # 반드시 1개 고정 (중복 체결 방지)
+      - db
+      - redis
 
-  # ── Batch
+  #배치 컨테이너
   batch:
-    build:
-      context: ./server/batch
-      dockerfile: Dockerfile
-    container_name: sto-batch
+    build: ./batch
+    container_name: app-batch
+    restart: always
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      JAVA_OPTS: "-Xms256m -Xmx512m"
+      BLOCKCHAIN_PRIVATE_KEY: ee8e8c36ec6bd55bd7206ca85598c52d5dac74695c45a94afc813b5e8a885a8f
+      BLOCKCHAIN_RPC_URL: https://eth-sepolia.g.alchemy.com/...
+      BLOCKCHAIN_CONTRACT_ADDRESS: ""
     depends_on:
-      postgres:
-        condition: service_healthy
-      general:
-        condition: service_started
+      - db
+      - redis
+  #F/E 컨테이너
+  nginx:
+    image: nginx:latest
+    container_name: nginx
     restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - /srv/stone/app:/srv/stone/app
+    depends_on:
+      - main
 
-  # ── Nginx (클라이언트 준비 후 활성화)
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: sto-nginx
-  #   ports:
-  #     - "80:80"
-  #   volumes:
-  #     - ./client/dist:/usr/share/nginx/html:ro
-  #     - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-  #   depends_on:
-  #     - general
-  #   restart: always
+  #젠킨스 컨테이너
+  jenkins:
+    build:
+      context: ./jenkins
+    container_name: jenkins
+    restart: always
+    ports:
+      - "9090:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /srv/stone/app:/srv/stone/app
+    user: root
 
 volumes:
   postgres_data:
+  jenkins_data:

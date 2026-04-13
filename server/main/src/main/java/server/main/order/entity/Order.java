@@ -62,11 +62,20 @@ public class Order extends BaseEntity {
     @JoinColumn(name = "member_id")
     private Member member;
 
-    // 주문 수정 전용 메서드
+    // 주문 수정 전용 메서드 — 수정 후 match 재호출 전이므로 PENDING으로 전환
     public void updateOrder(Long updatePrice, Long updateQuantity) {
         this.orderPrice = updatePrice;
         this.orderQuantity = updateQuantity;
         this.remainingQuantity = updateQuantity - this.filledQuantity;
+        this.orderStatus = OrderStatus.PENDING;
+    }
+
+    // 보상 트랜잭션용 — match 실패 시 원래 가격/수량으로 복원하고 상태도 원복
+    public void restoreOrder(Long originalPrice, Long originalQuantity) {
+        this.orderPrice = originalPrice;
+        this.orderQuantity = originalQuantity;
+        this.remainingQuantity = originalQuantity - this.filledQuantity;
+        this.orderStatus = this.filledQuantity > 0 ? OrderStatus.PARTIAL : OrderStatus.OPEN;
     }
 
     public void removeOrder() {
@@ -78,5 +87,10 @@ public class Order extends BaseEntity {
         this.filledQuantity = filledQuantity;
         this.remainingQuantity = remainingQuantity;
         this.orderStatus = status;
+    }
+
+    // match 서버가 부여한 시간 우선순위 번호 저장
+    public void updateSequence(Long sequence) {
+        this.orderSequence = sequence;
     }
 }
