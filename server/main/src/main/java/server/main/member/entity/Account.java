@@ -80,11 +80,19 @@ public class Account extends BaseEntity {
 
     // 입금
     public void deposit(Long amount) {
+        if (amount == null || amount <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_AMOUNT);
+        }
         this.availableBalance += amount;
     }
 
     // 출금
     public void withdraw(Long amount) {
+
+        if (amount == null || amount <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_AMOUNT);
+        }
+
         if (this.availableBalance < amount) {
             throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE);
         }

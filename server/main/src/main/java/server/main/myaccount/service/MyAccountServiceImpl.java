@@ -10,7 +10,6 @@ import server.main.global.security.CustomUserPrincipal;
 import server.main.member.entity.*;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberBankRepository;
-import server.main.member.repository.MemberRepository;
 import server.main.myaccount.dto.DepositRequest;
 import server.main.myaccount.dto.WithdrawRequest;
 
@@ -19,7 +18,6 @@ import server.main.myaccount.dto.WithdrawRequest;
 @Transactional
 public class MyAccountServiceImpl implements MyAccountService{
 
-    private final MemberRepository memberRepository;
     private final AccountRepository accountRepository;
     private final MemberBankRepository memberBankRepository;
 
@@ -28,10 +26,8 @@ public class MyAccountServiceImpl implements MyAccountService{
 
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal()).getId();
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-        Account account = accountRepository.findWithLockByMember(member)
+        Account account = accountRepository.findWithLockByMemberId(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
 
         account.deposit(depositRequest.getAmount());
@@ -52,10 +48,7 @@ public class MyAccountServiceImpl implements MyAccountService{
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal()).getId();
 
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
-
-        Account account = accountRepository.findWithLockByMember(member)
+        Account account = accountRepository.findWithLockByMemberId(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
 
         account.withdraw(withdrawRequest.getAmount());
