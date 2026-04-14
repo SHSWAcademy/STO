@@ -77,7 +77,14 @@ function PageButton({ children, active, disabled, onClick, ariaLabel }) {
   );
 }
 
-function StatCard({ title, value, helper, icon: Icon, iconClassName, iconBgClassName }) {
+function StatCard({
+  title,
+  value,
+  helper,
+  icon: Icon,
+  iconClassName,
+  iconBgClassName,
+}) {
   return (
     <div className="rounded-lg border border-stone-200 bg-white p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -87,15 +94,19 @@ function StatCard({ title, value, helper, icon: Icon, iconClassName, iconBgClass
       </div>
       <p className="mb-1 text-xs font-bold text-stone-400">{title}</p>
       <h3 className="text-2xl font-semibold text-stone-800">{value}</h3>
-      {helper && <p className="mt-2 text-xs font-medium text-stone-400">{helper}</p>}
+      {helper && (
+        <p className="mt-2 text-xs font-medium text-stone-400">{helper}</p>
+      )}
     </div>
   );
 }
 
 function SettlementBadge({ value }) {
   const normalized = String(value ?? "-");
-  const isSuccess = normalized.includes("성공") || normalized.toUpperCase() === "SUCCESS";
-  const isFail = normalized.includes("실패") || normalized.toUpperCase() === "FAILED";
+  const isSuccess =
+    normalized.includes("성공") || normalized.toUpperCase() === "SUCCESS";
+  const isFail =
+    normalized.includes("실패") || normalized.toUpperCase() === "FAILED";
 
   return (
     <span
@@ -117,7 +128,8 @@ function TokenOwnershipCard({ token }) {
   const userSupply = toNumber(token.currentQuantity);
   const ownedSupply = userSupply + platformSupply;
   const userPercent = totalSupply > 0 ? (userSupply / totalSupply) * 100 : 0;
-  const platformPercent = totalSupply > 0 ? (platformSupply / totalSupply) * 100 : 0;
+  const platformPercent =
+    totalSupply > 0 ? (platformSupply / totalSupply) * 100 : 0;
   const ownedPercent = totalSupply > 0 ? (ownedSupply / totalSupply) * 100 : 0;
   const filledSquares = Math.round(Math.min(userPercent, 100));
 
@@ -170,7 +182,8 @@ function TokenOwnershipCard({ token }) {
                       유저 보유
                     </p>
                     <p className="text-sm font-black text-stone-800">
-                      {formatNumber(userSupply)} 토큰 · {userPercent.toFixed(1)}%
+                      {formatNumber(userSupply)} 토큰 · {userPercent.toFixed(1)}
+                      %
                     </p>
                   </div>
                 </div>
@@ -181,7 +194,8 @@ function TokenOwnershipCard({ token }) {
                       플랫폼 보유
                     </p>
                     <p className="text-sm font-black text-stone-800">
-                      {formatNumber(platformSupply)} 토큰 · {platformPercent.toFixed(1)}%
+                      {formatNumber(platformSupply)} 토큰 ·{" "}
+                      {platformPercent.toFixed(1)}%
                     </p>
                   </div>
                 </div>
@@ -295,8 +309,9 @@ export function AdminDashboard() {
   const selectedToken = useMemo(() => {
     if (tokenList.length === 0) return null;
     return (
-      tokenList.find((token) => String(token.tokenId ?? "") === selectedTokenId) ??
-      tokenList[0]
+      tokenList.find(
+        (token) => String(token.tokenId ?? "") === selectedTokenId,
+      ) ?? tokenList[0]
     );
   }, [selectedTokenId, tokenList]);
 
@@ -339,7 +354,8 @@ export function AdminDashboard() {
   }
 
   function goToPage(nextPage) {
-    if (nextPage < 0 || nextPage >= tradePage.totalPages || nextPage === page) return;
+    if (nextPage < 0 || nextPage >= tradePage.totalPages || nextPage === page)
+      return;
     setPage(nextPage);
   }
 
@@ -354,7 +370,9 @@ export function AdminDashboard() {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-stone-800">어드민 대시보드</h1>
+          <h1 className="text-2xl font-semibold text-stone-800">
+            어드민 대시보드
+          </h1>
           <p className="text-sm text-stone-400">
             사용자, 체결, 토큰 발행량과 최근 거래내역을 확인합니다.
           </p>
@@ -428,9 +446,12 @@ export function AdminDashboard() {
       <div className="rounded-lg border border-stone-200 bg-white">
         <div className="flex flex-col gap-4 border-b border-stone-200 p-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-stone-800">토큰 발행 및 소유권 분석</h3>
+            <h3 className="text-lg font-semibold text-stone-800">
+              토큰 발행 및 소유권 분석
+            </h3>
             <p className="mt-1 text-xs font-medium text-stone-400">
-              거래중인 토큰의 총 발행량, 플랫폼 보유량, 유저 보유량을 표시합니다.
+              거래중인 토큰의 총 발행량, 플랫폼 보유량, 유저 보유량을
+              표시합니다.
             </p>
           </div>
 
@@ -443,7 +464,10 @@ export function AdminDashboard() {
                 className="min-w-[220px] rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 outline-none focus:border-brand-blue"
               >
                 {tokenList.map((token) => (
-                  <option key={token.tokenId} value={String(token.tokenId ?? "")}>
+                  <option
+                    key={token.tokenId}
+                    value={String(token.tokenId ?? "")}
+                  >
                     {token.tokenName || "-"} ({token.tokenSymbol || "-"})
                   </option>
                 ))}
@@ -454,7 +478,9 @@ export function AdminDashboard() {
 
         <div className="p-6">
           {loading ? (
-            <div className="py-16 text-center text-sm text-stone-400">불러오는 중...</div>
+            <div className="py-16 text-center text-sm text-stone-400">
+              불러오는 중...
+            </div>
           ) : tokenList.length === 0 ? (
             <div className="py-16 text-center text-sm text-stone-400">
               표시할 토큰 데이터가 없습니다.
@@ -472,7 +498,9 @@ export function AdminDashboard() {
       <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
         <div className="flex flex-col gap-3 border-b border-stone-200 bg-stone-50 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-stone-800">최근 거래내역</h3>
+            <h3 className="text-lg font-semibold text-stone-800">
+              최근 거래내역
+            </h3>
             <p className="text-xs font-medium text-stone-400">
               전체 {tradePage.totalElements.toLocaleString()}건 중{" "}
               {tradeFrom.toLocaleString()}-{tradeTo.toLocaleString()} 표시
@@ -525,35 +553,46 @@ export function AdminDashboard() {
             <tbody className="divide-y divide-stone-200">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-16 text-center text-sm text-stone-400">
+                  <td
+                    colSpan={9}
+                    className="px-6 py-16 text-center text-sm text-stone-400"
+                  >
                     불러오는 중...
                   </td>
                 </tr>
               ) : trades.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-16 text-center text-sm text-stone-400">
+                  <td
+                    colSpan={9}
+                    className="px-6 py-16 text-center text-sm text-stone-400"
+                  >
                     표시할 거래내역이 없습니다.
                   </td>
                 </tr>
               ) : (
                 trades.map((trade) => (
-                  <tr key={trade.tradeId} className="transition-colors hover:bg-stone-50">
+                  <tr
+                    key={trade.tradeId}
+                    className="transition-colors hover:bg-stone-50"
+                  >
                     <td className="px-6 py-4 text-sm font-mono font-bold text-stone-500">
                       {trade.tradeId ?? "-"}
                     </td>
                     <td className="px-6 py-4">
                       <p className="whitespace-nowrap text-sm font-black text-stone-800">
-                        ID {trade.tokenId ?? "-"}
+                        ID {trade.tokenName ?? "-"}
                       </p>
                       <p className="text-[10px] font-bold text-stone-400">
-                        {trade.tokenSymbol ?? tokenSymbolById.get(String(trade.tokenId ?? "")) ?? "-"}
+                        {trade.tokenSymbol ??
+                          tokenSymbolById.get(String(trade.tokenId ?? "")) ??
+                          "-"}
                       </p>
                     </td>
                     <td className="px-6 py-4 text-sm font-bold text-stone-500">
-                      {trade.sellerId ?? "-"}
+                      {trade.sellerName ?? "-"}
                     </td>
                     <td className="px-6 py-4 text-sm font-bold text-stone-500">
-                      {trade.buyerId ?? "-"}
+                      {trade.buyerName ?? "-"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-stone-500">
                       {formatCurrency(trade.tradePrice)}
@@ -586,7 +625,9 @@ export function AdminDashboard() {
 
           <div className="flex flex-wrap items-center gap-2">
             <PageButton
-              disabled={tradePage.first || loading || tradePage.totalPages === 0}
+              disabled={
+                tradePage.first || loading || tradePage.totalPages === 0
+              }
               onClick={() => goToPage(tradePage.number - 1)}
               ariaLabel="이전 페이지"
             >
