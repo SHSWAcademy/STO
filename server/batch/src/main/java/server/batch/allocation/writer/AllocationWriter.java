@@ -64,7 +64,7 @@ public class AllocationWriter implements ItemWriter<AllocationResult> {
                     .bankingAmount(member.getPayoutAmount()) // 입금 금액
                     .balanceSnapshot(member.getAccount().getAvailableBalance()) // 계좌 최종잔고
                     .txStatus(TxStatus.SUCCESS)
-                    .txType(TxType.DEPOSIT)
+                    .txType(TxType.DIVIDEND_DEPOSIT)
                     .accountId(member.getAccount().getAccountId())
                     .build();
             bankingRepository.save(banking);
