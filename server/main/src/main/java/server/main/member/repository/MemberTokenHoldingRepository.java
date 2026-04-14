@@ -27,4 +27,7 @@ public interface MemberTokenHoldingRepository extends JpaRepository<MemberTokenH
     // 행이 없으면 잠글 대상이 없으므로 동시 insert 경쟁은 유니크 제약(uq_token_holdings)으로 처리
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<MemberTokenHolding> findWithLockByMemberAndToken(Member member, Token token);
+
+    @Query("SELECT h FROM MemberTokenHolding h JOIN FETCH h.token WHERE h.member.memberId = :memberId")
+    List<MemberTokenHolding> findAllByMemberId(@Param("memberId") Long memberId);
 }

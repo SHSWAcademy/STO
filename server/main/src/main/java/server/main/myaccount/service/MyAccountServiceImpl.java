@@ -10,8 +10,13 @@ import server.main.global.security.CustomUserPrincipal;
 import server.main.member.entity.*;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberBankRepository;
+import server.main.member.repository.MemberTokenHoldingRepository;
+import server.main.myaccount.dto.AccountBalanceResponse;
 import server.main.myaccount.dto.DepositRequest;
+import server.main.myaccount.dto.PortfolioResponse;
 import server.main.myaccount.dto.WithdrawRequest;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +25,7 @@ public class MyAccountServiceImpl implements MyAccountService{
 
     private final AccountRepository accountRepository;
     private final MemberBankRepository memberBankRepository;
+    private final MemberTokenHoldingRepository memberTokenHoldingRepository;
 
     @Override
     public void deposit(DepositRequest depositRequest) {
@@ -62,5 +68,34 @@ public class MyAccountServiceImpl implements MyAccountService{
                 .build();
 
         memberBankRepository.save(banking);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountBalanceResponse getBalance() {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Account account = accountRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+
+        return new AccountBalanceResponse(
+                account.getAccountNumber(),
+                account.getAvailableBalance(),
+                account.getLockedBalance()
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PortfolioResponse> getPortfolio() {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        return memberTokenHoldingRepository.findAllByMemberId(memberId)
+                .stream()
+                .filter(h -> h.getCurrentQuantity() > 0)
+                .map(PortfolioResponse :: from)
+                .toList();
     }
 }
