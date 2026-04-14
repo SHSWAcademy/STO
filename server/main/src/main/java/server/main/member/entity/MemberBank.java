@@ -38,10 +38,11 @@ public class MemberBank {
     private Account account;
 
     @Builder
-    public MemberBank(Long bankingAmount, TxType txType, TxStatus txStatus, Long balanceSnapshot) {
+    public MemberBank(Long bankingAmount, TxType txType, TxStatus txStatus, Long balanceSnapshot, Account account) {
         this.bankingAmount = bankingAmount;
         this.txType = txType;
         this.txStatus = txStatus;
         this.balanceSnapshot = balanceSnapshot;
+        this.account = account;
     }
 }
