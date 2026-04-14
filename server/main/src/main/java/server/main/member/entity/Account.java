@@ -75,4 +75,9 @@ public class Account extends BaseEntity {
     public void settleSellTrade(Long amount) {
         this.availableBalance += amount;
     }
+
+    // 입금
+    public void deposit(Long amount) {
+        this.availableBalance += amount;
+    }
 }

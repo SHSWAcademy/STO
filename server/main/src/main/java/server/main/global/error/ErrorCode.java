@@ -32,6 +32,7 @@ public enum ErrorCode {
     INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "INSUFFICIENT_BALANCE", "원화 잔고가 부족합니다."),
     INSUFFICIENT_TOKEN_BALANCE(HttpStatus.BAD_REQUEST, "INSUFFICIENT_TOKEN_BALANCE", "보유 토큰이 부족합니다."),
     INVALID_AMOUNT(HttpStatus.BAD_REQUEST, "INVALID_AMOUNT", "금액은 0보다 커야 합니다."),
+    ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", "계좌를 찾을 수 없습니다."),
 
     // ── 토큰(부동산) ─────────────────────────────────────────
     TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "TOKEN_NOT_FOUND", "토큰을 찾을 수 없습니다."),
