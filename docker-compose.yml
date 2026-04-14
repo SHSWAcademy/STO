@@ -11,6 +11,8 @@ services:
       - "5432:5432"
     volumes:
       - app_postgres_data:/var/lib/postgresql
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     deploy:
       resources:
         limits:
@@ -44,6 +46,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
       BLOCKCHAIN_PRIVATE_KEY: ${BLOCKCHAIN_PRIVATE_KEY}
       BLOCKCHAIN_RPC_URL: ${BLOCKCHAIN_RPC_URL}
       BLOCKCHAIN_CONTRACT_ADDRESS: ${BLOCKCHAIN_CONTRACT_ADDRESS}
@@ -67,6 +70,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
       BLOCKCHAIN_PRIVATE_KEY: ${BLOCKCHAIN_PRIVATE_KEY}
       BLOCKCHAIN_RPC_URL: ${BLOCKCHAIN_RPC_URL}
       BLOCKCHAIN_CONTRACT_ADDRESS: ${BLOCKCHAIN_CONTRACT_ADDRESS_MATCH}
@@ -88,6 +92,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
       BLOCKCHAIN_PRIVATE_KEY: ${BLOCKCHAIN_PRIVATE_KEY}
       BLOCKCHAIN_RPC_URL: ${BLOCKCHAIN_RPC_URL}
       BLOCKCHAIN_CONTRACT_ADDRESS: ${BLOCKCHAIN_CONTRACT_ADDRESS_BATCH}
