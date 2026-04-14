@@ -19,11 +19,18 @@ import {
   OPEN_ORDERS,
   FILLED_ORDERS,
 } from "../data/mock.js";
-import { fetchBalance, fetchPortfolio, deposit, withdraw } from "../lib/api.js";
+import {
+  fetchBalance,
+  fetchPortfolio,
+  deposit,
+  withdraw,
+  fetchBankingHistory,
+} from "../lib/api.js";
 import { cn } from "../lib/utils.js";
 import { Modal } from "../components/ui/Modal.jsx";
 import { EmptyState } from "../components/ui/EmptyState.jsx";
 import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { Pagination } from "../components/ui/Pagination.jsx";
 
 const ASSET_PIE = [
   { name: "서울강남빌딩", value: 45, color: "var(--color-brand-blue)" },
@@ -41,43 +48,13 @@ const SIDEBAR_ITEMS = [
   { id: "settings", label: "계좌관리", icon: SettingsIcon },
 ];
 
-const HISTORY_ITEMS = [
-  {
-    date: "2026.03.21",
-    title: "서울강남빌딩 매수",
-    amount: "-₩1,240,000",
-    balance: "₩1,240,000",
-    type: "buy",
-  },
-  {
-    date: "2026.03.20",
-    title: "계좌 입금",
-    amount: "+₩5,000,000",
-    balance: "₩2,480,000",
-    type: "deposit",
-  },
-  {
-    date: "2026.03.19",
-    title: "송도 리조트 매도",
-    amount: "+₩422,500",
-    balance: "₩1,240,000",
-    type: "sell",
-  },
-  {
-    date: "2026.03.18",
-    title: "한남더힐 배당금",
-    amount: "+₩45,600",
-    balance: "₩1,240,000",
-    type: "dividend",
-  },
-  {
-    date: "2026.03.17",
-    title: "계좌 출금",
-    amount: "-₩1,000,000",
-    balance: "₩817,500",
-    type: "withdraw",
-  },
-];
+const FILTER_TX_TYPES = {
+  전체: [],
+  입출금: ["DEPOSIT", "WITHDRAWAL"],
+  매수: ["ORDER_LOCK"],
+  매도: ["TRADE_SETTLEMENT"],
+  배당금: ["DIVIDEND_DEPOSIT"],
+};
 
 export function MyAccountPage() {
   const location = useLocation();
@@ -90,6 +67,9 @@ export function MyAccountPage() {
   const [amount, setAmount] = useState("");
   const [balance, setBalance] = useState(null);
   const [portfolio, setPortfolio] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [historyTotalPages, setHistoryTotalPages] = useState(0);
 
   // 알람 클릭으로 넘어온 경우 해당 탭 자동 선택
   useEffect(() => {
@@ -116,6 +96,22 @@ export function MyAccountPage() {
       }
     })();
   }, []);
+
+  async function loadHistory(page) {
+    try {
+      const txTypes = FILTER_TX_TYPES[historyFilter] ?? [];
+      const res = await fetchBankingHistory(page, txTypes);
+      setHistory(res.data.content);
+      setHistoryTotalPages(res.data.totalPages);
+      setHistoryPage(page);
+    } catch (e) {
+      alert(e.response?.data?.message || "거래 내역을 불러오지 못했습니다.");
+    }
+  }
+
+  useEffect(() => {
+    if (activeSubTab === "history") loadHistory(0);
+  }, [activeSubTab, historyFilter]);
 
   async function handleFill() {
     if (!amount || isNaN(Number(amount))) return;
@@ -190,7 +186,10 @@ export function MyAccountPage() {
           <HistoryTab
             filter={historyFilter}
             onFilter={setHistoryFilter}
-            items={HISTORY_ITEMS}
+            items={history}
+            page={historyPage}
+            totalPages={historyTotalPages}
+            onPageChange={loadHistory}
           />
         )}
         {activeSubTab === "orders" && (
@@ -452,15 +451,43 @@ function AssetsTab({ onFill, onSend, balance, portfolio }) {
 }
 
 // ── 거래내역 탭 ───────────────────────────────────────────────
-function HistoryTab({ filter, onFilter, items }) {
-  const filtered = items.filter((item) => {
-    if (filter === "전체") return true;
-    if (filter === "입출금")
-      return item.type === "deposit" || item.type === "withdraw";
-    if (filter === "매수") return item.type === "buy";
-    if (filter === "매도") return item.type === "sell";
-    return true;
-  });
+function HistoryTab({
+  filter,
+  onFilter,
+  items,
+  page,
+  totalPages,
+  onPageChange,
+}) {
+  function formatTitle(txType) {
+    switch (txType) {
+      case "DEPOSIT":
+        return "계좌 입금";
+      case "WITHDRAWAL":
+        return "계좌 출금";
+      case "ORDER_LOCK":
+        return "주문 잠금";
+      case "ORDER_UNLOCK":
+        return "주문 해제";
+      case "TRADE_SETTLEMENT":
+        return "체결 정산";
+      case "DIVIDEND_DEPOSIT":
+        return "배당금 입금";
+      default:
+        return txType;
+    }
+  }
+
+  function formatDate(createdAt) {
+    return new Date(createdAt)
+      .toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+      .replace(/\. /g, ".")
+      .replace(/\.$/, "");
+  }
 
   return (
     <div className="space-y-8">
@@ -469,7 +496,7 @@ function HistoryTab({ filter, onFilter, items }) {
           거래 내역
         </h2>
         <div className="flex gap-2">
-          {["전체", "입출금", "매수", "매도"].map((f) => (
+          {["전체", "입출금", "매수", "매도", "배당금"].map((f) => (
             <button
               key={f}
               onClick={() => onFilter(f)}
@@ -487,34 +514,43 @@ function HistoryTab({ filter, onFilter, items }) {
       </div>
       <div className="bg-white border border-stone-200 rounded-[32px] overflow-hidden shadow-sm">
         <div className="divide-y divide-stone-100">
-          {filtered.length > 0 ? (
-            filtered.map((item, i) => (
+          {items.length > 0 ? (
+            items.map((item) => (
               <div
-                key={i}
+                key={item.bankingId}
                 className="p-6 flex items-center justify-between hover:bg-stone-50 transition-colors"
               >
                 <div className="flex items-center gap-6">
                   <span className="text-[10px] font-black text-stone-400 font-mono">
-                    {item.date}
+                    {formatDate(item.createdAt)}
                   </span>
                   <div>
                     <p className="text-sm font-bold text-stone-800">
-                      {item.title}
+                      {formatTitle(item.txType)}
                     </p>
                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-0.5">
-                      잔고 {item.balance}
+                      잔고 {item.balanceSnapshot.toLocaleString()}원
                     </p>
                   </div>
                 </div>
                 <p
                   className={cn(
                     "text-sm font-black",
-                    item.amount.startsWith("+")
+                    item.txType === "DEPOSIT" ||
+                      item.txType === "TRADE_SETTLEMENT" ||
+                      item.txType === "DIVIDEND_DEPOSIT" ||
+                      item.txType === "ORDER_UNLOCK"
                       ? "text-brand-red"
                       : "text-brand-blue",
                   )}
                 >
-                  {item.amount}
+                  {item.txType === "DEPOSIT" ||
+                  item.txType === "TRADE_SETTLEMENT" ||
+                  item.txType === "DIVIDEND_DEPOSIT" ||
+                  item.txType === "ORDER_UNLOCK"
+                    ? "+"
+                    : "-"}
+                  {item.bankingAmount.toLocaleString()}원
                 </p>
               </div>
             ))
@@ -523,6 +559,13 @@ function HistoryTab({ filter, onFilter, items }) {
           )}
         </div>
       </div>
+
+      {/* 페이지네이션 */}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 }
