@@ -30,7 +30,8 @@ public class AlarmSubscribeHandler {
         if (destination == null || !destination.startsWith("/topic/alarm/")) return;
 
         // JWT 검증
-        String token = (String) event.getMessage().getHeaders().get("Authorization");
+        SimpMessageHeaderAccessor accessor = SimpMessageHeaderAccessor.wrap(event.getMessage());
+        String token = accessor.getFirstNativeHeader("Authorization");
         if (token == null || !token.startsWith("Bearer ")) return;
         token = token.substring(7);
         if (!jwtTokenProvider.validateToken(token)) return;

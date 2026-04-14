@@ -211,7 +211,7 @@ export function AppHeader() {
         {user && (
           <div className="relative" ref={alarmDropdownRef}>
             <button
-              onClick={() => setShowAlarms(prev => !prev)}
+              onClick={() => { setShowAlarms(prev => { if (!prev) loadAlarms(); return !prev; }); }}
               className="p-2 text-stone-400 hover:text-stone-800 transition-colors relative"
             >
               <Bell size={20} />
@@ -244,43 +244,53 @@ export function AppHeader() {
                   )}
                 </div>
 
-                {/* 알람 목록 */}
-                <ul className="max-h-80 overflow-y-auto divide-y divide-stone-50">
+                {/* 알람 목록 — 미읽음 먼저, 읽음 나중 (각 그룹 내 최신순) */}
+                <ul className="max-h-80 overflow-y-auto divide-y divide-stone-100">
                   {alarms.length === 0 ? (
                     <li className="px-4 py-8 text-center text-xs font-bold text-stone-400">
                       새로운 알림이 없습니다.
                     </li>
                   ) : (
-                    alarms.map(alarm => (
-                      <li key={alarm.alarmId}>
-                        <button
-                          onClick={() => handleAlarmClick(alarm)}
-                          className={cn(
-                            'w-full text-left px-4 py-3 hover:bg-stone-50 transition-colors',
-                            !alarm.isRead && 'bg-blue-50/60 hover:bg-blue-50',
-                          )}
-                        >
-                          <div className="flex items-start gap-2">
-                            {/* 미읽음 도트 */}
-                            <span className={cn(
-                              'mt-1.5 w-1.5 h-1.5 rounded-full shrink-0',
-                              !alarm.isRead ? 'bg-red-500' : 'bg-transparent',
-                            )} />
-                            <div className="flex-1 min-w-0">
-                              <p className={cn(
-                                'text-xs leading-relaxed break-words',
-                                alarm.isRead ? 'text-stone-500 font-medium' : 'text-stone-800 font-bold',
-                              )}>
-                                {alarm.message}
-                              </p>
-                              <p className="text-[10px] text-stone-400 font-bold mt-0.5">
-                                {formatAlarmTime(alarm.createdAt)}
-                              </p>
+                    [...alarms]
+                      .sort((a, b) => {
+                        if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
+                        return new Date(b.createdAt) - new Date(a.createdAt);
+                      })
+                      .map(alarm => (
+                        <li key={alarm.alarmId}>
+                          <button
+                            onClick={() => handleAlarmClick(alarm)}
+                            className={cn(
+                              'w-full text-left px-4 py-3 transition-colors',
+                              !alarm.isRead
+                                ? 'bg-blue-50/60 hover:bg-blue-50'
+                                : 'bg-stone-100 hover:bg-stone-200',
+                            )}
+                          >
+                            <div className="flex items-start gap-2">
+                              {/* 미읽음 도트 */}
+                              <span className={cn(
+                                'mt-1.5 w-1.5 h-1.5 rounded-full shrink-0',
+                                !alarm.isRead ? 'bg-red-500' : 'bg-transparent',
+                              )} />
+                              <div className="flex-1 min-w-0">
+                                <p className={cn(
+                                  'text-xs leading-relaxed break-words',
+                                  alarm.isRead ? 'text-stone-400 font-medium' : 'text-stone-800 font-bold',
+                                )}>
+                                  {alarm.message}
+                                </p>
+                                <p className={cn(
+                                  'text-[10px] font-bold mt-0.5',
+                                  alarm.isRead ? 'text-stone-400' : 'text-stone-400',
+                                )}>
+                                  {formatAlarmTime(alarm.createdAt)}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      </li>
-                    ))
+                          </button>
+                        </li>
+                      ))
                   )}
                 </ul>
               </div>
@@ -288,18 +298,29 @@ export function AppHeader() {
           </div>
         )}
 
-        <Link
-          to="/portfolio"
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black bg-stone-800 hover:scale-105 transition-transform"
-        >
-          {user?.name?.[0] ?? '?'}
-        </Link>
-        <button
-          onClick={() => { logout(); navigate('/'); }}
-          className="text-xs font-bold text-stone-500 hover:text-stone-800 transition-colors"
-        >
-          로그아웃
-        </button>
+        {user ? (
+          <>
+            <Link
+              to="/portfolio"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black bg-stone-800 hover:scale-105 transition-transform"
+            >
+              {user.name?.[0] ?? '?'}
+            </Link>
+            <button
+              onClick={() => { logout(); navigate('/'); }}
+              className="text-xs font-bold text-stone-500 hover:text-stone-800 transition-colors"
+            >
+              로그아웃
+            </button>
+          </>
+        ) : (
+          <Link
+            to="/login"
+            className="text-xs font-bold text-stone-500 hover:text-stone-800 transition-colors"
+          >
+            로그인
+          </Link>
+        )}
       </div>
     </header>
   );

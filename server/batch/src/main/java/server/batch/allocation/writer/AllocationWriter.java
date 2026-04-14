@@ -1,16 +1,20 @@
 package server.batch.allocation.writer;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import server.batch.allocation.dto.AllocationResult;
 import server.batch.allocation.dto.MemberPayoutResult;
 import server.batch.allocation.entity.*;
 import server.batch.allocation.repository.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Log4j2
 @Component
@@ -25,6 +29,9 @@ public class AllocationWriter implements ItemWriter<AllocationResult> {
     private final BankingRepository bankingRepository;
     private final AllocationPayoutRepository allocationPayoutRepository;
     private final AllocationEventRepository allocationEventRepository;
+    private final AlarmRepository alarmRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Override
     public void write(Chunk<? extends AllocationResult> chunk) throws Exception {
@@ -73,6 +80,34 @@ public class AllocationWriter implements ItemWriter<AllocationResult> {
                     .build();
             allocationPayoutRepository.save(payout);
             log.info("배당 지급 기록 : {}", payout);
+
+            // 배당 알람 DB 저장 + Redis publish — 실패해도 배당 입금에 영향 없도록 격리
+            try {
+                String alarmContent = String.format("[ %s ] 배당금 %,d원이 지급되었습니다.",
+                        result.getTokenName(), member.getPayoutAmount());
+                Alarm alarm = Alarm.builder()
+                        .memberId(member.getMemberId())
+                        .tokenId(result.getTokenId())
+                        .alarmType(AlarmType.DIVIDEND)
+                        .alarmContent(alarmContent)
+                        .build();
+                Alarm savedAlarm = alarmRepository.save(alarm);
+
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("alarmId",   savedAlarm.getAlarmId());
+                payload.put("alarmType", "DIVIDEND");
+                payload.put("tokenId",   result.getTokenId());
+                payload.put("message",   alarmContent);
+                payload.put("isRead",    false);
+                if (savedAlarm.getCreatedAt() != null) {
+                    payload.put("createdAt", savedAlarm.getCreatedAt().toString());
+                }
+                redisTemplate.convertAndSend("alarm:" + member.getMemberId(),
+                        objectMapper.writeValueAsString(payload));
+                log.info("[Alarm] 배당 알람 발행 - memberId: {}", member.getMemberId());
+            } catch (Exception e) {
+                log.error("[Alarm] 배당 알람 처리 실패 (배당 입금은 정상 완료) - memberId: {}", member.getMemberId(), e);
+            }
         }
         // 플랫폼 계좌 업데이트
         PlatformAccount platformAccount = platformAccountRepository.findFirstBy();
