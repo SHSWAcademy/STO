@@ -58,7 +58,7 @@ public class MyAccountServiceImpl implements MyAccountService{
         Account account = accountRepository.findWithLockByMember(member)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
 
-        account.deposit(withdrawRequest.getAmount());
+        account.withdraw(withdrawRequest.getAmount());
 
         MemberBank banking = MemberBank.builder()
                 .account(account)
