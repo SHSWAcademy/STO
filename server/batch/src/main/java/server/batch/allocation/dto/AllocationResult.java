@@ -20,5 +20,6 @@ public class AllocationResult {
 
     private long platformAmount;            // 플랫폼 배당금
     private Long tokenId;                   // 토큰 ID (assetId → tokenId 변환 결과)
+    private String tokenName;              // 토큰명 (알람 메시지용)
     private long remainder;                 // 버림으로 생긴 잔액 (Writer에서 자산 계좌로 반환)
 }

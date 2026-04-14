@@ -211,7 +211,7 @@ export function AppHeader() {
         {user && (
           <div className="relative" ref={alarmDropdownRef}>
             <button
-              onClick={() => setShowAlarms(prev => !prev)}
+              onClick={() => { setShowAlarms(prev => { if (!prev) loadAlarms(); return !prev; }); }}
               className="p-2 text-stone-400 hover:text-stone-800 transition-colors relative"
             >
               <Bell size={20} />
