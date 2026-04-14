@@ -12,6 +12,7 @@ import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberBankRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.myaccount.dto.DepositRequest;
+import server.main.myaccount.dto.WithdrawRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -39,6 +40,30 @@ public class MyAccountServiceImpl implements MyAccountService{
                 .account(account)
                 .bankingAmount(depositRequest.getAmount())
                 .txType(TxType.DEPOSIT)
+                .txStatus(TxStatus.SUCCESS)
+                .balanceSnapshot(account.getAvailableBalance())
+                .build();
+
+        memberBankRepository.save(banking);
+    }
+
+    @Override
+    public void withdraw(WithdrawRequest withdrawRequest) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        Account account = accountRepository.findWithLockByMember(member)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+
+        account.deposit(withdrawRequest.getAmount());
+
+        MemberBank banking = MemberBank.builder()
+                .account(account)
+                .bankingAmount(withdrawRequest.getAmount())
+                .txType(TxType.WITHDRAWAL)
                 .txStatus(TxStatus.SUCCESS)
                 .balanceSnapshot(account.getAvailableBalance())
                 .build();

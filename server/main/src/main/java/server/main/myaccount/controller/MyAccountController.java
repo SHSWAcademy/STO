@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import server.main.myaccount.dto.DepositRequest;
+import server.main.myaccount.dto.WithdrawRequest;
 import server.main.myaccount.service.MyAccountService;
 
 @RestController
@@ -20,6 +21,12 @@ public class MyAccountController {
     @PostMapping("/deposit")
     public ResponseEntity<Void> deposit(@RequestBody @Valid DepositRequest depositRequest) {
         myAccountService.deposit(depositRequest);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/withdraw")
+    public ResponseEntity<Void> withdraw(@RequestBody @Valid WithdrawRequest withdrawRequest) {
+        myAccountService.withdraw(withdrawRequest);
         return ResponseEntity.ok().build();
     }
 }

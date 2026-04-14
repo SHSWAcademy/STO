@@ -11,6 +11,8 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import server.main.global.error.BusinessException;
+import server.main.global.error.ErrorCode;
 import server.main.global.util.BaseEntity;
 
 @Entity
@@ -79,5 +81,14 @@ public class Account extends BaseEntity {
     // 입금
     public void deposit(Long amount) {
         this.availableBalance += amount;
+    }
+
+    // 출금
+    public void withdraw(Long amount) {
+        if (this.availableBalance < amount) {
+            throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE);
+        }
+
+        this.availableBalance -= amount;
     }
 }
