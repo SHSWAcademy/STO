@@ -1,17 +1,39 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { TOKENS as INITIAL_TOKENS, ADMIN_DISCLOSURES, ADMIN_NOTICES } from '../data/mock.js';
 import { API_BASE_URL } from '../lib/config.js';
 
 const API = API_BASE_URL;
 
+// JWT payload에서 memberId(sub) 추출
+function getMemberIdFromJwt(token) {
+  try {
+    return Number(JSON.parse(atob(token.split('.')[1])).sub);
+  } catch {
+    return null;
+  }
+}
+
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [watchlist, setWatchlist] = useState([]);
+  const [likedTokenIds, setLikedTokenIds] = useState([]);
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
   const [disclosures, setDisclosures] = useState(ADMIN_DISCLOSURES);
   const [notices, setNotices] = useState(ADMIN_NOTICES);
+
+  async function fetchLikes(accessToken) {
+    const res = await fetch(`${API}/api/likes`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
+    setLikedTokenIds(data.map((item) => item.tokenId));
+  }
 
   async function login(email, password) {
     const res = await fetch(`${API}/api/auth/member/login`, {
@@ -28,8 +50,15 @@ export function AppProvider({ children }) {
       name: email,
       email,
       role: 'user',
+      memberId: getMemberIdFromJwt(data.accessToken),
       accessToken: data.accessToken,
     });
+    try {
+      await fetchLikes(data.accessToken);
+    } catch (err) {
+      console.error('[AppContext] likes load failed after login:', err);
+      setLikedTokenIds([]);
+    }
     return false;
   }
 
@@ -61,13 +90,48 @@ export function AppProvider({ children }) {
   function logout() {
     localStorage.removeItem('token');
     setUser(null);
+    setLikedTokenIds([]);
   }
 
-  function toggleWatchlist(assetId) {
-    setWatchlist((prev) =>
-      prev.includes(assetId) ? prev.filter((id) => id !== assetId) : [...prev, assetId],
-    );
+  async function toggleLike(tokenId) {
+    if (!user?.accessToken) return;
+
+    const exists = likedTokenIds.includes(tokenId);
+
+    if (exists) {
+      const res = await fetch(`${API}/api/likes/${tokenId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${user.accessToken}`,
+        },
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      setLikedTokenIds((prev) => prev.filter((id) => id !== tokenId));
+      return;
+    }
+
+    const res = await fetch(`${API}/api/likes/${tokenId}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${user.accessToken}`,
+      },
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    setLikedTokenIds((prev) => [...prev, tokenId]);
   }
+
+  useEffect(() => {
+    if (!user?.accessToken || user.role !== 'user') return;
+
+    fetchLikes(user.accessToken).catch((err) => {
+      console.error('[AppContext] likes load failed:', err);
+      setLikedTokenIds([]);
+    });
+  }, [user]);
 
   return (
     <AppContext.Provider
@@ -76,8 +140,8 @@ export function AppProvider({ children }) {
         login,
         loginAdmin,
         logout,
-        watchlist,
-        toggleWatchlist,
+        likedTokenIds,
+        toggleLike,
         tokens,
         setTokens,
         disclosures,

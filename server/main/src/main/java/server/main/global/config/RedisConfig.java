@@ -45,6 +45,8 @@ public class RedisConfig {
         container.addMessageListener(messageListenerAdapter, new PatternTopic("candle:*"));
         // Subscribes to pending order updates
         container.addMessageListener(messageListenerAdapter, new PatternTopic("pendingOrders:*"));
+        // Subscribes alarms
+        container.addMessageListener(messageListenerAdapter, new PatternTopic("alarm:*"));
         return container;
     }
 }
