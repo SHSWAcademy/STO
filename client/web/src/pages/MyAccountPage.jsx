@@ -96,9 +96,25 @@ export function MyAccountPage() {
     const tab = location.state?.tab;
     if (tab) setActiveSubTab(tab);
   }, [location.state]);
+
   useEffect(() => {
     fetchBalance().then((res) => setBalance(res.data));
     fetchPortfolio().then((res) => setPortfolio(res.data));
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [balanceRes, portfolioRes] = await Promise.all([
+          fetchBalance(),
+          fetchPortfolio(),
+        ]);
+        setBalance(balanceRes.data);
+        setPortfolio(portfolioRes.data);
+      } catch (e) {
+        alert(e.response?.data?.message || "계좌 정보를 불러오지 못했습니다.");
+      }
+    })();
   }, []);
 
   async function handleFill() {

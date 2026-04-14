@@ -1,6 +1,5 @@
 package server.main.myaccount.service;
 
-import org.springframework.data.domain.Page;
 import server.main.myaccount.dto.AccountBalanceResponse;
 import server.main.myaccount.dto.DepositRequest;
 import server.main.myaccount.dto.PortfolioResponse;
