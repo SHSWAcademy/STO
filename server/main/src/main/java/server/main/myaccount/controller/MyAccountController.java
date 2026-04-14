@@ -8,6 +8,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.main.member.entity.TxType;
 import server.main.myaccount.dto.*;
 import server.main.myaccount.service.MyAccountService;
 
@@ -44,7 +45,9 @@ public class MyAccountController {
 
     @GetMapping("/history")
     public ResponseEntity<Page<BankingHistoryResponse>> getBankingHistory(
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)Pageable pageable) {
-        return ResponseEntity.ok(myAccountService.getBankingHistory(pageable));
+            @RequestParam(required = false) List<TxType> txTypes,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(myAccountService.getBankingHistory(txTypes, pageable));
     }
+
 }

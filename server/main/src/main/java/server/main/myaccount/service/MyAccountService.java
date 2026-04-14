@@ -2,6 +2,7 @@ package server.main.myaccount.service;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import server.main.member.entity.TxType;
 import server.main.myaccount.dto.*;
 
 import java.util.List;
@@ -15,6 +16,6 @@ public interface MyAccountService {
 
     List<PortfolioResponse> getPortfolio();
 
-    Page<BankingHistoryResponse> getBankingHistory(Pageable pageable);
+    Page<BankingHistoryResponse> getBankingHistory(List<TxType> txTypes, Pageable pageable);
 
 }

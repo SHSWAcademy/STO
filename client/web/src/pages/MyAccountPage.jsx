@@ -48,6 +48,14 @@ const SIDEBAR_ITEMS = [
   { id: "settings", label: "계좌관리", icon: SettingsIcon },
 ];
 
+const FILTER_TX_TYPES = {
+  전체: [],
+  입출금: ["DEPOSIT", "WITHDRAWAL"],
+  매수: ["ORDER_LOCK"],
+  매도: ["TRADE_SETTLEMENT"],
+  배당금: ["DIVIDEND_DEPOSIT"],
+};
+
 export function MyAccountPage() {
   const location = useLocation();
   const [activeSubTab, setActiveSubTab] = useState("assets");
@@ -91,7 +99,8 @@ export function MyAccountPage() {
 
   async function loadHistory(page) {
     try {
-      const res = await fetchBankingHistory(page);
+      const txTypes = FILTER_TX_TYPES[historyFilter] ?? [];
+      const res = await fetchBankingHistory(page, txTypes);
       setHistory(res.data.content);
       setHistoryTotalPages(res.data.totalPages);
       setHistoryPage(page);
@@ -102,7 +111,7 @@ export function MyAccountPage() {
 
   useEffect(() => {
     if (activeSubTab === "history") loadHistory(0);
-  }, [activeSubTab]);
+  }, [activeSubTab, historyFilter]);
 
   async function handleFill() {
     if (!amount || isNaN(Number(amount))) return;
@@ -450,16 +459,6 @@ function HistoryTab({
   totalPages,
   onPageChange,
 }) {
-  const filtered = items.filter((item) => {
-    if (filter === "전체") return true;
-    if (filter === "입출금")
-      return item.txType === "DEPOSIT" || item.txType === "WITHDRAWAL";
-    if (filter === "매수") return item.txType === "ORDER_LOCK";
-    if (filter === "매도") return item.txType === "TRADE_SETTLEMENT";
-    if (filter === "배당금") return item.txType === "DIVIDEND_DEPOSIT";
-    return true;
-  });
-
   function formatTitle(txType) {
     switch (txType) {
       case "DEPOSIT":
@@ -515,8 +514,8 @@ function HistoryTab({
       </div>
       <div className="bg-white border border-stone-200 rounded-[32px] overflow-hidden shadow-sm">
         <div className="divide-y divide-stone-100">
-          {filtered.length > 0 ? (
-            filtered.map((item) => (
+          {items.length > 0 ? (
+            items.map((item) => (
               <div
                 key={item.bankingId}
                 className="p-6 flex items-center justify-between hover:bg-stone-50 transition-colors"

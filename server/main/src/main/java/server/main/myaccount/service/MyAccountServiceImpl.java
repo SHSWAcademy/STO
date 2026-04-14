@@ -100,14 +100,19 @@ public class MyAccountServiceImpl implements MyAccountService{
 
     @Override
     @Transactional(readOnly = true)
-    public Page<BankingHistoryResponse> getBankingHistory(Pageable pageable) {
+    public Page<BankingHistoryResponse> getBankingHistory(List<TxType> txTypes, Pageable pageable) {
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal()).getId();
 
         Account account = accountRepository.findByMemberId(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
 
-        return memberBankRepository.findByAccountOrderByCreatedAtDesc(account, pageable)
+        if (txTypes == null || txTypes.isEmpty()) {
+            return memberBankRepository.findByAccount(account, pageable)
+                    .map(BankingHistoryResponse::from);
+        }
+
+        return memberBankRepository.findByAccountAndTxTypeIn(account, txTypes, pageable)
                 .map(BankingHistoryResponse::from);
     }
 }
