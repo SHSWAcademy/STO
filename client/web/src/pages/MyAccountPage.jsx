@@ -47,44 +47,6 @@ const SIDEBAR_ITEMS = [
   { id: "settings", label: "계좌관리", icon: SettingsIcon },
 ];
 
-const HISTORY_ITEMS = [
-  {
-    date: "2026.03.21",
-    title: "서울강남빌딩 매수",
-    amount: "-₩1,240,000",
-    balance: "₩1,240,000",
-    type: "buy",
-  },
-  {
-    date: "2026.03.20",
-    title: "계좌 입금",
-    amount: "+₩5,000,000",
-    balance: "₩2,480,000",
-    type: "deposit",
-  },
-  {
-    date: "2026.03.19",
-    title: "송도 리조트 매도",
-    amount: "+₩422,500",
-    balance: "₩1,240,000",
-    type: "sell",
-  },
-  {
-    date: "2026.03.18",
-    title: "한남더힐 배당금",
-    amount: "+₩45,600",
-    balance: "₩1,240,000",
-    type: "dividend",
-  },
-  {
-    date: "2026.03.17",
-    title: "계좌 출금",
-    amount: "-₩1,000,000",
-    balance: "₩817,500",
-    type: "withdraw",
-  },
-];
-
 export function MyAccountPage() {
   const location = useLocation();
   const [activeSubTab, setActiveSubTab] = useState("assets");
@@ -126,12 +88,15 @@ export function MyAccountPage() {
     })();
   }, []);
 
-  function loadHistory(page) {
-    fetchBankingHistory(page).then((res) => {
+  async function loadHistory(page) {
+    try {
+      const res = await fetchBankingHistory(page);
       setHistory(res.data.content);
       setHistoryTotalPages(res.data.totalPages);
       setHistoryPage(page);
-    });
+    } catch (e) {
+      alert(e.response?.data?.message || "거래 내역을 불러오지 못했습니다.");
+    }
   }
 
   useEffect(() => {
@@ -490,6 +455,7 @@ function HistoryTab({
       return item.txType === "DEPOSIT" || item.txType === "WITHDRAWAL";
     if (filter === "매수") return item.txType === "ORDER_LOCK";
     if (filter === "매도") return item.txType === "TRADE_SETTLEMENT";
+    if (filter === "배당금") return item.txType === "DIVIDEND_DEPOSIT";
     return true;
   });
 
@@ -505,7 +471,7 @@ function HistoryTab({
         return "주문 해제";
       case "TRADE_SETTLEMENT":
         return "체결 정산";
-      case "DIVIDEND_SETTLEMENT":
+      case "DIVIDEND_DEPOSIT":
         return "배당금 입금";
       default:
         return txType;
@@ -520,7 +486,7 @@ function HistoryTab({
         day: "2-digit",
       })
       .replace(/\. /g, ".")
-      .replace(".", "");
+      .replace(/\.$/, "");
   }
 
   return (
@@ -530,7 +496,7 @@ function HistoryTab({
           거래 내역
         </h2>
         <div className="flex gap-2">
-          {["전체", "입출금", "매수", "매도"].map((f) => (
+          {["전체", "입출금", "매수", "매도", "배당금"].map((f) => (
             <button
               key={f}
               onClick={() => onFilter(f)}
