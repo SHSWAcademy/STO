@@ -23,7 +23,7 @@ const PERIOD_TYPE_MAP = {
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { likedTokenIds, toggleLike, user } = useApp();
+  const { likedTokenIds, toggleLike, user, showGuestBanner } = useApp();
 
   const [chartFilter, setChartFilter] = useState("전체");
   const [timeRange, setTimeRange]     = useState("1일");
@@ -115,8 +115,8 @@ export function DashboardPage() {
                     <tr
                       key={t.tokenId}
                       className={cn(
-                        "group hover:bg-stone-100 transition-colors cursor-pointer",
-                        previewToken?.tokenId === t.tokenId && "bg-stone-100",
+                        "group cursor-pointer border-y border-transparent transition-all duration-200 hover:border-stone-200 hover:bg-white hover:shadow-[0_10px_30px_rgba(28,25,23,0.06)]",
+                        previewToken?.tokenId === t.tokenId && "border-stone-200 bg-white shadow-[0_12px_32px_rgba(28,25,23,0.08)]",
                       )}
                       onMouseEnter={() => setPreviewToken(t)}
                       onClick={() => navigate(`/token/${t.tokenId}`)}
@@ -131,6 +131,11 @@ export function DashboardPage() {
                             <button
                               onClick={async (e) => {
                                 e.stopPropagation();
+                                if (!user) {
+                                  showGuestBanner('관심 종목, 내 계좌 등 개인 기능은 로그인 후 이용할 수 있어요.');
+                                  return;
+                                }
+
                                 try {
                                   await toggleLike(t.tokenId);
                                 } catch (err) {
@@ -154,7 +159,7 @@ export function DashboardPage() {
                             <span className="text-stone-400 font-mono w-4">
                               {page * 10 + i + 1}
                             </span>
-                            <p className="font-bold text-stone-800 group-hover:text-stone-600 transition-colors">
+                            <p className="font-bold text-stone-800 transition-colors group-hover:text-stone-900">
                               {t.assetName}
                             </p>
                           </div>
