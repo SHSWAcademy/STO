@@ -22,7 +22,4 @@ public class DashBoardResponseDTO {
 
     // 토큰 소유량 분석
     private List<DashBoardTokenList> tokenList;
-
-    // 거래내역 리스트
-    private Page<DashBoardTradeListDTO> tradeList; //거래내역 리스트
 }
