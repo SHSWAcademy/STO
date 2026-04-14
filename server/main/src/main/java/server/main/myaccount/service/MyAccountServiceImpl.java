@@ -1,6 +1,8 @@
 package server.main.myaccount.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,10 +13,7 @@ import server.main.member.entity.*;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberBankRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
-import server.main.myaccount.dto.AccountBalanceResponse;
-import server.main.myaccount.dto.DepositRequest;
-import server.main.myaccount.dto.PortfolioResponse;
-import server.main.myaccount.dto.WithdrawRequest;
+import server.main.myaccount.dto.*;
 
 import java.util.List;
 
@@ -97,5 +96,18 @@ public class MyAccountServiceImpl implements MyAccountService{
                 .filter(h -> h.getCurrentQuantity() > 0)
                 .map(PortfolioResponse :: from)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BankingHistoryResponse> getBankingHistory(Pageable pageable) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Account account = accountRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+
+        return memberBankRepository.findByAccountOrderByCreatedAtDesc(account, pageable)
+                .map(BankingHistoryResponse::from);
     }
 }
