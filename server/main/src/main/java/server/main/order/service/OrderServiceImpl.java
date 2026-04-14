@@ -129,8 +129,7 @@ public class OrderServiceImpl implements OrderService {
             long totalLockAmount = orderAmount + feeAmount;
 
             if (findMemberAccount.getAvailableBalance() < totalLockAmount)
-        
-            throw new BusinessException(INSUFFICIENT_BALANCE);
+                throw new BusinessException(INSUFFICIENT_BALANCE);
             else
                 findMemberAccount.lockBalance(totalLockAmount);
         }
@@ -210,20 +209,22 @@ public class OrderServiceImpl implements OrderService {
         Account findMemberAccount = null;
         MemberTokenHolding findMemberHolding = null;
 
+        Map<Long, Account> counterAccountCache = new HashMap<>();
+        Map<Long, MemberTokenHolding> counterHoldingCache = new HashMap<>();
+
+        double chargeRate = 0;
+        PlatformAccount platformAccount = null;
+
         if (!matchResult.getExecutions().isEmpty()) {
             findMemberAccount = accountRepository.findWithLockByMember(findMember)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             findMemberHolding = memberTokenHoldingRepository
                     .findWithLockByMemberAndToken(findMember, findToken)
                     .orElse(null);
+            chargeRate = getChargeRate();
+            platformAccount = platformAccountRepository.findWithLock()
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
         }
-
-        Map<Long, Account> counterAccountCache = new HashMap<>();
-        Map<Long, MemberTokenHolding> counterHoldingCache = new HashMap<>();
-
-        double chargeRate = getChargeRate();
-        PlatformAccount platformAccount = platformAccountRepository.findWithLock()
-                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         for (TradeExecutionDto execution : matchResult.getExecutions()) {
             Member counterMember = memberRepository.findById(execution.getCounterMemberId())
@@ -237,7 +238,7 @@ public class OrderServiceImpl implements OrderService {
             Trade trade = Trade.builder()
                     .tradePrice(execution.getTradePrice())
                     .tradeQuantity(execution.getTradeQuantity())
-                    .totalTradePrice(Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity()))
+                    .totalTradePrice(tradeAmount)
                     .feeAmount(feeAmount) // 매수자 또는 매도자 각 한쪽 기준 수수료 (플랫폼 총 수수료 = feeAmount × 2)
                     .settlementStatus(SettlementStatus.ON_CHAIN_PENDING)
                     .executedAt(LocalDateTime.now())
