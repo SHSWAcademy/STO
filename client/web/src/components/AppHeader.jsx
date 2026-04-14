@@ -216,6 +216,20 @@ export function AppHeader() {
     }
     setNoticeBanner(null);
   }
+        {/* 알람 벨 — 로그인한 사용자만 표시 */}
+        {user && (
+          <div className="relative" ref={alarmDropdownRef}>
+            <button
+              onClick={() => { setShowAlarms(prev => { if (!prev) loadAlarms(); return !prev; }); }}
+              className="p-2 text-stone-400 hover:text-stone-800 transition-colors relative"
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
 
   function handleNoticeBannerView() {
     if (noticeBanner?.noticeId != null) {

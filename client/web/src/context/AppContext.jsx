@@ -4,19 +4,36 @@ import { API_BASE_URL } from '../lib/config.js';
 
 const API = API_BASE_URL;
 
-// JWT payload에서 memberId(sub) 추출
-function getMemberIdFromJwt(token) {
+// JWT payload 파싱
+function parseJwt(token) {
   try {
-    return Number(JSON.parse(atob(token.split('.')[1])).sub);
+    return JSON.parse(atob(token.split('.')[1]));
   } catch {
     return null;
   }
 }
 
+function getMemberIdFromJwt(token) {
+  const payload = parseJwt(token);
+  if (!payload) return null;
+  const id = Number(payload.sub);
+  return Number.isFinite(id) ? id : null;
+}
+
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    // 새로고침 시 localStorage 토큰으로 user 복원
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    const payload = parseJwt(token);
+    if (!payload) { localStorage.removeItem('token'); return null; }
+    const memberId = Number(payload.sub);
+    return payload.userType === 'ADMIN'
+      ? { name: payload.loginId, email: payload.loginId, role: 'admin', accessToken: token }
+      : { name: payload.loginId, email: payload.loginId, role: 'user', memberId: Number.isFinite(memberId) ? memberId : null, accessToken: token };
+  });
   const [likedTokenIds, setLikedTokenIds] = useState([]);
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
   const [disclosures, setDisclosures] = useState(ADMIN_DISCLOSURES);

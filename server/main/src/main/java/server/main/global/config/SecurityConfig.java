@@ -63,7 +63,7 @@ public class SecurityConfig {
                                 "/api/notice/*"
                         ).permitAll()
                         .requestMatchers("/blockchain/**").hasRole("ADMIN")
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**", "/ws/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception

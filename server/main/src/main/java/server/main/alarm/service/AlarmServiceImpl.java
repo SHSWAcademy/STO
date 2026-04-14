@@ -31,6 +31,7 @@ public class AlarmServiceImpl implements AlarmService {
     @Override
     @Transactional
     public void createAlarm(Long memberId, AlarmType type, Long tokenId, String alarmContent) {
+        log.info("[Alarm] createAlarm 호출 - memberId: {}, type: {}, tokenId: {}", memberId, type, tokenId);
         Alarm alarm = Alarm.builder()
                 .memberId(memberId)
                 .alarmType(type)
@@ -43,10 +44,11 @@ public class AlarmServiceImpl implements AlarmService {
         // 2. 쏘기
         // Redis publish : /topic/alarm/{memberId}
         try {
-            String payload = objectMapper.writeValueAsString(AlarmResponseDto.from(alarm)); // writeValueAsString : Java 객체 -> Json 변환
-            redisTemplate.convertAndSend("alarm:" + memberId, payload); // 알람을 구독 중인 사람에게 publish
+            String payload = objectMapper.writeValueAsString(AlarmResponseDto.from(alarm));
+            redisTemplate.convertAndSend("alarm:" + memberId, payload);
+            log.info("[Alarm] Redis publish 성공 - channel: alarm:{}", memberId);
         } catch (Exception e) {
-            log.error("알람 Redis publish 실패 - memberId: {}", memberId, e);
+            log.error("[Alarm] Redis publish 실패 - memberId: {}", memberId, e);
         }
     }
 
@@ -63,9 +65,10 @@ public class AlarmServiceImpl implements AlarmService {
     @Override
     @Transactional
     public void markAsRead(Long alarmId, Long memberId) {
-        Alarm alarm = alarmRepository.findByAlarmIdAndMemberId(alarmId, memberId)
-                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-        alarm.markAsRead();
+        int updated = alarmRepository.markAsReadByAlarmIdAndMemberId(alarmId, memberId);
+        if (updated == 0) {
+            throw new BusinessException(ENTITY_NOT_FOUNT_ERROR);
+        }
     }
 
     // 알림 전체 읽음 처리

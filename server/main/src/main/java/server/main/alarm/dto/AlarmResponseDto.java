@@ -15,7 +15,7 @@ public class AlarmResponseDto {
     private AlarmType alarmType;
     private Long tokenId;
     private String message;
-    private boolean isRead;
+    private Boolean isRead;
     private LocalDateTime createdAt;
 
     public static AlarmResponseDto from(Alarm alarm) {

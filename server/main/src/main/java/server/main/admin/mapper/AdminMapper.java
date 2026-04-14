@@ -174,6 +174,8 @@ public class AdminMapper {
                 .tradeQuantity(trade.getTradeQuantity())
                 .sellerId(trade.getSeller().getMemberId())
                 .buyerId(trade.getBuyer().getMemberId())
+                .sellerName(trade.getBuyer().getMemberName())
+                .buyerName(trade.getBuyer().getMemberName())
                 .settlementStatus(String.valueOf(trade.getSettlementStatus()))
                 .totalTradePrice(trade.getTotalTradePrice())
                 .executedAt(trade.getExecutedAt())
