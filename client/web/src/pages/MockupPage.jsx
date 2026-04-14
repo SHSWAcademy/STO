@@ -20,6 +20,7 @@ import { HogaRow }           from '../components/trading/HogaRow.jsx';
 import { PriceRow }          from '../components/trading/PriceRow.jsx';
 import { cn } from '../lib/utils.js';
 import { API_BASE_URL } from '../lib/config.js';
+import api from '../lib/api.js';
 
 const API = API_BASE_URL;
 
@@ -216,9 +217,6 @@ export function MockupPage() {
 
   // ── 체결 목록 초기 REST 로드 ─────────────────────────────────
   useEffect(() => {
-    const headers = user?.accessToken
-        ? { Authorization: `Bearer ${user.accessToken}` }
-        : {};
     api.get(`/api/token/${TOKEN_ID}/trades`)
         .then(r => {
           setTrades(r.data.map(d => ({
@@ -533,14 +531,20 @@ export function MockupPage() {
                     <div className="w-24 border-r border-stone-200 flex flex-col bg-stone-100/50">
                       <div className="p-2 border-b border-stone-200">
                         <p className="text-[9px] font-bold text-stone-400 mb-1">체결강도</p>
-                        <p className="text-[11px] font-black text-brand-blue">
-                          {(() => {
-                            const totalAsk = asks.reduce((s, r) => s + r.amount, 0);
-                            const totalBid = bids.reduce((s, r) => s + r.amount, 0);
-                            const total = totalAsk + totalBid;
-                            return total > 0 ? `${Math.round((totalBid / total) * 100)}%` : '-';
-                          })()}
-                        </p>
+                        {(() => {
+                          const buyVol  = executions.filter(e => e.isBuy).reduce((s, e) => s + e.qty, 0);
+                          const sellVol = executions.filter(e => !e.isBuy).reduce((s, e) => s + e.qty, 0);
+                          const strength = sellVol > 0
+                              ? Math.round((buyVol / sellVol) * 100)
+                              : buyVol > 0 ? 200 : null;
+                          const color = strength == null ? 'text-stone-400'
+                              : strength >= 100 ? 'text-brand-red' : 'text-brand-blue';
+                          return (
+                              <p className={`text-[11px] font-black ${color}`}>
+                                {strength != null ? `${strength}%` : '-'}
+                              </p>
+                          );
+                        })()}
                       </div>
                       <div className="flex-1 overflow-y-auto scrollbar-hide py-2">
                         {executions.map((ex, i) => (
@@ -1125,6 +1129,11 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
       setOrderMsg({ type: 'error', text: '가격과 수량은 양의 정수만 입력하세요.' });
       return;
     }
+    const tick = getTickSize(numPrice);
+    if (numPrice % tick !== 0) {
+      setOrderMsg({ type: 'error', text: `호가 단위에 맞지 않습니다. ${numPrice.toLocaleString()}원 근처 호가 단위는 ${tick.toLocaleString()}원입니다.` });
+      return;
+    }
     setSubmitting(true);
     setOrderMsg(null);
     try {
@@ -1176,6 +1185,11 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
       setUpdateMsg({ orderId, type: 'error', text: '가격과 수량은 양의 정수만 입력하세요.' });
       return;
     }
+    const tick = getTickSize(p);
+    if (p % tick !== 0) {
+      setUpdateMsg({ orderId, type: 'error', text: `호가 단위에 맞지 않습니다. 이 가격대 호가 단위: ${tick.toLocaleString()}원` });
+      return;
+    }
     try {
       await api.put(`/api/token/order/update/${orderId}`, { updatePrice: p, updateQuantity: q });
       setPendingOrders(prev =>
@@ -1191,6 +1205,14 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
     } catch (e) {
       setUpdateMsg({ orderId, type: 'error', text: e.response?.data?.message || e.message || '수정에 실패했습니다.' });
     }
+  }
+
+  // ── TickSizePolicy (백엔드와 동일한 로직) ────────────────────
+  function getTickSize(p) {
+    if (p < 100)   return 10;
+    if (p < 1000)  return 50;
+    if (p < 10000) return 100;
+    return 500;
   }
 
   const RATIO_MAP = { '10%': 0.1, '25%': 0.25, '50%': 0.5, '최대': 1.0 };
@@ -1296,18 +1318,30 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
                               {isEditing ? (
                                   <div className="space-y-2">
                                     <div className="space-y-1">
-                                      <label className="text-[10px] font-bold text-stone-400">수정 가격</label>
+                                      <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-bold text-stone-400">수정 가격</label>
+                                        {Number(editPrice) > 0 && (
+                                          <span className="text-[10px] font-bold text-stone-400">
+                                            호가 단위: {getTickSize(Number(editPrice)).toLocaleString()}원
+                                          </span>
+                                        )}
+                                      </div>
                                       <div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2">
                                         <input
                                             type="number"
                                             min="1"
-                                            step="1"
+                                            step={Number(editPrice) > 0 ? getTickSize(Number(editPrice)) : 1}
                                             value={editPrice}
                                             onChange={e => setEditPrice(e.target.value)}
                                             className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800"
                                         />
                                         <span className="text-[11px] font-bold text-stone-400">원</span>
                                       </div>
+                                      {Number(editPrice) > 0 && Number(editPrice) % getTickSize(Number(editPrice)) !== 0 && (
+                                        <p className="text-[10px] font-bold text-amber-600">
+                                          호가 단위({getTickSize(Number(editPrice)).toLocaleString()}원)에 맞지 않습니다
+                                        </p>
+                                      )}
                                     </div>
                                     <div className="space-y-1">
                                       <label className="text-[10px] font-bold text-stone-400">수정 수량</label>
@@ -1423,9 +1457,16 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
 
                 {/* 가격 입력 */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-stone-400">
-                    {isBuy ? '매수' : '매도'} 가격
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-stone-400">
+                      {isBuy ? '매수' : '매도'} 가격
+                    </label>
+                    {numPrice > 0 && (
+                      <span className="text-[10px] font-bold text-stone-400">
+                        호가 단위: {getTickSize(numPrice).toLocaleString()}원
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5">
                     <input
                         type="text"
@@ -1436,6 +1477,11 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
                     />
                     <span className="text-sm font-bold text-stone-400">원</span>
                   </div>
+                  {numPrice > 0 && numPrice % getTickSize(numPrice) !== 0 && (
+                    <p className="text-[10px] font-bold text-amber-600">
+                      호가 단위({getTickSize(numPrice).toLocaleString()}원)에 맞지 않습니다
+                    </p>
+                  )}
                 </div>
 
                 {/* 수량 / 금액 입력 */}

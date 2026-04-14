@@ -19,15 +19,19 @@ export function useAlarmSocket({ memberId, token, onSnapshot, onNewAlarm }) {
       connectHeaders: { Authorization: `Bearer ${token}` },
       reconnectDelay: 5000,
       onConnect: () => {
+        console.log('[AlarmWS] 연결 성공 — memberId:', memberId);
         client.subscribe(
           `/topic/alarm/${memberId}`,
           (msg) => {
+            console.log('[AlarmWS] 메시지 수신 raw:', msg.body);
             try {
               const data = JSON.parse(msg.body);
               // 구독 직후 스냅샷: 배열 / 이후 실시간: 단건 객체
               if (Array.isArray(data)) {
+                console.log('[AlarmWS] 스냅샷 수신, 건수:', data.length);
                 onSnapshot?.(data);
               } else {
+                console.log('[AlarmWS] 실시간 알람 수신:', data);
                 onNewAlarm?.(data);
               }
             } catch (e) {
@@ -40,7 +44,9 @@ export function useAlarmSocket({ memberId, token, onSnapshot, onNewAlarm }) {
       onStompError: (frame) => {
         console.warn('[AlarmWS] STOMP 오류:', frame.headers?.message);
       },
-      onDisconnect: () => {},
+      onDisconnect: () => {
+        console.log('[AlarmWS] 연결 해제');
+      },
     });
 
     client.activate();

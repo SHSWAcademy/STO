@@ -16,4 +16,6 @@ public class Token {
     private TokenStatus tokenStatus;
 
     private Long assetId;
+
+    private String tokenName;
 }

@@ -2,6 +2,7 @@ package server.main.global.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -43,14 +44,26 @@ public class SecurityConfig {
                         .requestMatchers(
                                 /* 공개 url 규칙표 즉 비회원 */
                                 "/api/auth/**",
-                                "/api/tokens/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/ws/trading/**",
                                 "/file/**"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/token",
+                                "/api/token/*/chart",
+                                "/api/token/*/info",
+                                "/api/token/*/allocation",
+                                "/api/token/*/disclosure",
+                                "/api/token/*/tick-size",
+                                "/api/token/*/candle",
+                                "/api/token/*/trades",
+                                "/api/disclosure",
+                                "/api/notice",
+                                "/api/notice/*"
+                        ).permitAll()
                         .requestMatchers("/blockchain/**").hasRole("ADMIN")
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**", "/ws/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception
