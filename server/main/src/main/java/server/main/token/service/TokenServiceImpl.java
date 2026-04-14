@@ -173,6 +173,7 @@ public class TokenServiceImpl implements TokenService{
             return TokenMainResponseDto.builder()
                     .tokenId(tokenId)
                     .assetName(t.getAsset().getAssetName())
+                    .basePrice(basePrice)
                     .currentPrice(currentPrice)
                     .fluctuationRate(Math.round(fluctuationRate * 100.0) / 100.0)
                     .totalTradeValue(agg[0])
