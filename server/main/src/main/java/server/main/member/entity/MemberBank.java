@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor
 @Table(name = "bankings")
-public class Banking {
+public class MemberBank {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,8 +32,8 @@ public class Banking {
     private LocalDateTime createdAt;
 
     @Builder
-    public Banking(Account account, TxType txType, TxStatus txStatus,
-                   Long bankingAmount, Long balanceSnapshot) {
+    public MemberBank(Account account, TxType txType, TxStatus txStatus,
+                      Long bankingAmount, Long balanceSnapshot) {
         this.account = account;
         this.txType = txType;
         this.txStatus = txStatus;

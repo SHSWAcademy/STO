@@ -15,7 +15,11 @@ import server.batch.allocation.repository.AllocationEventRepository;
 import java.util.List;
 
 @Log4j2
-@SpringBootTest
+@SpringBootTest(properties = {
+        "blockchain.rpc-url=http://localhost:8545",
+        "blockchain.issuer-private-key=0x0000000000000000000000000000000000000000000000000000000000000001",
+        "spring.jpa.hibernate.ddl-auto=none"
+})
 class AllocationEventReaderTest {
 
     @Autowired
