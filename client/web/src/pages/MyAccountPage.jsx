@@ -30,6 +30,7 @@ import { cn } from "../lib/utils.js";
 import { Modal } from "../components/ui/Modal.jsx";
 import { EmptyState } from "../components/ui/EmptyState.jsx";
 import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { Pagination } from "../components/ui/Pagination.jsx";
 
 const ASSET_PIE = [
   { name: "서울강남빌딩", value: 45, color: "var(--color-brand-blue)" },
@@ -561,40 +562,11 @@ function HistoryTab({
       </div>
 
       {/* 페이지네이션 */}
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
-          <button
-            onClick={() => onPageChange(page - 1)}
-            disabled={page === 0}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-100 text-stone-500 hover:bg-stone-200
-  disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            이전
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => (
-            <button
-              key={i}
-              onClick={() => onPageChange(i)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                page === i
-                  ? "bg-stone-800 text-white"
-                  : "bg-stone-100 text-stone-500 hover:bg-stone-200",
-              )}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            onClick={() => onPageChange(page + 1)}
-            disabled={page === totalPages - 1}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-100 text-stone-500 hover:bg-stone-200
-  disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            다음
-          </button>
-        </div>
-      )}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 }
