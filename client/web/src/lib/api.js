@@ -19,12 +19,19 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const token = localStorage.getItem("token");
+
+    if (error.response?.status === 401 && token) {
       localStorage.removeItem("token");
-      window.location.href = "/login";
+      window.location.href = "/";
     }
     return Promise.reject(error);
   },
 );
-
+export const fetchBalance = () => api.get("/api/myaccount/balance");
+export const fetchPortfolio = () => api.get("/api/myaccount/portfolio");
+export const deposit = (amount) =>
+  api.post("/api/myaccount/deposit", { amount });
+export const withdraw = (amount) =>
+  api.post("/api/myaccount/withdraw", { amount });
 export default api;

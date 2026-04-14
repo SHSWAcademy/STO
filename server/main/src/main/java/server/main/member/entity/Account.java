@@ -11,6 +11,8 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import server.main.global.error.BusinessException;
+import server.main.global.error.ErrorCode;
 import server.main.global.util.BaseEntity;
 
 @Entity
@@ -74,5 +76,27 @@ public class Account extends BaseEntity {
     // 매도 체결 시 매도 대금 수령
     public void settleSellTrade(Long tradeAmount, Long feeAmount) {
         this.availableBalance += (tradeAmount - feeAmount);
+    }
+
+    // 입금
+    public void deposit(Long amount) {
+        if (amount == null || amount <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_AMOUNT);
+        }
+        this.availableBalance += amount;
+    }
+
+    // 출금
+    public void withdraw(Long amount) {
+
+        if (amount == null || amount <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_AMOUNT);
+        }
+
+        if (this.availableBalance < amount) {
+            throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE);
+        }
+
+        this.availableBalance -= amount;
     }
 }

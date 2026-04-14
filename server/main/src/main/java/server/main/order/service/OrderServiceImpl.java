@@ -32,6 +32,9 @@ import server.main.admin.entity.Common;
 import server.main.admin.repository.CommonRepository;
 import server.main.admin.repository.PlatformAccountRepository;
 import server.main.admin.repository.PlatformBankingRepository;
+import server.main.admin.dto.DashBoardTradeListDTO;
+import server.main.admin.event.AdminDashboardEvent;
+import server.main.admin.event.TradeExecutedEvent;
 import server.main.alarm.entity.AlarmType;
 import server.main.alarm.event.AlarmEvent;
 import server.main.alarm.service.AlarmService;
@@ -250,6 +253,27 @@ public class OrderServiceImpl implements OrderService {
                     .build();
 
             tradeRepository.save(trade);
+
+            // admin 대시보드 이벤트 (거래 체결 시 대시보드 실시간 업데이트)
+            eventPublisher.publishEvent(new AdminDashboardEvent());
+            // admin 대시보드 실시간 업데이트 용 (체결 거래내역 실시간 업데이트) > 범근
+            eventPublisher.publishEvent(new TradeExecutedEvent(
+                    DashBoardTradeListDTO.builder()
+                            .tradeId(trade.getTradeId())
+                            .tradePrice(trade.getTradePrice())
+                            .tradeQuantity(trade.getTradeQuantity())
+                            .totalTradePrice(trade.getTotalTradePrice())
+                            .feeAmount(trade.getFeeAmount())
+                            .settlementStatus(String.valueOf(trade.getSettlementStatus()))
+                            .executedAt(trade.getExecutedAt())
+                            .tokenId(findToken.getTokenId())
+                            .tokenName(findToken.getTokenName())
+                            .sellerId(trade.getSeller().getMemberId())
+                            .sellerName(trade.getSeller().getMemberName())
+                            .buyerId(trade.getBuyer().getMemberId())
+                            .buyerName(trade.getBuyer().getMemberName())
+                            .build()
+            ));
 
             Account counterAccount = counterAccountCache.get(execution.getCounterMemberId());
             if (counterAccount == null) {

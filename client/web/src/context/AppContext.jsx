@@ -4,23 +4,42 @@ import { API_BASE_URL } from '../lib/config.js';
 
 const API = API_BASE_URL;
 
-// JWT payload에서 memberId(sub) 추출
-function getMemberIdFromJwt(token) {
+// JWT payload 파싱
+function parseJwt(token) {
   try {
-    return Number(JSON.parse(atob(token.split('.')[1])).sub);
+    return JSON.parse(atob(token.split('.')[1]));
   } catch {
     return null;
   }
 }
 
+function getMemberIdFromJwt(token) {
+  const payload = parseJwt(token);
+  if (!payload) return null;
+  const id = Number(payload.sub);
+  return Number.isFinite(id) ? id : null;
+}
+
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    // 새로고침 시 localStorage 토큰으로 user 복원
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    const payload = parseJwt(token);
+    if (!payload) { localStorage.removeItem('token'); return null; }
+    const memberId = Number(payload.sub);
+    return payload.userType === 'ADMIN'
+      ? { name: payload.loginId, email: payload.loginId, role: 'admin', accessToken: token }
+      : { name: payload.loginId, email: payload.loginId, role: 'user', memberId: Number.isFinite(memberId) ? memberId : null, accessToken: token };
+  });
   const [likedTokenIds, setLikedTokenIds] = useState([]);
   const [tokens, setTokens] = useState(INITIAL_TOKENS);
   const [disclosures, setDisclosures] = useState(ADMIN_DISCLOSURES);
   const [notices, setNotices] = useState(ADMIN_NOTICES);
+  const [guestBanner, setGuestBanner] = useState(null);
+  const [loginOverlay, setLoginOverlay] = useState(null);
 
   async function fetchLikes(accessToken) {
     const res = await fetch(`${API}/api/likes`, {
@@ -53,6 +72,8 @@ export function AppProvider({ children }) {
       memberId: getMemberIdFromJwt(data.accessToken),
       accessToken: data.accessToken,
     });
+    setGuestBanner(null);
+    setLoginOverlay(null);
     try {
       await fetchLikes(data.accessToken);
     } catch (err) {
@@ -85,12 +106,35 @@ export function AppProvider({ children }) {
       role: 'admin',
       accessToken: data.accessToken,
     });
+    setGuestBanner(null);
+    setLoginOverlay(null);
   }
 
   function logout() {
     localStorage.removeItem('token');
     setUser(null);
     setLikedTokenIds([]);
+    setLoginOverlay(null);
+  }
+
+  function showGuestBanner(message) {
+    setGuestBanner(message);
+  }
+
+  function dismissGuestBanner() {
+    setGuestBanner(null);
+  }
+
+  function showLoginOverlay(options = {}) {
+    setLoginOverlay({
+      title: options.title ?? '로그인이 필요한 메뉴예요',
+      message: options.message ?? '이 기능은 로그인 후 이용할 수 있어요.',
+      from: options.from ?? '/',
+    });
+  }
+
+  function hideLoginOverlay() {
+    setLoginOverlay(null);
   }
 
   async function toggleLike(tokenId) {
@@ -148,6 +192,12 @@ export function AppProvider({ children }) {
         setDisclosures,
         notices,
         setNotices,
+        guestBanner,
+        showGuestBanner,
+        dismissGuestBanner,
+        loginOverlay,
+        showLoginOverlay,
+        hideLoginOverlay,
       }}
     >
       {children}

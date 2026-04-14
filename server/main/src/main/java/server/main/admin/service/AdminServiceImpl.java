@@ -1,6 +1,5 @@
 package server.main.admin.service;
 
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -19,8 +18,6 @@ import server.main.admin.repository.PlatformTokenHoldingsRepository;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
 import server.main.asset.entity.Asset;
-import server.main.asset.entity.AssetAccount;
-import server.main.asset.repository.AssetAccountRepository;
 import server.main.asset.service.AssetService;
 import server.main.blockchain.service.ContractGatewayService;
 import server.main.disclosure.service.DisclosureService;
@@ -32,9 +29,7 @@ import server.main.member.entity.Member;
 import server.main.member.repository.MemberRepository;
 import server.main.notice.service.NoticeService;
 import server.main.token.entity.Token;
-import server.main.token.entity.TokenStatus;
 import server.main.token.repository.TokenRepository;
-import server.main.trade.entity.Trade;
 import server.main.trade.repository.TradeRepository;
 
 import java.time.LocalDate;
@@ -416,7 +411,7 @@ public class AdminServiceImpl implements AdminService {
 
     // 대시보드 데이터 조회
     @Override
-    public DashBoardResponseDTO getDashBoard(int page, int size) {
+    public DashBoardResponseDTO getDashBoard() {
         // 활성화 유저수 조회
         long totalUserCount = memberRepository.countByIsActiveTrue();
         // 신규 가입자 수 조회
@@ -434,6 +429,7 @@ public class AdminServiceImpl implements AdminService {
 
         // 토큰 테이블 조회 (거래중인것만)
         List<Object[]> result = tokenRepository.findTradingTokensWithTotalHolding();
+        log.info("토큰 테이블 조회(대시보드): {}", result);
         // 토큰 리스트 조회후 dto변환
         List<DashBoardTokenList> tokenList = result.stream()
                 .map(row -> {
@@ -443,12 +439,6 @@ public class AdminServiceImpl implements AdminService {
                 })
                 .toList();
 
-        // 거래내역 전체 조회
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<DashBoardTradeListDTO> tradeList = tradeRepository.findAllWithDetails(pageable)
-                .map(trade -> adminMapper.toDashBoardTradeListDTO(trade));
-        log.info("거래내역 조회 : {}", tradeList);
-
         return DashBoardResponseDTO.builder()
                 .totalUserCount(totalUserCount)
                 .dailyExecutionCount(dailyExecutionCount)
@@ -456,9 +446,20 @@ public class AdminServiceImpl implements AdminService {
                 .dailyExecutionAmount(dailyExecutionAmount)
                 .totalExecutionAmount(totalExecutionAmount)
                 .newUserCount(newUserCount)
-                .tradeList(tradeList)
                 .tokenList(tokenList)
                 .build();
+    }
+
+    // 대시보드 거래내역 데이터 조회
+    @Override
+    public Page<DashBoardTradeListDTO> getDashBoardTradeList(int page, int size) {
+        // 거래내역 전체 조회
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<DashBoardTradeListDTO> tradeList = tradeRepository.findAllWithDetails(pageable)
+                .map(trade -> adminMapper.toDashBoardTradeListDTO(trade));
+        log.info("거래내역 조회 : {}", tradeList);
+
+        return tradeList;
     }
 
     // 마감월 리턴 메서드

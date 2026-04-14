@@ -19,6 +19,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws/trading")
                 .setAllowedOrigins(allowedOrigins)
                 .withSockJS();
+
+        // admin 전용
+        registry.addEndpoint("/ws/admin")
+                .setAllowedOrigins(allowedOrigins)
+                .withSockJS();
     }
 
     @Override

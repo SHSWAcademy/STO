@@ -1,18 +1,23 @@
-import { useState, useEffect } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart } from "lucide-react";
+import { ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
 import { useApp } from "../context/AppContext.jsx";
 import { cn } from "../lib/utils.js";
 import { API_BASE_URL } from "../lib/config.js";
-import { ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
 import { TabSwitcher } from "../components/ui/TabSwitcher.jsx";
+import { useDashboardSocket } from "../hooks/useDashboardSocket.js";
 
 const API = API_BASE_URL;
+const PAGE_SIZE = 10;
+
+const SORT_ITEMS = ["전체", "거래대금", "거래량"];
+const RANGE_ITEMS = ["1일", "1개월", "1년"];
 
 const SELECT_TYPE_MAP = {
-  "전체": "BASIC",
-  "거래대금": "TOTAL_TRADE_VALUE",
-  "거래량": "TOTAL_TRADE_QUANTITY",
+  전체: "BASIC",
+  거래대금: "TOTAL_TRADE_VALUE",
+  거래량: "TOTAL_TRADE_QUANTITY",
 };
 
 const PERIOD_TYPE_MAP = {
@@ -21,159 +26,218 @@ const PERIOD_TYPE_MAP = {
   "1년": "YEAR",
 };
 
+function recalculateFluctuationRate(currentPrice, basePrice) {
+  if (!basePrice || basePrice <= 0) return 0;
+  return Math.round((((currentPrice - basePrice) / basePrice) * 100) * 100) / 100;
+}
+
+function updateSparkLine(prevSparkLine, candle) {
+  if (candle?.closePrice == null) return prevSparkLine ?? [];
+
+  const nextLine = Array.isArray(prevSparkLine) ? [...prevSparkLine] : [];
+  if (nextLine.length === 0) {
+    return [candle.closePrice];
+  }
+
+  nextLine[nextLine.length - 1] = candle.closePrice;
+  return nextLine.slice(-7);
+}
+
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { likedTokenIds, toggleLike, user } = useApp();
+  const { likedTokenIds, toggleLike, user, showGuestBanner } = useApp();
 
   const [chartFilter, setChartFilter] = useState("전체");
-  const [timeRange, setTimeRange]     = useState("1일");
-  const [page, setPage]               = useState(0);
-
-  const [tokens, setTokens]   = useState([]);
+  const [timeRange, setTimeRange] = useState("1일");
+  const [page, setPage] = useState(0);
+  const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasNext, setHasNext] = useState(false);
+  const [previewTokenId, setPreviewTokenId] = useState(null);
 
-  const [previewToken, setPreviewToken] = useState(null);
+  const periodType = PERIOD_TYPE_MAP[timeRange];
+  const tokenIds = useMemo(() => tokens.map((token) => token.tokenId), [tokens]);
 
-  // 탭/필터 변경 시 페이지 초기화
-  useEffect(() => { setPage(0); }, [chartFilter, timeRange]);
+  useEffect(() => {
+    setPage(0);
+  }, [chartFilter, timeRange]);
 
-  // 백엔드 조회
   useEffect(() => {
     const selectType = SELECT_TYPE_MAP[chartFilter];
-    const periodType = PERIOD_TYPE_MAP[timeRange];
 
     setLoading(true);
 
     const headers = {};
-    if (user?.accessToken) headers['Authorization'] = `Bearer ${user.accessToken}`;
+    if (user?.accessToken) {
+      headers.Authorization = `Bearer ${user.accessToken}`;
+    }
 
     fetch(`${API}/api/token?page=${page}&selectType=${selectType}&periodType=${periodType}`, { headers })
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(data => {
-        setTokens(data);
-        setHasNext(data.length === 10);
-        setPreviewToken(prev => {
-          if (!data.length) return null;
-          const found = prev ? data.find(t => t.tokenId === prev.tokenId) : null;
-          return found ?? data[0];
+      .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
+      .then((data) => {
+        const nextTokens = Array.isArray(data) ? data : [];
+        setTokens(nextTokens);
+        setHasNext(nextTokens.length === PAGE_SIZE);
+        setPreviewTokenId((prev) => {
+          if (!nextTokens.length) return null;
+          const hasCurrent = prev != null && nextTokens.some((token) => token.tokenId === prev);
+          return hasCurrent ? prev : nextTokens[0].tokenId;
         });
       })
-      .catch(e => console.warn('[Dashboard] 토큰 목록 조회 실패:', e))
+      .catch((error) => console.warn("[Dashboard] token list fetch failed:", error))
       .finally(() => setLoading(false));
-  }, [page, chartFilter, timeRange, user]);
+  }, [page, chartFilter, periodType, user]);
 
-  const sparklineData = previewToken?.sparkLine?.map(v => ({ v })) ?? [];
+  useDashboardSocket({
+    tokenIds,
+    candleType: periodType,
+    token: user?.accessToken,
+    onTrade: ({ tokenId, trade }) => {
+      setTokens((prev) =>
+        prev.map((token) => {
+          if (token.tokenId !== tokenId) return token;
+
+          const currentPrice = trade.tradePrice ?? token.currentPrice ?? 0;
+          const tradeQuantity = trade.tradeQuantity ?? 0;
+          const tradeAmount = currentPrice * tradeQuantity;
+
+          return {
+            ...token,
+            currentPrice,
+            totalTradeValue: (token.totalTradeValue ?? 0) + tradeAmount,
+            totalTradeQuantity: (token.totalTradeQuantity ?? 0) + tradeQuantity,
+            fluctuationRate: recalculateFluctuationRate(currentPrice, token.basePrice),
+          };
+        }),
+      );
+    },
+    onCandle: ({ tokenId, candle }) => {
+      setTokens((prev) =>
+        prev.map((token) => {
+          if (token.tokenId !== tokenId) return token;
+
+          return {
+            ...token,
+            sparkLine: updateSparkLine(token.sparkLine, candle),
+          };
+        }),
+      );
+    },
+  });
+
+  const previewToken = useMemo(
+    () => tokens.find((token) => token.tokenId === previewTokenId) ?? null,
+    [tokens, previewTokenId],
+  );
+
+  const sparklineData = previewToken?.sparkLine?.map((value) => ({ value })) ?? [];
 
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto">
-      <div className="flex flex-col lg:flex-row gap-8 pt-4">
-
-        {/* 좌: 차트 테이블 */}
-        <div className="flex-1 space-y-6">
+    <div className="mx-auto max-w-[1200px] space-y-6">
+      <div className="flex flex-col gap-8 pt-4 lg:flex-row">
+        <div className="min-w-0 flex-1 space-y-6">
           <h2 className="text-xl font-black text-stone-800">차트</h2>
 
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-stone-200 pb-4">
-              <TabSwitcher
-                items={["전체", "거래대금", "거래량"]}
-                active={chartFilter}
-                onChange={setChartFilter}
-              />
-              <TabSwitcher
-                items={["1일", "1개월", "1년"]}
-                active={timeRange}
-                onChange={setTimeRange}
-              />
+              <TabSwitcher items={SORT_ITEMS} active={chartFilter} onChange={setChartFilter} />
+              <TabSwitcher items={RANGE_ITEMS} active={timeRange} onChange={setTimeRange} />
             </div>
 
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-stone-400 text-[11px] font-medium uppercase tracking-wide border-b border-stone-200">
-                  <th className="text-left py-4 font-medium">종목</th>
-                  <th className="text-right py-4 font-medium">현재가</th>
-                  <th className="text-right py-4 font-medium">등락률</th>
-                  <th className="text-right py-4 font-medium">거래대금</th>
-                  <th className="text-right py-4 font-medium">거래량</th>
+                <tr className="border-b border-stone-200 text-[11px] font-medium uppercase tracking-wide text-stone-400">
+                  <th className="py-4 text-left font-medium">종목</th>
+                  <th className="py-4 text-right font-medium">현재가</th>
+                  <th className="py-4 text-right font-medium">등락률</th>
+                  <th className="py-4 text-right font-medium">거래대금</th>
+                  <th className="py-4 text-right font-medium">거래량</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-stone-400 text-sm">
-                      불러오는 중...
+                    <td colSpan={5} className="py-10 text-center text-sm text-stone-400">
+                      데이터를 불러오는 중입니다.
                     </td>
                   </tr>
                 ) : tokens.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-stone-400 text-sm">
-                      데이터가 없습니다.
+                    <td colSpan={5} className="py-10 text-center text-sm text-stone-400">
+                      표시할 종목이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  tokens.map((t, i) => (
+                  tokens.map((token, index) => (
                     <tr
-                      key={t.tokenId}
+                      key={token.tokenId}
                       className={cn(
-                        "group hover:bg-stone-100 transition-colors cursor-pointer",
-                        previewToken?.tokenId === t.tokenId && "bg-stone-100",
+                        "group cursor-pointer border-y border-transparent transition-all duration-200 hover:border-stone-200 hover:bg-white hover:shadow-[0_10px_30px_rgba(28,25,23,0.06)]",
+                        previewTokenId === token.tokenId && "border-stone-200 bg-white shadow-[0_12px_32px_rgba(28,25,23,0.08)]",
                       )}
-                      onMouseEnter={() => setPreviewToken(t)}
-                      onClick={() => navigate(`/token/${t.tokenId}`)}
+                      onMouseEnter={() => setPreviewTokenId(token.tokenId)}
+                      onClick={() => navigate(`/token/${token.tokenId}`)}
                     >
                       <td className="py-0">
                         <div className="flex min-h-[72px] items-stretch">
                           <div
                             className="flex w-20 shrink-0 items-center justify-center"
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onClick={(event) => event.stopPropagation()}
                           >
                             <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
+                              onClick={async (event) => {
+                                event.stopPropagation();
+                                if (!user) {
+                                  showGuestBanner("관심 종목, 내 계좌 등 개인 기능은 로그인 후 이용할 수 있어요.");
+                                  return;
+                                }
+
                                 try {
-                                  await toggleLike(t.tokenId);
-                                } catch (err) {
-                                  console.error('[Dashboard] like toggle failed:', err);
+                                  await toggleLike(token.tokenId);
+                                } catch (error) {
+                                  console.error("[Dashboard] like toggle failed:", error);
                                 }
                               }}
                               className={cn(
                                 "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-                                likedTokenIds.includes(t.tokenId)
+                                likedTokenIds.includes(token.tokenId)
                                   ? "bg-brand-red-light/70 text-brand-red"
                                   : "text-stone-400 hover:bg-stone-200 hover:text-brand-red",
                               )}
                             >
                               <Heart
                                 size={16}
-                                fill={likedTokenIds.includes(t.tokenId) ? "currentColor" : "none"}
+                                fill={likedTokenIds.includes(token.tokenId) ? "currentColor" : "none"}
                               />
                             </button>
                           </div>
+
                           <div className="flex items-center gap-4 py-4">
-                            <span className="text-stone-400 font-mono w-4">
-                              {page * 10 + i + 1}
-                            </span>
-                            <p className="font-bold text-stone-800 group-hover:text-stone-600 transition-colors">
-                              {t.assetName}
+                            <span className="w-4 font-mono text-stone-400">{page * PAGE_SIZE + index + 1}</span>
+                            <p className="font-bold text-stone-800 transition-colors group-hover:text-stone-900">
+                              {token.assetName}
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="py-4 text-right font-mono font-bold text-stone-800">
-                        {t.currentPrice.toLocaleString()}원
+                        {(token.currentPrice ?? 0).toLocaleString()}원
                       </td>
-                      <td className={cn(
-                        "py-4 text-right font-bold",
-                        t.fluctuationRate >= 0 ? "text-brand-red" : "text-brand-blue",
-                      )}>
-                        {t.fluctuationRate >= 0 ? "+" : ""}{t.fluctuationRate}%
+                      <td
+                        className={cn(
+                          "py-4 text-right font-bold",
+                          (token.fluctuationRate ?? 0) >= 0 ? "text-brand-red" : "text-brand-blue",
+                        )}
+                      >
+                        {(token.fluctuationRate ?? 0) >= 0 ? "+" : ""}
+                        {token.fluctuationRate ?? 0}%
                       </td>
-                      <td className="py-4 text-right text-stone-500 font-mono">
-                        {t.totalTradeValue.toLocaleString()}원
+                      <td className="py-4 text-right font-mono text-stone-500">
+                        {(token.totalTradeValue ?? 0).toLocaleString()}원
                       </td>
-                      <td className="py-4 text-right text-stone-500 font-mono">
-                        {t.totalTradeQuantity.toLocaleString()}주
+                      <td className="py-4 text-right font-mono text-stone-500">
+                        {(token.totalTradeQuantity ?? 0).toLocaleString()}주
                       </td>
                     </tr>
                   ))
@@ -181,20 +245,19 @@ export function DashboardPage() {
               </tbody>
             </table>
 
-            {/* 페이징 */}
             <div className="flex items-center justify-center gap-4 pt-2">
               <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
+                onClick={() => setPage((prev) => Math.max(0, prev - 1))}
                 disabled={page === 0 || loading}
-                className="px-4 py-2 text-sm font-bold rounded-lg border border-stone-200 disabled:opacity-30 hover:bg-stone-100 transition-colors"
+                className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-bold transition-colors hover:bg-stone-100 disabled:opacity-30"
               >
                 이전
               </button>
-              <span className="text-sm text-stone-500 font-mono">{page + 1}</span>
+              <span className="font-mono text-sm text-stone-500">{page + 1}</span>
               <button
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setPage((prev) => prev + 1)}
                 disabled={!hasNext || loading}
-                className="px-4 py-2 text-sm font-bold rounded-lg border border-stone-200 disabled:opacity-30 hover:bg-stone-100 transition-colors"
+                className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-bold transition-colors hover:bg-stone-100 disabled:opacity-30"
               >
                 다음
               </button>
@@ -202,34 +265,34 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* 우: 종목 미리보기 */}
-        <div className="w-full lg:w-[380px]">
-          <div className="bg-white rounded-xl border border-stone-200 p-8 sticky top-24 shadow-sm">
+        <div className="w-full min-w-0 lg:w-[380px]">
+          <div className="sticky top-24 rounded-xl border border-stone-200 bg-white p-8 shadow-sm">
             {previewToken ? (
               <>
                 <div className="mb-8">
-                  <h3 className="text-xl font-black text-stone-800">
-                    {previewToken.assetName}
-                  </h3>
-                  <p className="text-sm font-bold mt-1">
-                    <span className="text-stone-800 font-mono">
-                      {previewToken.currentPrice.toLocaleString()}원
+                  <h3 className="text-xl font-black text-stone-800">{previewToken.assetName}</h3>
+                  <p className="mt-1 text-sm font-bold">
+                    <span className="font-mono text-stone-800">
+                      {(previewToken.currentPrice ?? 0).toLocaleString()}원
                     </span>
-                    <span className={cn(
-                      "ml-2",
-                      previewToken.fluctuationRate >= 0 ? "text-brand-red" : "text-brand-blue",
-                    )}>
-                      {previewToken.fluctuationRate >= 0 ? "+" : ""}{previewToken.fluctuationRate}%
+                    <span
+                      className={cn(
+                        "ml-2",
+                        (previewToken.fluctuationRate ?? 0) >= 0 ? "text-brand-red" : "text-brand-blue",
+                      )}
+                    >
+                      {(previewToken.fluctuationRate ?? 0) >= 0 ? "+" : ""}
+                      {previewToken.fluctuationRate ?? 0}%
                     </span>
                   </p>
                 </div>
 
-                <div className="h-64 mb-8">
-                  <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-4">
+                <div className="mb-8 h-64">
+                  <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-stone-400">
                     {timeRange} 차트
                   </p>
                   {sparklineData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <LineChart data={sparklineData}>
                         <Tooltip
                           contentStyle={{
@@ -239,41 +302,38 @@ export function DashboardPage() {
                             fontSize: "10px",
                           }}
                           itemStyle={{ color: "#292524" }}
-                          formatter={v => [`${v.toLocaleString()}원`, '종가']}
+                          formatter={(value) => [`${value.toLocaleString()}원`, "종가"]}
                         />
                         <Line
                           type="monotone"
-                          dataKey="v"
-                          stroke={previewToken.fluctuationRate >= 0
-                            ? "var(--color-brand-red)"
-                            : "var(--color-brand-blue)"}
+                          dataKey="value"
+                          stroke={(previewToken.fluctuationRate ?? 0) >= 0 ? "var(--color-brand-red)" : "var(--color-brand-blue)"}
                           strokeWidth={3}
                           dot={false}
                         />
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="h-full flex items-center justify-center text-stone-300 text-sm">
-                      차트 데이터 없음
+                    <div className="flex h-full items-center justify-center text-sm text-stone-300">
+                      차트 데이터가 없습니다.
                     </div>
                   )}
                 </div>
 
                 <button
                   onClick={() => navigate(`/token/${previewToken.tokenId}`)}
-                  className="w-full py-4 rounded-lg bg-stone-800 text-white font-black uppercase tracking-widest hover:bg-stone-700 transition-colors"
+                  className="w-full rounded-lg bg-stone-800 py-4 font-black uppercase tracking-widest text-white transition-colors hover:bg-stone-700"
                 >
                   거래하기
                 </button>
               </>
             ) : (
-              <div className="h-64 flex items-center justify-center text-stone-300 text-sm">
-                종목을 선택해주세요
+              <div className="flex h-64 items-center justify-center text-sm text-stone-300">
+                종목을 선택해 주세요.
               </div>
             )}
           </div>
         </div>
-
       </div>
     </div>
   );
