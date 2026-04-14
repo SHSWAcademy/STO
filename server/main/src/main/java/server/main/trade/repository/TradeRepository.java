@@ -25,7 +25,7 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     + "WHERE t.buyer.memberId IN :memberIds GROUP BY t.buyer.memberId")
     List<Object[]> sumTotalBuyerUser(@Param("memberIds") List<Long> memberIds);
 
-    // 대시보드 거래내역 조회 (N+1 방지)
+    // 대시보드 거래내역 조회
     @Query(value = "SELECT t FROM Trade t JOIN FETCH t.seller JOIN FETCH t.buyer JOIN FETCH t.token",
            countQuery = "SELECT COUNT(t) FROM Trade t")
     Page<Trade> findAllWithDetails(Pageable pageable);
