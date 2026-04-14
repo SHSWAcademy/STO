@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
 import server.main.candle.entity.Candle;
+import server.main.candle.entity.CandleDay;
 import server.main.candle.repository.CandleDayRepository;
 import server.main.candle.repository.CandleMonthRepository;
 import server.main.candle.repository.CandleYearRepository;
@@ -59,6 +60,13 @@ public class TokenServiceImpl implements TokenService{
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         TokenChartDetailResponseDto dto = tokenMapper.toDtoDetail(findToken);
+
+        // 전날 종가 — DB에 저장된 가장 최근 일봉의 종가 (오늘 일봉은 자정 전까지 DB에 없으므로 항상 어제 봉이 나옴)
+        Long yesterdayClosePrice = candleDayRepository.findLatest(tokenId)
+                .map(CandleDay::getClosePrice)
+                .orElse(null);
+
+        dto.setYesterdayClosePrice(yesterdayClosePrice);
 
         return dto;
     }

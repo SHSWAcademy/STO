@@ -18,7 +18,7 @@ const TABS = [
 export function AssetHeader({ asset, currentPrice, basePrice, activeTab, onTabChange, inWatchlist, onToggleWatchlist, hideStats = false }) {
   const isUp         = asset.change >= 0;
   const changeAmount = basePrice > 0 ? Math.abs(currentPrice - basePrice) : 0;
-  const today        = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+  const yesterday    = new Date(Date.now() - 86400000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
 
   return (
       <div className="px-8 py-6 border-b border-stone-200 bg-[#ffffff]">
@@ -47,7 +47,7 @@ export function AssetHeader({ asset, currentPrice, basePrice, activeTab, onTabCh
                 {currentPrice.toLocaleString()}원
               </span>
                 <span className={cn('text-sm font-bold', isUp ? 'text-brand-red' : 'text-brand-blue')}>
-                  {today} 시가 대비 {isUp ? '+' : '-'}{changeAmount.toLocaleString()}원 ({asset.change}%)
+                  {yesterday} 어제보다 {isUp ? '+' : '-'}{changeAmount.toLocaleString()}원 ({asset.change}%)
                 </span>
                 <div className="flex items-center gap-1 text-[10px] text-stone-400 font-bold bg-stone-200 px-2 py-0.5 rounded-md">
                   실시간 주문 가능 <Info size={10} />

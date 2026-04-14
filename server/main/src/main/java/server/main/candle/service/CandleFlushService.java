@@ -4,10 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.candle.dto.LiveCandleDto;
-import server.main.candle.entity.*;
+import server.main.candle.entity.CandleType;
 import server.main.candle.repository.*;
-import server.main.token.entity.Token;
-import server.main.token.repository.TokenRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -18,72 +16,31 @@ public class CandleFlushService {
     private final CandleDayRepository    candleDayRepository;
     private final CandleMonthRepository  candleMonthRepository;
     private final CandleYearRepository   candleYearRepository;
-    private final TokenRepository        tokenRepository;
 
     @Transactional
     public void saveToDB(LiveCandleDto dto, Long tokenId, CandleType type) {
-        Token token = tokenRepository.getReferenceById(tokenId); // 토큰 프록시로 조회 (실제 쿼리가 나가지 않는다)
+        // save() 대신 upsert — 서버 재시작 후 같은 구간이 재저장될 때 중복 키 에러 방지
         switch (type) {
-            case MINUTE -> candleMinuteRepository.save(
-                    CandleMinute.builder()
-                            .token(token)// 프록시 주입
-                            .openPrice(dto.getOpenPrice())
-                            .highPrice(dto.getHighPrice())
-                            .lowPrice(dto.getLowPrice())
-                            .closePrice(dto.getClosePrice())
-                            .volume(dto.getVolume())
-                            .tradeCount(dto.getTradeCount())
-                            .candleTime(dto.getCandleTime())
-                            .build()
-                    );
-            case HOUR -> candleHourRepository.save(
-                    CandleHour.builder()
-                            .token(token)
-                            .openPrice(dto.getOpenPrice())
-                            .highPrice(dto.getHighPrice())
-                            .lowPrice(dto.getLowPrice())
-                            .closePrice(dto.getClosePrice())
-                            .volume(dto.getVolume())
-                            .tradeCount(dto.getTradeCount())
-                            .candleTime(dto.getCandleTime())
-                            .build()
-                    );
-            case DAY -> candleDayRepository.save(
-                    CandleDay.builder()
-                            .token(token)
-                            .openPrice(dto.getOpenPrice())
-                            .highPrice(dto.getHighPrice())
-                            .lowPrice(dto.getLowPrice())
-                            .closePrice(dto.getClosePrice())
-                            .volume(dto.getVolume())
-                            .tradeCount(dto.getTradeCount())
-                            .candleTime(dto.getCandleTime())
-                            .build()
-                    );
-            case MONTH -> candleMonthRepository.save(
-                    CandleMonth.builder()
-                            .token(token)
-                            .openPrice(dto.getOpenPrice())
-                            .highPrice(dto.getHighPrice())
-                            .lowPrice(dto.getLowPrice())
-                            .closePrice(dto.getClosePrice())
-                            .volume(dto.getVolume())
-                            .tradeCount(dto.getTradeCount())
-                            .candleTime(dto.getCandleTime())
-                            .build()
-                    );
-            case YEAR -> candleYearRepository.save(
-                    CandleYear.builder()
-                            .token(token)
-                            .openPrice(dto.getOpenPrice())
-                            .highPrice(dto.getHighPrice())
-                            .lowPrice(dto.getLowPrice())
-                            .closePrice(dto.getClosePrice())
-                            .volume(dto.getVolume())
-                            .tradeCount(dto.getTradeCount())
-                            .candleTime(dto.getCandleTime())
-                            .build()
-                    );
+            case MINUTE -> candleMinuteRepository.upsert(
+                    tokenId, dto.getCandleTime(),
+                    dto.getOpenPrice(), dto.getHighPrice(), dto.getLowPrice(), dto.getClosePrice(),
+                    dto.getVolume(), dto.getTradeCount());
+            case HOUR -> candleHourRepository.upsert(
+                    tokenId, dto.getCandleTime(),
+                    dto.getOpenPrice(), dto.getHighPrice(), dto.getLowPrice(), dto.getClosePrice(),
+                    dto.getVolume(), dto.getTradeCount());
+            case DAY -> candleDayRepository.upsert(
+                    tokenId, dto.getCandleTime(),
+                    dto.getOpenPrice(), dto.getHighPrice(), dto.getLowPrice(), dto.getClosePrice(),
+                    dto.getVolume(), dto.getTradeCount());
+            case MONTH -> candleMonthRepository.upsert(
+                    tokenId, dto.getCandleTime(),
+                    dto.getOpenPrice(), dto.getHighPrice(), dto.getLowPrice(), dto.getClosePrice(),
+                    dto.getVolume(), dto.getTradeCount());
+            case YEAR -> candleYearRepository.upsert(
+                    tokenId, dto.getCandleTime(),
+                    dto.getOpenPrice(), dto.getHighPrice(), dto.getLowPrice(), dto.getClosePrice(),
+                    dto.getVolume(), dto.getTradeCount());
         }
     }
 }

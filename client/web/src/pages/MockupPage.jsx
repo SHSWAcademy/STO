@@ -237,7 +237,9 @@ export function MockupPage() {
       ? chartData[chartData.length - 1].close
       : (tokenInfo?.currentPrice ?? 0);
 
-  const basePrice   = chartData.length > 0 ? chartData[0].open : currentPrice || 1;
+  // 전날 종가: 백엔드에서 받은 yesterdayClosePrice 고정값 사용 (차트 기간 무관)
+  // fallback: yesterdayClosePrice 없으면 currentPrice
+  const basePrice = tokenInfo?.yesterdayClosePrice || currentPrice || 1;
   const displayData = hoveredData || (chartData.length > 0 ? chartData[chartData.length - 1] : null);
 
   const dailyHigh = chartData.length > 0 ? Math.max(...chartData.map(c => c.high)) : 0;
@@ -308,9 +310,9 @@ export function MockupPage() {
       );
       setTrades(prev => {
         const cumulativeVol = (prev[0]?.vol ?? 0) + (data.tradeQuantity ?? 0);
-        // REST와 동일한 체결 간 등락률 (이전 체결가 대비) — basePrice 클로저 의존 제거
-        const prevPrice = prev[0]?.price;
-        const rate = prevPrice > 0 ? ((data.tradePrice - prevPrice) / prevPrice) * 100 : 0;
+        // 전날 종가 대비 등락률 — REST API와 동일한 기준
+        const base = tokenInfo?.yesterdayClosePrice;
+        const rate = base > 0 ? ((data.tradePrice - base) / base) * 100 : 0;
         return [{
           price:      data.tradePrice,
           qty:        data.tradeQuantity,
