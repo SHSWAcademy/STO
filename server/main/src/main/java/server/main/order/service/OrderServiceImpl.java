@@ -44,7 +44,7 @@ import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.TickSizePolicy;
 import server.main.log.orderLog.service.OrderLogService;
 import server.main.member.entity.Account;
-import server.main.member.entity.Banking;
+import server.main.member.entity.MemberBank;
 import server.main.member.entity.Member;
 import server.main.member.entity.MemberTokenHolding;
 import server.main.member.entity.TxStatus;
@@ -306,7 +306,7 @@ public class OrderServiceImpl implements OrderService {
                     .build());
 
             // 매수자 거래 이력
-            bankingRepository.save(Banking.builder()
+            bankingRepository.save(MemberBank.builder()
                     .account(buyerAccount)
                     .txType(TxType.TRADE_SETTLEMENT)
                     .txStatus(TxStatus.SUCCESS)
@@ -315,7 +315,7 @@ public class OrderServiceImpl implements OrderService {
                     .build());
 
             // 매도자 거래 이력
-            bankingRepository.save(Banking.builder()
+            bankingRepository.save(MemberBank.builder()
                     .account(sellerAccount)
                     .txType(TxType.TRADE_SETTLEMENT)
                     .txStatus(TxStatus.SUCCESS)
