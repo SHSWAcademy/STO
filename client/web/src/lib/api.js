@@ -34,4 +34,6 @@ export const deposit = (amount) =>
   api.post("/api/myaccount/deposit", { amount });
 export const withdraw = (amount) =>
   api.post("/api/myaccount/withdraw", { amount });
+export const fetchBankingHistory = (page = 0) =>
+  api.get("/api/myaccount/history", { params: { page, size: 10 } });
 export default api;

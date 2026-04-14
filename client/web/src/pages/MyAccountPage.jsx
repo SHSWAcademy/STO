@@ -19,7 +19,13 @@ import {
   OPEN_ORDERS,
   FILLED_ORDERS,
 } from "../data/mock.js";
-import { fetchBalance, fetchPortfolio, deposit, withdraw } from "../lib/api.js";
+import {
+  fetchBalance,
+  fetchPortfolio,
+  deposit,
+  withdraw,
+  fetchBankingHistory,
+} from "../lib/api.js";
 import { cn } from "../lib/utils.js";
 import { Modal } from "../components/ui/Modal.jsx";
 import { EmptyState } from "../components/ui/EmptyState.jsx";
@@ -90,6 +96,9 @@ export function MyAccountPage() {
   const [amount, setAmount] = useState("");
   const [balance, setBalance] = useState(null);
   const [portfolio, setPortfolio] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [historyTotalPages, setHistoryTotalPages] = useState(0);
 
   // 알람 클릭으로 넘어온 경우 해당 탭 자동 선택
   useEffect(() => {
@@ -116,6 +125,18 @@ export function MyAccountPage() {
       }
     })();
   }, []);
+
+  function loadHistory(page) {
+    fetchBankingHistory(page).then((res) => {
+      setHistory(res.data.content);
+      setHistoryTotalPages(res.data.totalPages);
+      setHistoryPage(page);
+    });
+  }
+
+  useEffect(() => {
+    if (activeSubTab === "history") loadHistory(0);
+  }, [activeSubTab]);
 
   async function handleFill() {
     if (!amount || isNaN(Number(amount))) return;
@@ -190,7 +211,10 @@ export function MyAccountPage() {
           <HistoryTab
             filter={historyFilter}
             onFilter={setHistoryFilter}
-            items={HISTORY_ITEMS}
+            items={history}
+            page={historyPage}
+            totalPages={historyTotalPages}
+            onPageChange={loadHistory}
           />
         )}
         {activeSubTab === "orders" && (
@@ -452,15 +476,52 @@ function AssetsTab({ onFill, onSend, balance, portfolio }) {
 }
 
 // ── 거래내역 탭 ───────────────────────────────────────────────
-function HistoryTab({ filter, onFilter, items }) {
+function HistoryTab({
+  filter,
+  onFilter,
+  items,
+  page,
+  totalPages,
+  onPageChange,
+}) {
   const filtered = items.filter((item) => {
     if (filter === "전체") return true;
     if (filter === "입출금")
-      return item.type === "deposit" || item.type === "withdraw";
-    if (filter === "매수") return item.type === "buy";
-    if (filter === "매도") return item.type === "sell";
+      return item.txType === "DEPOSIT" || item.txType === "WITHDRAWAL";
+    if (filter === "매수") return item.txType === "ORDER_LOCK";
+    if (filter === "매도") return item.txType === "TRADE_SETTLEMENT";
     return true;
   });
+
+  function formatTitle(txType) {
+    switch (txType) {
+      case "DEPOSIT":
+        return "계좌 입금";
+      case "WITHDRAWAL":
+        return "계좌 출금";
+      case "ORDER_LOCK":
+        return "주문 잠금";
+      case "ORDER_UNLOCK":
+        return "주문 해제";
+      case "TRADE_SETTLEMENT":
+        return "체결 정산";
+      case "DIVIDEND_SETTLEMENT":
+        return "배당금 입금";
+      default:
+        return txType;
+    }
+  }
+
+  function formatDate(createdAt) {
+    return new Date(createdAt)
+      .toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+      .replace(/\. /g, ".")
+      .replace(".", "");
+  }
 
   return (
     <div className="space-y-8">
@@ -488,33 +549,42 @@ function HistoryTab({ filter, onFilter, items }) {
       <div className="bg-white border border-stone-200 rounded-[32px] overflow-hidden shadow-sm">
         <div className="divide-y divide-stone-100">
           {filtered.length > 0 ? (
-            filtered.map((item, i) => (
+            filtered.map((item) => (
               <div
-                key={i}
+                key={item.bankingId}
                 className="p-6 flex items-center justify-between hover:bg-stone-50 transition-colors"
               >
                 <div className="flex items-center gap-6">
                   <span className="text-[10px] font-black text-stone-400 font-mono">
-                    {item.date}
+                    {formatDate(item.createdAt)}
                   </span>
                   <div>
                     <p className="text-sm font-bold text-stone-800">
-                      {item.title}
+                      {formatTitle(item.txType)}
                     </p>
                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-0.5">
-                      잔고 {item.balance}
+                      잔고 {item.balanceSnapshot.toLocaleString()}원
                     </p>
                   </div>
                 </div>
                 <p
                   className={cn(
                     "text-sm font-black",
-                    item.amount.startsWith("+")
+                    item.txType === "DEPOSIT" ||
+                      item.txType === "TRADE_SETTLEMENT" ||
+                      item.txType === "DIVIDEND_DEPOSIT" ||
+                      item.txType === "ORDER_UNLOCK"
                       ? "text-brand-red"
                       : "text-brand-blue",
                   )}
                 >
-                  {item.amount}
+                  {item.txType === "DEPOSIT" ||
+                  item.txType === "TRADE_SETTLEMENT" ||
+                  item.txType === "DIVIDEND_DEPOSIT" ||
+                  item.txType === "ORDER_UNLOCK"
+                    ? "+"
+                    : "-"}
+                  {item.bankingAmount.toLocaleString()}원
                 </p>
               </div>
             ))
@@ -523,6 +593,42 @@ function HistoryTab({ filter, onFilter, items }) {
           )}
         </div>
       </div>
+
+      {/* 페이지네이션 */}
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2">
+          <button
+            onClick={() => onPageChange(page - 1)}
+            disabled={page === 0}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-100 text-stone-500 hover:bg-stone-200
+  disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            이전
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => onPageChange(i)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                page === i
+                  ? "bg-stone-800 text-white"
+                  : "bg-stone-100 text-stone-500 hover:bg-stone-200",
+              )}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => onPageChange(page + 1)}
+            disabled={page === totalPages - 1}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-100 text-stone-500 hover:bg-stone-200
+  disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            다음
+          </button>
+        </div>
+      )}
     </div>
   );
 }
