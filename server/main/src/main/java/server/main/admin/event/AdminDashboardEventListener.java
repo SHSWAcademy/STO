@@ -13,17 +13,16 @@ public class AdminDashboardEventListener {
     private final SimpMessagingTemplate messagingTemplate;
     private final AdminService adminService;
 
-    // 모든 이벤트 → summary push
+    // 상단 모든 데이터 이벤트 발행
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleSummary(AdminDashboardEvent event) {
-//        messagingTemplate.convertAndSend("/topic/admin/dashboard",
-//                adminService.getDashBoard());
+        messagingTemplate.convertAndSend("/topic/admin/dashboard",
+                adminService.getDashBoard());
     }
 
-    // 체결 이벤트 → 거래 완료 최신 5건 push
+    // 체결 내역 실시간 조회
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleTrades(TradeExecutedEvent event) {
-//        messagingTemplate.convertAndSend("/topic/admin/trades",
-//                adminService.getLatestTrades(5));
+          messagingTemplate.convertAndSend("/topic/admin/trades", event.getDashBoardTradeListDTO());
     }
 }

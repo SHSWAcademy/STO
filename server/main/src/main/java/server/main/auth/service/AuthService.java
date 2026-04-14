@@ -1,5 +1,6 @@
 package server.main.auth.service;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -7,7 +8,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import server.main.admin.dto.DashBoardResponseDTO;
 import server.main.admin.entity.Admin;
+import server.main.admin.event.AdminDashboardEvent;
 import server.main.admin.repository.AdminRepository;
 import server.main.auth.dto.AdminLoginRequest;
 import server.main.auth.dto.LoginResponse;
@@ -40,6 +43,7 @@ public class AuthService {
     private final AccountRepository accountRepository;
     private final LoginLogService loginLogService;
     private final CustodialWalletService custodialWalletService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public MemberSignupResponse signup(MemberSignupRequest request) {
@@ -58,6 +62,8 @@ public class AuthService {
 
         Wallet wallet = custodialWalletService.createMemberWallet(member);
 
+        // 어드민 대시보드 (회원가입 시 이벤트 소켓)
+        eventPublisher.publishEvent(new AdminDashboardEvent());
         return new MemberSignupResponse(member.getMemberId(), member.getEmail(), member.getMemberName(), wallet.getWalletAddress());
     }
 

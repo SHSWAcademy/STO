@@ -47,10 +47,11 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/ws/trading/**",
+                                "/ws/admin/**",
                                 "/file/**"
                         ).permitAll()
                         .requestMatchers("/blockchain/**").hasRole("ADMIN")
-                        .requestMatchers("/admin/**", "/ws/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception

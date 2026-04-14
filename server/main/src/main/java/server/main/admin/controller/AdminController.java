@@ -132,9 +132,16 @@ public class AdminController {
 
     // 대쉬보드 조회
     @GetMapping("/dashboard")
-    public ResponseEntity<DashBoardResponseDTO> getDashBoard(@RequestParam(defaultValue = "0") int page,
-                                                             @RequestParam(defaultValue = "10") int size) {
-        DashBoardResponseDTO list = adminService.getDashBoard(page, size);
+    public ResponseEntity<DashBoardResponseDTO> getDashBoard() {
+        DashBoardResponseDTO list = adminService.getDashBoard();
+        return ResponseEntity.ok(list);
+    }
+
+    // 대시보드 리스트 조회
+    @GetMapping("/dashboard/list")
+    public ResponseEntity<Page<DashBoardTradeListDTO>> getDashBoardTradeList(@RequestParam(defaultValue = "0") int page,
+                                                                          @RequestParam(defaultValue = "10") int size) {
+        Page<DashBoardTradeListDTO> list = adminService.getDashBoardTradeList(page, size);
         return ResponseEntity.ok(list);
     }
  }
