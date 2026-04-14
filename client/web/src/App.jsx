@@ -85,16 +85,17 @@ function AppContent() {
 
       {/* 비로그인 접근 가능 — 독립 최상위 라우트 */}
       <Route path="/token/:tokenId" element={<MockupLayout />} />
+      <Route path="/login" element={<AuthPage />} />
 
       {/* 로그인 필요 라우트 */}
       <Route element={<MainLayout />}>
-        <Route path="/"           element={<Auth><PageWrapper><DashboardPage /></PageWrapper></Auth>} />
-        <Route path="/trading"    element={<Auth><TradingPage /></Auth>} />
+        <Route path="/"           element={<PageWrapper><DashboardPage /></PageWrapper>} />
+        <Route path="/trading"    element={<TradingPage />} />
         <Route path="/portfolio"  element={<Auth><PageWrapper><MyAccountPage /></PageWrapper></Auth>} />
         <Route path="/watchlist"  element={<Auth><PageWrapper><WatchlistPage /></PageWrapper></Auth>} />
-        <Route path="/disclosure" element={<Auth><PageWrapper><DisclosurePage /></PageWrapper></Auth>} />
-        <Route path="/notice"     element={<Auth><PageWrapper><NoticePage /></PageWrapper></Auth>} />
-        <Route path="*"           element={<Auth><Navigate to="/" replace /></Auth>} />
+        <Route path="/disclosure" element={<PageWrapper><DisclosurePage /></PageWrapper>} />
+        <Route path="/notice"     element={<PageWrapper><NoticePage /></PageWrapper>} />
+        <Route path="*"           element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );
