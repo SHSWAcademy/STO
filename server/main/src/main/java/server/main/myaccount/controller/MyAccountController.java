@@ -3,13 +3,14 @@ package server.main.myaccount.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import server.main.myaccount.dto.AccountBalanceResponse;
 import server.main.myaccount.dto.DepositRequest;
+import server.main.myaccount.dto.PortfolioResponse;
 import server.main.myaccount.dto.WithdrawRequest;
 import server.main.myaccount.service.MyAccountService;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/myaccount")
@@ -28,5 +29,15 @@ public class MyAccountController {
     public ResponseEntity<Void> withdraw(@RequestBody @Valid WithdrawRequest withdrawRequest) {
         myAccountService.withdraw(withdrawRequest);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/balance")
+    public ResponseEntity<AccountBalanceResponse> getBalance() {
+        return ResponseEntity.ok(myAccountService.getBalance());
+    }
+
+    @GetMapping("/portfolio")
+    public ResponseEntity<List<PortfolioResponse>> getPortfolio() {
+        return ResponseEntity.ok(myAccountService.getPortfolio());
     }
 }
