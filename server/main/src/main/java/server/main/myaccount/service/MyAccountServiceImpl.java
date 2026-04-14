@@ -2,6 +2,7 @@ package server.main.myaccount.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.global.error.BusinessException;
@@ -14,6 +15,7 @@ import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.myaccount.dto.AccountBalanceResponse;
 import server.main.myaccount.dto.DepositRequest;
 import server.main.myaccount.dto.PortfolioResponse;
+import server.main.myaccount.dto.VerifyAccountPasswordRequest;
 import server.main.myaccount.dto.WithdrawRequest;
 
 import java.util.List;
@@ -26,6 +28,7 @@ public class MyAccountServiceImpl implements MyAccountService{
     private final AccountRepository accountRepository;
     private final MemberBankRepository memberBankRepository;
     private final MemberTokenHoldingRepository memberTokenHoldingRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void deposit(DepositRequest depositRequest) {
@@ -97,5 +100,19 @@ public class MyAccountServiceImpl implements MyAccountService{
                 .filter(h -> h.getCurrentQuantity() > 0)
                 .map(PortfolioResponse :: from)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void verifyAccountPassword(VerifyAccountPasswordRequest request) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Account account = accountRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+
+        if (!passwordEncoder.matches(request.getAccountPassword(), account.getAccountPassword())) {
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+        }
     }
 }

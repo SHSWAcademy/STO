@@ -1,28 +1,17 @@
-package server.main.order.dto;
+package server.main.myaccount.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import server.main.order.entity.OrderType;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrderRequestDto {
-    @NotNull
-    @Positive
-    private Long orderPrice;
-    @NotNull
-    @Positive
-    private Long orderQuantity;
-    @NotNull
-    private OrderType orderType;
+public class VerifyAccountPasswordRequest {
     @NotBlank
     @Pattern(regexp = "\\d{4}", message = "계좌 비밀번호는 4자리 숫자여야 합니다.")
     private String accountPassword;

@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import server.main.myaccount.dto.AccountBalanceResponse;
 import server.main.myaccount.dto.DepositRequest;
 import server.main.myaccount.dto.PortfolioResponse;
+import server.main.myaccount.dto.VerifyAccountPasswordRequest;
 import server.main.myaccount.dto.WithdrawRequest;
 import server.main.myaccount.service.MyAccountService;
 
@@ -39,5 +40,11 @@ public class MyAccountController {
     @GetMapping("/portfolio")
     public ResponseEntity<List<PortfolioResponse>> getPortfolio() {
         return ResponseEntity.ok(myAccountService.getPortfolio());
+    }
+
+    @PostMapping("/verify-password")
+    public ResponseEntity<Void> verifyPassword(@RequestBody @Valid VerifyAccountPasswordRequest request) {
+        myAccountService.verifyAccountPassword(request);
+        return ResponseEntity.ok().build();
     }
 }
