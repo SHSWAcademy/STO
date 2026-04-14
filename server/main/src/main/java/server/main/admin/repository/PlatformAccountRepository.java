@@ -11,6 +11,6 @@ import java.util.Optional;
 public interface PlatformAccountRepository extends JpaRepository<PlatformAccount, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT p FROM PlatformAccount p")
+    @Query("SELECT p FROM PlatformAccount p WHERE p.platformAccountId = 1L")
     Optional<PlatformAccount> findWithLock();
 }

@@ -16,9 +16,14 @@ public class PlatformAccount {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long platformAccountId;
 
-    private Long platformAccountBalance;
-    private Long totalEarned;
-    private Long totalWithdrawn;
+    @Column(nullable = false)
+    private Long platformAccountBalance = 0L;
+
+    @Column(nullable = false)
+    private Long totalEarned = 0L;
+
+    @Column(nullable = false)
+    private Long totalWithdrawn = 0L;
     private LocalDateTime updatedAt;
 
     // 수수료 적립: 잔액 + 누적수익 증가

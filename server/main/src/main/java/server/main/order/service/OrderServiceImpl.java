@@ -28,6 +28,7 @@ import server.main.admin.entity.PlatformAccount;
 import server.main.admin.entity.PlatformAccountType;
 import server.main.admin.entity.PlatformBanking;
 import server.main.admin.entity.PlatformDirection;
+import server.main.admin.entity.Common;
 import server.main.admin.repository.CommonRepository;
 import server.main.admin.repository.PlatformAccountRepository;
 import server.main.admin.repository.PlatformBankingRepository;
@@ -121,7 +122,7 @@ public class OrderServiceImpl implements OrderService {
             Account findMemberAccount = accountRepository.findWithLockByMember(findMember)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-            double chargeRate = commonRepository.findCommon().getChargeRate();
+            double chargeRate = getChargeRate();
 
             long orderAmount = Math.multiplyExact(dto.getOrderPrice(), dto.getOrderQuantity());
             long feeAmount = (long) (orderAmount * (chargeRate / 100));
@@ -220,7 +221,9 @@ public class OrderServiceImpl implements OrderService {
         Map<Long, Account> counterAccountCache = new HashMap<>();
         Map<Long, MemberTokenHolding> counterHoldingCache = new HashMap<>();
 
-        double chargeRate = commonRepository.findCommon().getChargeRate();
+        double chargeRate = getChargeRate();
+        PlatformAccount platformAccount = platformAccountRepository.findWithLock()
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         for (TradeExecutionDto execution : matchResult.getExecutions()) {
             Member counterMember = memberRepository.findById(execution.getCounterMemberId())
@@ -266,8 +269,6 @@ public class OrderServiceImpl implements OrderService {
             sellerAccount.settleSellTrade(tradeAmount, feeAmount);
 
             // platform_accounts 수수료 적립 (매수+매도 수수료 합산)
-            PlatformAccount platformAccount = platformAccountRepository.findWithLock()
-                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             platformAccount.earnFee(feeAmount * 2);
 
             // platform_banking 이력 저장
@@ -478,7 +479,7 @@ public class OrderServiceImpl implements OrderService {
             Account account = accountRepository.findWithLockByMember(order.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             long lockedAmount = Math.multiplyExact(order.getOrderPrice(), order.getRemainingQuantity());
-            long feeOnLock = (long) (lockedAmount * (commonRepository.findCommon().getChargeRate() / 100));
+            long feeOnLock = (long) (lockedAmount * (getChargeRate() / 100));
             account.cancelOrder(lockedAmount + feeOnLock);
         }
 
@@ -514,7 +515,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         long newRemaining = dto.getUpdateQuantity() - findOrder.getFilledQuantity();
-        double chargeRate = commonRepository.findCommon().getChargeRate();
+        double chargeRate = getChargeRate();
 
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
             Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
@@ -576,7 +577,7 @@ public class OrderServiceImpl implements OrderService {
         if (OrderType.BUY.equals(order.getOrderType())) {
             Account account = accountRepository.findWithLockByMember(order.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-            double chargeRate = commonRepository.findCommon().getChargeRate();
+            double chargeRate = getChargeRate();
             long currentLocked = Math.multiplyExact(order.getOrderPrice(), order.getRemainingQuantity());
             long currentFee = (long) (currentLocked * (chargeRate / 100));
             long originalLocked = Math.multiplyExact(originalPrice, newRemaining);
@@ -627,7 +628,7 @@ public class OrderServiceImpl implements OrderService {
             Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             long lockedAmount = Math.multiplyExact(findOrder.getOrderPrice(), findOrder.getRemainingQuantity());
-            long feeOnLock = (long) (lockedAmount * (commonRepository.findCommon().getChargeRate() / 100));
+            long feeOnLock = (long) (lockedAmount * (getChargeRate() / 100));
             findAccount.cancelOrder(lockedAmount + feeOnLock);
         }
 
@@ -670,7 +671,7 @@ public class OrderServiceImpl implements OrderService {
             Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             long lockedAmount = Math.multiplyExact(ctx.getOrderPrice(), ctx.getRemainingQuantity());
-            long feeOnLock = (long) (lockedAmount * (commonRepository.findCommon().getChargeRate() / 100));
+            long feeOnLock = (long) (lockedAmount * (getChargeRate() / 100));
             findAccount.lockBalance(lockedAmount + feeOnLock);
         }
 
@@ -697,5 +698,11 @@ public class OrderServiceImpl implements OrderService {
                 .map(MemberTokenHolding::getCurrentQuantity)
                 .orElse(0L);
         return new OrderCapacityResponseDto(availableBalance, availableQuantity);
+    }
+
+    private double getChargeRate() {
+        Common common = commonRepository.findCommon();
+        if (common == null) throw new BusinessException(ENTITY_NOT_FOUNT_ERROR);
+        return common.getChargeRate();
     }
 }
