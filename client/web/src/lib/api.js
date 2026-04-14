@@ -26,5 +26,10 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
-
+export const fetchBalance = () => api.get("/api/myaccount/balance");
+export const fetchPortfolio = () => api.get("/api/myaccount/portfolio");
+export const deposit = (amount) =>
+  api.post("/api/myaccount/deposit", { amount });
+export const withdraw = (amount) =>
+  api.post("/api/myaccount/withdraw", { amount });
 export default api;
