@@ -1,11 +1,17 @@
 package server.main.admin.entity;
 
-import jakarta.persistence.*;
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -18,6 +24,8 @@ public class PlatformBanking {
     private Long platformBankingId;
 
     private Long tokenId;   // 토큰ID
+    // 추후 자산별 수수료 내역 조회를 위해 추가 (현재 미사용)
+    private Long tradeId;
     private Long platformBankingAmount; // 입금액
     private LocalDateTime createdAt;
 
@@ -28,9 +36,10 @@ public class PlatformBanking {
     private PlatformDirection platformBankingDirection;
 
     @Builder
-    public PlatformBanking(Long tokenId, PlatformAccountType accountType,
+    public PlatformBanking(Long tokenId, Long tradeId, PlatformAccountType accountType,
                            Long platformBankingAmount, PlatformDirection platformBankingDirection) {
         this.tokenId = tokenId;
+        this.tradeId = tradeId;
         this.accountType = accountType;
         this.platformBankingAmount = platformBankingAmount;
         this.platformBankingDirection = platformBankingDirection;

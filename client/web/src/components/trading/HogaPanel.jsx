@@ -66,7 +66,7 @@ export function HogaPanel({ currentPrice }) {
                   side="ask"
                   maxAmount={MAX_ASK_AMOUNT}
                 />
-              ))}
+              ))}ㅅ
             </div>
 
             {/* 현재가 divider */}
