@@ -3,7 +3,12 @@ package server.main.order.service;
 import static server.main.global.error.ErrorCode.*;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -19,6 +24,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import server.main.admin.entity.PlatformAccount;
+import server.main.admin.entity.PlatformAccountType;
+import server.main.admin.entity.PlatformBanking;
+import server.main.admin.entity.PlatformDirection;
+import server.main.admin.entity.Common;
+import server.main.admin.repository.CommonRepository;
+import server.main.admin.repository.PlatformAccountRepository;
+import server.main.admin.repository.PlatformBankingRepository;
 import server.main.admin.dto.DashBoardTradeListDTO;
 import server.main.admin.event.AdminDashboardEvent;
 import server.main.admin.event.TradeExecutedEvent;
@@ -28,23 +41,27 @@ import server.main.alarm.service.AlarmService;
 import server.main.blockchain.service.BlockchainOutboxService;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
+import server.main.global.util.TickSizePolicy;
 import server.main.log.orderLog.service.OrderLogService;
 import server.main.member.entity.Account;
+import server.main.member.entity.Banking;
 import server.main.member.entity.Member;
 import server.main.member.entity.MemberTokenHolding;
+import server.main.member.entity.TxStatus;
+import server.main.member.entity.TxType;
 import server.main.member.repository.AccountRepository;
+import server.main.member.repository.BankingRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.CancelOrderContext;
 import server.main.order.dto.MatchOrderRequestDto;
-import server.main.order.dto.OrderCapacityResponseDto;
 import server.main.order.dto.MatchResultDto;
+import server.main.order.dto.OrderCapacityResponseDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.TradeExecutionDto;
 import server.main.order.dto.UpdateMatchOrderRequestDto;
 import server.main.order.dto.UpdateOrderRequestDto;
-import server.main.global.util.TickSizePolicy;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderDuplicated;
 import server.main.order.entity.OrderStatus;
@@ -82,6 +99,10 @@ public class OrderServiceImpl implements OrderService {
     private final AlarmService alarmService;
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final CommonRepository commonRepository;
+    private final PlatformAccountRepository platformAccountRepository;
+    private final BankingRepository bankingRepository;
+    private final PlatformBankingRepository platformBankingRepository;
 
     // createOrder Phase 1: 검증 + 잔고 차감 + 주문 저장
     @Transactional
@@ -100,14 +121,20 @@ public class OrderServiceImpl implements OrderService {
 
         // 매수일 경우
         if (OrderType.BUY.equals(dto.getOrderType())) {
+
             Account findMemberAccount = accountRepository.findWithLockByMember(findMember)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
+            double chargeRate = getChargeRate();
+
             long orderAmount = Math.multiplyExact(dto.getOrderPrice(), dto.getOrderQuantity());
-            if (findMemberAccount.getAvailableBalance() < orderAmount)
+            long feeAmount = (long) (orderAmount * (chargeRate / 100));
+            long totalLockAmount = orderAmount + feeAmount;
+
+            if (findMemberAccount.getAvailableBalance() < totalLockAmount)
                 throw new BusinessException(INSUFFICIENT_BALANCE);
             else
-                findMemberAccount.lockBalance(orderAmount);
+                findMemberAccount.lockBalance(totalLockAmount);
         }
 
         // 매도일 경우
@@ -185,16 +212,22 @@ public class OrderServiceImpl implements OrderService {
         Account findMemberAccount = null;
         MemberTokenHolding findMemberHolding = null;
 
+        Map<Long, Account> counterAccountCache = new HashMap<>();
+        Map<Long, MemberTokenHolding> counterHoldingCache = new HashMap<>();
+
+        double chargeRate = 0;
+        PlatformAccount platformAccount = null;
+
         if (!matchResult.getExecutions().isEmpty()) {
             findMemberAccount = accountRepository.findWithLockByMember(findMember)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             findMemberHolding = memberTokenHoldingRepository
                     .findWithLockByMemberAndToken(findMember, findToken)
                     .orElse(null);
+            chargeRate = getChargeRate();
+            platformAccount = platformAccountRepository.findWithLock()
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
         }
-
-        Map<Long, Account> counterAccountCache = new HashMap<>();
-        Map<Long, MemberTokenHolding> counterHoldingCache = new HashMap<>();
 
         for (TradeExecutionDto execution : matchResult.getExecutions()) {
             Member counterMember = memberRepository.findById(execution.getCounterMemberId())
@@ -202,11 +235,14 @@ public class OrderServiceImpl implements OrderService {
             Order counterOrder = orderRepository.findWithLockById(execution.getCounterOrderId())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
+            long tradeAmount = Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity());
+            long feeAmount = (long) (tradeAmount * (chargeRate / 100));
+
             Trade trade = Trade.builder()
                     .tradePrice(execution.getTradePrice())
                     .tradeQuantity(execution.getTradeQuantity())
-                    .totalTradePrice(Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity()))
-                    .feeAmount(0L)
+                    .totalTradePrice(tradeAmount)
+                    .feeAmount(feeAmount) // 매수자 또는 매도자 각 한쪽 기준 수수료 (플랫폼 총 수수료 = feeAmount × 2)
                     .settlementStatus(SettlementStatus.ON_CHAIN_PENDING)
                     .executedAt(LocalDateTime.now())
                     .token(findToken)
@@ -238,7 +274,6 @@ public class OrderServiceImpl implements OrderService {
                             .buyerName(trade.getBuyer().getMemberName())
                             .build()
             ));
-            long tradeAmount = Math.multiplyExact(execution.getTradePrice(), execution.getTradeQuantity());
 
             Account counterAccount = counterAccountCache.get(execution.getCounterMemberId());
             if (counterAccount == null) {
@@ -247,14 +282,46 @@ public class OrderServiceImpl implements OrderService {
                 counterAccountCache.put(execution.getCounterMemberId(), counterAccount);
             }
 
-            Account buyerAccount  = isBuy ? findMemberAccount : counterAccount;
+            Account buyerAccount = isBuy ? findMemberAccount : counterAccount;
             Account sellerAccount = isBuy ? counterAccount : findMemberAccount;
 
             long buyerOrderPrice = isBuy ? findOrder.getOrderPrice() : counterOrder.getOrderPrice();
             long lockedAmount = Math.multiplyExact(buyerOrderPrice, execution.getTradeQuantity());
+            long buyerFeeOnLock = (long) (lockedAmount * (chargeRate / 100));
+            long totalLockedAmount = lockedAmount + buyerFeeOnLock;
 
-            buyerAccount.settleBuyTrade(tradeAmount, lockedAmount);
-            sellerAccount.settleSellTrade(tradeAmount);
+            buyerAccount.settleBuyTrade(tradeAmount, totalLockedAmount, feeAmount);
+            sellerAccount.settleSellTrade(tradeAmount, feeAmount);
+
+            // platform_accounts 수수료 적립 (매수+매도 수수료 합산)
+            platformAccount.earnFee(feeAmount * 2);
+
+            // platform_banking 이력 저장
+            platformBankingRepository.save(PlatformBanking.builder()
+                    .tokenId(findToken.getTokenId())
+                    .tradeId(trade.getTradeId())
+                    .accountType(PlatformAccountType.FEE)
+                    .platformBankingAmount(feeAmount * 2)
+                    .platformBankingDirection(PlatformDirection.DEPOSIT)
+                    .build());
+
+            // 매수자 거래 이력
+            bankingRepository.save(Banking.builder()
+                    .account(buyerAccount)
+                    .txType(TxType.TRADE_SETTLEMENT)
+                    .txStatus(TxStatus.SUCCESS)
+                    .bankingAmount(tradeAmount + feeAmount)
+                    .balanceSnapshot(buyerAccount.getAvailableBalance())
+                    .build());
+
+            // 매도자 거래 이력
+            bankingRepository.save(Banking.builder()
+                    .account(sellerAccount)
+                    .txType(TxType.TRADE_SETTLEMENT)
+                    .txStatus(TxStatus.SUCCESS)
+                    .bankingAmount(tradeAmount - feeAmount)
+                    .balanceSnapshot(sellerAccount.getAvailableBalance())
+                    .build());
 
             // 매수자 Holding 반영
             MemberTokenHolding buyerHolding;
@@ -300,7 +367,8 @@ public class OrderServiceImpl implements OrderService {
                 sellerHolding = findMemberHolding;
             }
 
-            if (sellerHolding == null) throw new BusinessException(ENTITY_NOT_FOUNT_ERROR);
+            if (sellerHolding == null)
+                throw new BusinessException(ENTITY_NOT_FOUNT_ERROR);
             sellerHolding.settleSellTrade(execution.getTradeQuantity());
             blockchainOutboxService.saveTradeOutbox(trade, findToken);
 
@@ -366,17 +434,19 @@ public class OrderServiceImpl implements OrderService {
                     .build());
         }
 
-
         // 주문 체결 시 발생할 알람 리스트
         List<AlarmEvent.AlarmRecord> alarmRecords = new ArrayList<>();
         String tokenName = findToken.getTokenName();
 
         // 알람 생성 : 주문이 체결되었을 때 알람 생성, FILLED, PARTIAL 구분 // 나와 상대 모두에게 알람 전달
-        if ((finalStatus == OrderStatus.FILLED || finalStatus == OrderStatus.PARTIAL) && !matchResult.getExecutions().isEmpty()) {
+        if ((finalStatus == OrderStatus.FILLED || finalStatus == OrderStatus.PARTIAL)
+                && !matchResult.getExecutions().isEmpty()) {
             String orderTypeLabel = isBuy ? "매수" : "매도";
-            AlarmType myAlarmType = finalStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED : AlarmType.ORDER_PARTIAL; // 부분 체결, 전체 체결 판단
-            long totalFilled = matchResult.getExecutions().stream().mapToLong(TradeExecutionDto::getTradeQuantity).sum();
-            long tradePrice  = matchResult.getExecutions().get(0).getTradePrice();
+            AlarmType myAlarmType = finalStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED
+                    : AlarmType.ORDER_PARTIAL; // 부분 체결, 전체 체결 판단
+            long totalFilled = matchResult.getExecutions().stream().mapToLong(TradeExecutionDto::getTradeQuantity)
+                    .sum();
+            long tradePrice = matchResult.getExecutions().get(0).getTradePrice();
             String myMsg = String.format("[ %s ] %s 주문 %,d원 × %d주 %s",
                     tokenName, orderTypeLabel, tradePrice, totalFilled,
                     finalStatus == OrderStatus.FILLED ? "체결 완료" : "부분 체결");
@@ -388,16 +458,20 @@ public class OrderServiceImpl implements OrderService {
         Set<Long> notifiedCounters = new HashSet<>();
         for (TradeExecutionDto execution : matchResult.getExecutions()) { // 매치에서 체결된 내역을 꺼낸다
             Long counterMemberId = execution.getCounterMemberId();
-            if (notifiedCounters.contains(counterMemberId)) continue;
+            if (notifiedCounters.contains(counterMemberId))
+                continue;
 
             Order counterOrder = orderRepository.findById(execution.getCounterOrderId()).orElse(null);
-            if (counterOrder == null) continue;
+            if (counterOrder == null)
+                continue;
 
             OrderStatus counterStatus = counterOrder.getOrderStatus();
-            if (counterStatus != OrderStatus.FILLED && counterStatus != OrderStatus.PARTIAL) continue;
+            if (counterStatus != OrderStatus.FILLED && counterStatus != OrderStatus.PARTIAL)
+                continue;
 
-            String counterTypeLabel = isBuy ? "매도" : "매수";  // 내가 매수자면 상대방은 매도자, 내가 매도자면 상대방은 매수자.
-            AlarmType counterAlarmType = counterStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED : AlarmType.ORDER_PARTIAL;
+            String counterTypeLabel = isBuy ? "매도" : "매수"; // 내가 매수자면 상대방은 매도자, 내가 매도자면 상대방은 매수자.
+            AlarmType counterAlarmType = counterStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED
+                    : AlarmType.ORDER_PARTIAL;
             String counterMsg = String.format("[ %s ] %s 주문 %,d원 × %d주 %s",
                     tokenName, counterTypeLabel, execution.getTradePrice(), execution.getTradeQuantity(),
                     counterStatus == OrderStatus.FILLED ? "체결 완료" : "부분 체결");
@@ -410,8 +484,6 @@ public class OrderServiceImpl implements OrderService {
         if (!alarmRecords.isEmpty()) {
             eventPublisher.publishEvent(new AlarmEvent(alarmRecords));
         }
-
-
 
         // WebSocket push 이벤트 발행 — 커밋 후 리스너가 실행
         List<Long> counterMemberIds = matchResult.getExecutions().stream()
@@ -432,7 +504,8 @@ public class OrderServiceImpl implements OrderService {
             Account account = accountRepository.findWithLockByMember(order.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             long lockedAmount = Math.multiplyExact(order.getOrderPrice(), order.getRemainingQuantity());
-            account.cancelOrder(lockedAmount);
+            long feeOnLock = (long) (lockedAmount * (getChargeRate() / 100));
+            account.cancelOrder(lockedAmount + feeOnLock);
         }
 
         if (OrderType.SELL.equals(order.getOrderType())) {
@@ -467,18 +540,24 @@ public class OrderServiceImpl implements OrderService {
         }
 
         long newRemaining = dto.getUpdateQuantity() - findOrder.getFilledQuantity();
+        double chargeRate = getChargeRate();
 
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
             Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
             long oldAmount = Math.multiplyExact(findOrder.getOrderPrice(), findOrder.getRemainingQuantity());
-            long updateAmount = Math.multiplyExact(dto.getUpdatePrice(), newRemaining);
+            long oldFee = (long) (oldAmount * (chargeRate / 100));
+            long totalOldAmount = oldAmount + oldFee;
 
-            if (findAccount.getAvailableBalance() + oldAmount < updateAmount)
+            long updateAmount = Math.multiplyExact(dto.getUpdatePrice(), newRemaining);
+            long updateFee = (long) (updateAmount * (chargeRate / 100));
+            long totalUpdateAmount = updateAmount + updateFee;
+
+            if (findAccount.getAvailableBalance() + totalOldAmount < totalUpdateAmount)
                 throw new BusinessException(INSUFFICIENT_BALANCE);
             else
-                findAccount.relockBalance(oldAmount, updateAmount);
+                findAccount.relockBalance(totalOldAmount, totalUpdateAmount);
         }
 
         if (OrderType.SELL.equals(findOrder.getOrderType())) {
@@ -523,9 +602,12 @@ public class OrderServiceImpl implements OrderService {
         if (OrderType.BUY.equals(order.getOrderType())) {
             Account account = accountRepository.findWithLockByMember(order.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            double chargeRate = getChargeRate();
             long currentLocked = Math.multiplyExact(order.getOrderPrice(), order.getRemainingQuantity());
+            long currentFee = (long) (currentLocked * (chargeRate / 100));
             long originalLocked = Math.multiplyExact(originalPrice, newRemaining);
-            account.relockBalance(currentLocked, originalLocked);
+            long originalFee = (long) (originalLocked * (chargeRate / 100));
+            account.relockBalance(currentLocked + currentFee, originalLocked + originalFee);
         }
 
         if (OrderType.SELL.equals(order.getOrderType())) {
@@ -554,7 +636,8 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     @Override
     public CancelOrderContext validateAndCancelOrder(Long orderId) {
-        Long memberId = ((CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getId();
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+                .getId();
 
         Order findOrder = orderRepository.findWithLockByMemberIdAndOrderId(memberId, orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
@@ -570,7 +653,8 @@ public class OrderServiceImpl implements OrderService {
             Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             long lockedAmount = Math.multiplyExact(findOrder.getOrderPrice(), findOrder.getRemainingQuantity());
-            findAccount.cancelOrder(lockedAmount);
+            long feeOnLock = (long) (lockedAmount * (getChargeRate() / 100));
+            findAccount.cancelOrder(lockedAmount + feeOnLock);
         }
 
         if (OrderType.SELL.equals(findOrder.getOrderType())) {
@@ -612,7 +696,8 @@ public class OrderServiceImpl implements OrderService {
             Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             long lockedAmount = Math.multiplyExact(ctx.getOrderPrice(), ctx.getRemainingQuantity());
-            findAccount.lockBalance(lockedAmount);
+            long feeOnLock = (long) (lockedAmount * (getChargeRate() / 100));
+            findAccount.lockBalance(lockedAmount + feeOnLock);
         }
 
         if (OrderType.SELL.equals(ctx.getOrderType())) {
@@ -628,7 +713,8 @@ public class OrderServiceImpl implements OrderService {
     // 주문 가능 금액/수량 조회
     @Override
     public OrderCapacityResponseDto getOrderCapacity(Long tokenId) {
-        Long memberId = ((CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getId();
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
+                .getId();
         Long availableBalance = accountRepository.findByMemberId(memberId)
                 .map(Account::getAvailableBalance)
                 .orElse(0L);
@@ -637,5 +723,11 @@ public class OrderServiceImpl implements OrderService {
                 .map(MemberTokenHolding::getCurrentQuantity)
                 .orElse(0L);
         return new OrderCapacityResponseDto(availableBalance, availableQuantity);
+    }
+
+    private double getChargeRate() {
+        Common common = commonRepository.findCommon();
+        if (common == null) throw new BusinessException(ENTITY_NOT_FOUNT_ERROR);
+        return common.getChargeRate();
     }
 }
