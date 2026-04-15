@@ -50,4 +50,10 @@ public class MyAccountController {
         return ResponseEntity.ok(myAccountService.getBankingHistory(txTypes, pageable));
     }
 
+    @GetMapping("/orders")
+    public ResponseEntity<Page<OrderHistoryResponse>> getOrderHistory(
+            @RequestParam(defaultValue = "all") String orderTab,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(myAccountService.getOrderHistory(orderTab, pageable));
+    }
 }
