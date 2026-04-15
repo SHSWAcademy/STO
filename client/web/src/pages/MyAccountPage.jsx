@@ -16,16 +16,18 @@ import {
   MOCK_USER,
   ACCOUNT_DIVIDENDS,
   PROFIT_ANALYSIS_DATA,
-  OPEN_ORDERS,
-  FILLED_ORDERS,
 } from "../data/mock.js";
+
 import {
   fetchBalance,
   fetchPortfolio,
   deposit,
   withdraw,
   fetchBankingHistory,
+  fetchOrderHistory,
+  cancelOrder,
 } from "../lib/api.js";
+
 import { cn } from "../lib/utils.js";
 import { Modal } from "../components/ui/Modal.jsx";
 import { EmptyState } from "../components/ui/EmptyState.jsx";
@@ -61,7 +63,9 @@ export function MyAccountPage() {
   const [activeSubTab, setActiveSubTab] = useState("assets");
   const [historyFilter, setHistoryFilter] = useState("전체");
   const [orderTab, setOrderTab] = useState("all");
-  const [openOrders, setOpenOrders] = useState(OPEN_ORDERS);
+  const [orders, setOrders] = useState([]);
+  const [ordersPage, setOrdersPage] = useState(0);
+  const [ordersTotalPages, setOrdersTotalPages] = useState(0);
   const [isFillModalOpen, setIsFillModalOpen] = useState(false);
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [amount, setAmount] = useState("");
@@ -96,6 +100,21 @@ export function MyAccountPage() {
       }
     })();
   }, []);
+
+  async function loadOrders(page) {
+    try {
+      const res = await fetchOrderHistory(page, orderTab);
+      setOrders(res.data.content);
+      setOrdersTotalPages(res.data.totalPages);
+      setOrdersPage(page);
+    } catch (e) {
+      alert(e.response?.data?.message || "주문 내역을 불러오지 못했습니다.");
+    }
+  }
+
+  useEffect(() => {
+    if (activeSubTab === "orders") loadOrders(0);
+  }, [activeSubTab, orderTab]);
 
   async function loadHistory(page) {
     try {
@@ -140,9 +159,14 @@ export function MyAccountPage() {
     }
   }
 
-  function handleCancelOrder(orderId) {
-    if (window.confirm("정말 이 주문을 취소하시겠습니까?")) {
-      setOpenOrders((prev) => prev.filter((o) => o.id !== orderId));
+  async function handleCancelOrder(orderId) {
+    if (!window.confirm("정말 이 주문을 취소하시겠습니까?")) return;
+
+    try {
+      await cancelOrder(orderId);
+      loadOrders(ordersPage);
+    } catch (e) {
+      alert(e.response?.data?.message || "주문 취소에 실패했습니다.");
     }
   }
 
@@ -196,7 +220,10 @@ export function MyAccountPage() {
           <OrdersTab
             orderTab={orderTab}
             onOrderTab={setOrderTab}
-            openOrders={openOrders}
+            orders={orders}
+            page={ordersPage}
+            totalPage={ordersTotalPages}
+            onPageChange={(p) => loadOrders(p)}
             onCancel={handleCancelOrder}
           />
         )}
@@ -571,17 +598,32 @@ function HistoryTab({
 }
 
 // ── 주문내역 탭 ───────────────────────────────────────────────
-function OrdersTab({ orderTab, onOrderTab, openOrders, onCancel }) {
-  const allOrders = [
-    ...FILLED_ORDERS.map((o) => ({ ...o, isFilled: true })),
-    ...openOrders.map((o) => ({ ...o, isFilled: false })),
-  ];
-  const displayOrders =
-    orderTab === "filled"
-      ? FILLED_ORDERS.map((o) => ({ ...o, isFilled: true }))
-      : orderTab === "open"
-        ? openOrders.map((o) => ({ ...o, isFilled: false }))
-        : allOrders;
+function OrdersTab({
+  orderTab,
+  onOrderTab,
+  orders,
+  page,
+  totalPages,
+  onPageChange,
+  onCancel,
+}) {
+  function formatDateTime(createdAt) {
+    const d = new Date(createdAt);
+    const date = d
+      .toLocaleDateString("ko-KR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      })
+      .replace(/\. /g, ".")
+      .replace(/\.$/, "");
+    const time = d.toLocaleTimeString("ko-KR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    return `${date} ${time}`;
+  }
 
   return (
     <div className="space-y-8">
@@ -613,60 +655,62 @@ function OrdersTab({ orderTab, onOrderTab, openOrders, onCancel }) {
 
       <div className="bg-white border border-stone-200 rounded-[32px] overflow-hidden shadow-sm">
         <div className="divide-y divide-stone-100">
-          {displayOrders.length > 0 ? (
-            displayOrders.map((order) => (
+          {orders.length > 0 ? (
+            orders.map((order) => (
               <div
-                key={order.id}
+                key={order.orderId}
                 className="p-6 flex items-center justify-between hover:bg-stone-50 transition-colors"
               >
                 <div className="flex items-center gap-6">
                   <div className="flex flex-col w-16">
                     <span className="text-[10px] font-black text-stone-400 font-mono">
-                      {order.time}
+                      {formatDateTime(order.createdAt)}
                     </span>
                     <span className="text-xs font-bold text-stone-800 mt-1">
-                      {order.symbol}
+                      {order.tokenSymbol}
                     </span>
                   </div>
                   <div className="w-10 h-10 rounded-lg bg-stone-100 border border-stone-200 flex items-center justify-center text-[10px] font-black text-stone-400 shrink-0">
-                    {order.symbol.slice(0, 2)}
+                    {order.tokenSymbol.slice(0, 2)}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <p
                         className={cn(
                           "text-sm font-black",
-                          order.type.includes("매수")
+                          order.type === "BUY"
                             ? "text-brand-red"
                             : "text-brand-blue",
                         )}
                       >
-                        {order.type}
+                        {order.type === "BUY" ? "지정가 매수" : "지정가 매도"}
                       </p>
                       <span
                         className={cn(
                           "text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest",
-                          order.isFilled
+                          order.orderStatus === "FILLED"
                             ? "bg-brand-red-light text-brand-red"
                             : "bg-[#fef6dc] text-[#a07828]",
                         )}
                       >
-                        {order.isFilled ? "체결" : "미체결"}
+                        {order.orderStatus === "FILLED" ? "체결" : "미체결"}
                       </span>
                     </div>
                     <p className="text-[10px] text-stone-400 font-bold mt-0.5">
-                      {order.price.toLocaleString()}원 | {order.qty}주
-                      {order.isFilled
-                        ? ` | 수수료 ${order.fee?.toLocaleString()}원`
-                        : ` (잔량 ${order.remaining}주)`}
+                      {order.orderPrice.toLocaleString()}원 |{" "}
+                      {order.orderQuantity}주
+                      {order.orderStatus === "FILLED" &&
+                        ` (잔량 ${order.remainingQuantity}주)`}
                     </p>
                   </div>
                 </div>
                 <div className="text-right flex items-center gap-4">
-                  {order.isFilled ? (
+                  {order.orderStatus === "FILLED" ? (
                     <div>
                       <p className="text-sm font-black text-stone-800">
-                        {order.amount?.toLocaleString()}원
+                        {order.orderPrice *
+                          order.filledQuantity?.toLocaleString()}
+                        원
                       </p>
                       <span className="text-[10px] font-black text-brand-red uppercase tracking-widest">
                         체결완료
@@ -674,7 +718,7 @@ function OrdersTab({ orderTab, onOrderTab, openOrders, onCancel }) {
                     </div>
                   ) : (
                     <button
-                      onClick={() => onCancel(order.id)}
+                      onClick={() => onCancel(order.orderId)}
                       className="px-4 py-2 rounded-xl bg-brand-red-light text-brand-red text-xs font-black hover:bg-[#fccfcf] transition-all border border-brand-red-light"
                     >
                       취소
@@ -688,6 +732,11 @@ function OrdersTab({ orderTab, onOrderTab, openOrders, onCancel }) {
           )}
         </div>
       </div>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={onPageChange}
+      />
     </div>
   );
 }

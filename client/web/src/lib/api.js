@@ -53,4 +53,13 @@ export const fetchBankingHistory = (page = 0, txTypes = []) =>
       return searchParams.toString();
     },
   });
+
+export const fetchOrderHistory = (page = 0, orderTab = "all") =>
+  api.get("/api/myaccount/orders", {
+    params: { page, size: 10, orderTab },
+  });
+
+export const cancelOrder = (orderId) =>
+  api.delete(`/api/token/order/cancel/${orderId}`);
+
 export default api;
