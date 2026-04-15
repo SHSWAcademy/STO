@@ -25,6 +25,9 @@ import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.file.File;
 import server.main.global.file.FileService;
+import server.main.log.loginLog.service.LoginLogService;
+import server.main.log.orderLog.service.OrderLogService;
+import server.main.log.tradeLog.service.TradeLogService;
 import server.main.member.entity.Member;
 import server.main.member.repository.MemberRepository;
 import server.main.notice.service.NoticeService;
@@ -56,6 +59,9 @@ public class AdminServiceImpl implements AdminService {
     private final PlatformBankingRepository platformBankingRepository;
     private final MemberRepository memberRepository;
     private final TradeRepository tradeRepository;
+    private final LoginLogService loginLogService;
+    private final OrderLogService orderLogService;
+    private final TradeLogService tradeLogService;
 
     // 자산등록
     // 자산 이미지 등록 -> 자산 등록 ->  토큰 등록 -> 플랫폼 소유 토큰 등록 -> 자산 계좌 생성 및 입금 -> 공시 / 공지 등록 -> 첨부파일 등록
@@ -460,6 +466,49 @@ public class AdminServiceImpl implements AdminService {
         log.info("거래내역 조회 : {}", tradeList);
 
         return tradeList;
+    }
+
+    // 로그관리 데이터 조회
+    @Override
+    public Page<SystemLogResponseDTO> getSystemLong(String category, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<SystemLogResponseDTO> list = null;
+
+        // 로그인, 주문, 거래 내역 조회
+        if (category.equals("loginLog")) {
+             list = loginLogService.findLoginLog(pageable)
+                     .map(loginLog -> SystemLogResponseDTO.builder()
+                             .loginLogId(loginLog.getLoginLogId())
+                             .ip(loginLog.getIp())
+                             .task(loginLog.getTask())
+                             .result(loginLog.getResult())
+                             .detail(loginLog.getDetail())
+                             .createdAt(loginLog.getCreatedAt())
+                             .identifier(loginLog.getIdentifier())
+                             .build());
+        } else if (category.equals("oderLog")) {
+            list = orderLogService.findOrderLog(pageable)
+                    .map(orderLog -> SystemLogResponseDTO.builder()
+                            .orderLogId(orderLog.getOrderLogId())
+                            .orderType(orderLog.getOrderType())
+                            .task(orderLog.getTask())
+                            .result(orderLog.getResult())
+                            .identifier(orderLog.getIdentifier())
+                            .detail(orderLog.getDetail())
+                            .createdAt(orderLog.getCreatedAt())
+                            .build());
+        } else {
+            list = tradeLogService.findTradeLog(pageable)
+                    .map(tradeLog -> SystemLogResponseDTO.builder()
+                            .tradeLogId(tradeLog.getTradeLogId())
+                            .task(tradeLog.getTask())
+                            .detail(tradeLog.getDetail())
+                            .identifier(tradeLog.getIdentifier())
+                            .result(tradeLog.getResult())
+                            .createdAt(tradeLog.getCreatedAt())
+                            .build());
+        }
+        return list;
     }
 
     // 마감월 리턴 메서드

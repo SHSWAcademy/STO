@@ -8,7 +8,7 @@ import server.main.log.LogBaseEntity;
 
 @Entity
 @Getter
-@Table(name = "LOGIN_LOG")
+@Table(name = "LOGIN_LOGS")
 @NoArgsConstructor
 @SuperBuilder
 public class LoginLog extends LogBaseEntity {
@@ -16,4 +16,5 @@ public class LoginLog extends LogBaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "login_log_id")
     private Long loginLogId;
+    private String ip;
 }
