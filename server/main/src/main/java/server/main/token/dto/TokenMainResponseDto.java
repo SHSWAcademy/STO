@@ -19,5 +19,5 @@ public class TokenMainResponseDto {
     private Double fluctuationRate;
     private Long totalTradeValue;
     private Long totalTradeQuantity;
-    private List<Long> sparkLine;
+    private List<SparkPointDto> sparkLine;
 }
