@@ -571,12 +571,18 @@ export function MockupPage() {
         .catch(e => console.warn('[MockupPage] 체결 목록 조회 실패:', e));
   }, [TOKEN_ID, user?.accessToken]);
 
-  // ── 현재가 계산 (null 슬롯 제외하고 가장 최근 종가) ────────────
+  // ── 현재가 — REST 초기값 + 체결 WebSocket으로만 갱신 (차트 주기와 무관)
+  const [currentPrice, setCurrentPrice] = useState(0);
+
+  useEffect(() => {
+    if (tokenInfo?.currentPrice) setCurrentPrice(tokenInfo.currentPrice);
+  }, [tokenInfo]);
+
+  // 차트 hover용 — 차트 주기 전환에 영향받지 않도록 currentPrice와 분리
   const lastWithData = useMemo(
     () => [...chartData].reverse().find(c => c.close != null),
     [chartData]
   );
-  const currentPrice = lastWithData?.close ?? (tokenInfo?.currentPrice ?? 0);
 
   const basePrice = tokenInfo?.yesterdayClosePrice || currentPrice || 1;
   const displayData = hoveredData || lastWithData || null;
@@ -678,6 +684,7 @@ export function MockupPage() {
       if (data.bids) setBids(data.bids.map(r => ({ price: r.price, amount: r.quantity })));
     },
     onTrades: (data) => {
+      if (data.tradePrice) setCurrentPrice(data.tradePrice);
       setExecutions(prev =>
           [{ price: data.tradePrice, qty: data.tradeQuantity, isBuy: data.isBuy }, ...prev].slice(0, 15)
       );
