@@ -2,7 +2,7 @@
 // /token/:tokenId 로 접근
 // 팀원 작업 중인 TradingPage와 분리된 독립 테스트 공간
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   ResponsiveContainer, ComposedChart, BarChart, Bar,
@@ -84,6 +84,44 @@ function mapCandle(dto, period) {
     close: Math.round(dto.closePrice || 0),
     vol:   Math.round(dto.volume     || 0),
   };
+}
+
+// 현재 시간 기준 35개 고정 슬롯 생성 (오래된 → 최근 순, 현재 분 제외)
+function generate35Slots(period) {
+  const now = new Date();
+  const slots = [];
+  for (let i = 34; i >= 0; i--) {
+    const d = new Date(now);
+    if (period === '분') {
+      d.setSeconds(0, 0);
+      d.setMinutes(d.getMinutes() - (i + 1));
+    } else if (period === '시간') {
+      d.setMinutes(0, 0, 0);
+      d.setHours(d.getHours() - (i + 1));
+    } else if (period === '일') {
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - (i + 1));
+    } else if (period === '월') {
+      d.setDate(1); d.setHours(0, 0, 0, 0);
+      d.setMonth(d.getMonth() - (i + 1));
+    } else if (period === '년') {
+      d.setMonth(0, 1); d.setHours(0, 0, 0, 0);
+      d.setFullYear(d.getFullYear() - (i + 1));
+    }
+    slots.push({
+      ts: d.getTime(),
+      time: formatCandleTime(d.getTime(), period),
+      open: null, high: null, low: null, close: null, vol: null,
+    });
+  }
+  return slots;
+}
+
+// 35개 슬롯 + 실제 캔들 병합 — 데이터 없는 슬롯은 null OHLCV 유지
+function buildChartData(fetchedCandles, period) {
+  const slots = generate35Slots(period);
+  const candleByTime = new Map(fetchedCandles.map(c => [c.time, c]));
+  return slots.map(slot => candleByTime.get(slot.time) ?? slot);
 }
 
 // ── 캔들스틱 shape ───────────────────────────────────────────────
@@ -523,18 +561,52 @@ export function MockupPage() {
         .catch(e => console.warn('[MockupPage] 체결 목록 조회 실패:', e));
   }, [TOKEN_ID, user?.accessToken]);
 
-  // ── 현재가 계산 ──────────────────────────────────────────────
-  const currentPrice = chartData.length > 0
-      ? chartData[chartData.length - 1].close
-      : (tokenInfo?.currentPrice ?? 0);
+  // ── 현재가 계산 (null 슬롯 제외하고 가장 최근 종가) ────────────
+  const lastWithData = useMemo(
+    () => [...chartData].reverse().find(c => c.close != null),
+    [chartData]
+  );
+  const currentPrice = lastWithData?.close ?? (tokenInfo?.currentPrice ?? 0);
 
-  // 전날 종가: 백엔드에서 받은 yesterdayClosePrice 고정값 사용 (차트 기간 무관)
-  // fallback: yesterdayClosePrice 없으면 currentPrice
   const basePrice = tokenInfo?.yesterdayClosePrice || currentPrice || 1;
-  const displayData = hoveredData || (chartData.length > 0 ? chartData[chartData.length - 1] : null);
+  const displayData = hoveredData || lastWithData || null;
 
-  const dailyHigh = chartData.length > 0 ? Math.max(...chartData.map(c => c.high)) : 0;
-  const dailyLow  = chartData.length > 0 ? Math.min(...chartData.map(c => c.low))  : 0;
+  const validHighs = useMemo(() => chartData.map(c => c.high).filter(v => v != null), [chartData]);
+  const validLows  = useMemo(() => chartData.map(c => c.low).filter(v  => v != null), [chartData]);
+  const dailyHigh  = validHighs.length > 0 ? Math.max(...validHighs) : 0;
+  const dailyLow   = validLows.length  > 0 ? Math.min(...validLows)  : 0;
+
+  // Y축 도메인 — null 슬롯 제외한 실제 가격 기준
+  // 호가 단위 정책 (TickSizePolicy.java 동일 기준)
+  const getTickSize = (price) => {
+    if (price < 100)   return 10;
+    if (price < 1000)  return 50;
+    if (price < 10000) return 100;
+    return 500;
+  };
+
+  const { yDomain, yTicks } = useMemo(() => {
+    const prices = chartData.flatMap(d => [d.low, d.high]).filter(v => v != null);
+    if (prices.length === 0) return { yDomain: ['auto', 'auto'], yTicks: undefined };
+
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const mid = (min + max) / 2;
+    const tickSize = getTickSize(mid);
+
+    // 패딩: 최소 tickSize 1칸, 범위의 10%
+    const pad = Math.max(tickSize, Math.ceil((max - min) * 0.1 / tickSize) * tickSize);
+    const domainMin = Math.floor((min - pad) / tickSize) * tickSize;
+    const domainMax = Math.ceil((max + pad) / tickSize) * tickSize;
+
+    // 5~7개 tick — 호가 단위 배수로 정렬
+    const range = domainMax - domainMin;
+    const interval = Math.ceil(range / (5 * tickSize)) * tickSize;
+    const ticks = [];
+    for (let t = domainMin; t <= domainMax; t += interval) ticks.push(t);
+
+    return { yDomain: [domainMin, domainMax], yTicks: ticks };
+  }, [chartData]);
 
   const maxAskAmount = Math.max(...asks.map(r => r.amount), 1);
   const maxBidAmount = Math.max(...bids.map(r => r.amount), 1);
@@ -566,7 +638,7 @@ export function MockupPage() {
     try {
       const type = PERIOD_TO_TYPE[chartPeriod];
       const res = await api.get(`/api/token/${TOKEN_ID}/candle?type=${type}`);
-      setChartData(res.data.map(d => mapCandle(d, chartPeriod)));
+      setChartData(buildChartData(res.data.map(d => mapCandle(d, chartPeriod)), chartPeriod));
     } catch (e) {
       console.warn('[MockupPage] 캔들 조회 실패:', e.message);
     } finally {
@@ -617,11 +689,15 @@ export function MockupPage() {
       const newCandle = mapCandle(data, chartPeriod);
       setChartData(prev => {
         if (prev.length === 0) return [newCandle];
-        const last = prev[prev.length - 1];
-        // 같은 봉: 마지막 캔들 교체 / 새 봉: 끝에 추가
-        return last.time === newCandle.time
-            ? [...prev.slice(0, -1), newCandle]
-            : [...prev, newCandle];
+        const idx = prev.findIndex(c => c.time === newCandle.time);
+        if (idx >= 0) {
+          // 기존 슬롯(빈 슬롯 포함) 교체
+          const updated = [...prev];
+          updated[idx] = newCandle;
+          return updated;
+        }
+        // 새 시간대 캔들 — 오른쪽 끝에 추가
+        return [...prev, newCandle];
       });
     },
     onPendingOrders: (data) => {
@@ -730,11 +806,8 @@ export function MockupPage() {
                                   <CartesianGrid strokeDasharray="3 3" stroke="#f0efee" vertical={false} />
                                   <XAxis dataKey="time" hide />
                                   <YAxis orientation="right"
-                                         domain={([min, max]) => {
-                                           const pad = Math.max(Math.ceil((max - min) * 0.05), 1);
-                                           return [min - pad, max + pad];
-                                         }}
-                                         tickCount={5}
+                                         domain={yDomain}
+                                         ticks={yTicks}
                                          tick={{ fontSize: 10, fill: '#a8a29e', fontWeight: 'bold' }}
                                          axisLine={false} tickLine={false}
                                          tickFormatter={v => v.toLocaleString()} width={56} />
@@ -760,12 +833,13 @@ export function MockupPage() {
                               </ResponsiveContainer>
                             </div>
 
-                            {/* 거래량 차트 */}
-                            <div className="h-[64px] px-2 border-t border-stone-100">
+                            {/* 거래량 차트 + x축 레이블 */}
+                            <div className="h-[72px] px-2 border-t border-stone-100">
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartData} margin={{ top: 2, right: 48, left: 0, bottom: 0 }}>
                                   <XAxis dataKey="time" axisLine={false} tickLine={false}
-                                         tick={{ fontSize: 9, fill: '#a8a29e' }} minTickGap={30} />
+                                         tick={{ fontSize: 9, fill: '#a8a29e' }} minTickGap={40}
+                                         interval="preserveStartEnd" />
                                   <YAxis hide domain={[0, 'auto']} />
                                   <Bar dataKey="vol" fill="#d6d3d1" radius={[2, 2, 0, 0]} isAnimationActive={false} />
                                 </BarChart>
@@ -829,11 +903,10 @@ export function MockupPage() {
 
                     // 매도 우측 통계 항목
                     const statItems = [
-                      { label: '상한가', value: currentPrice > 0 ? Math.round(currentPrice * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)' },
-                      { label: '하한가', value: currentPrice > 0 ? Math.round(currentPrice * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)' },
-                      { label: '상승VI', value: '-', color: '#a8a29e' },
-                      { label: '하강VI', value: '-', color: '#a8a29e' },
-                      { label: '시작',   value: chartData.length > 0 ? chartData[0].open.toLocaleString() : '-', color: '#292524' },
+                      // TODO: 백엔드 로직 미구현 — 전일 종가 기준 ±30% 하드코딩
+                      { label: '상한가', value: basePrice > 0 ? Math.round(basePrice * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)', unimplemented: true },
+                      { label: '하한가', value: basePrice > 0 ? Math.round(basePrice * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)', unimplemented: true },
+                      { label: '시작',   value: chartData.find(c => c.open != null)?.open.toLocaleString() ?? '-', color: '#292524' },
                       { label: '1일최고', value: dailyHigh > 0 ? dailyHigh.toLocaleString() : '-', color: 'var(--color-brand-red)' },
                       { label: '1일최저', value: dailyLow  > 0 ? dailyLow.toLocaleString()  : '-', color: 'var(--color-brand-blue)' },
                       { label: '거래량',  value: (() => { const v = trades[0]?.vol ?? 0; return v > 0 ? (v >= 10000 ? `${(v/10000).toFixed(1)}만` : v.toLocaleString()) : '-'; })(), color: '#292524' },
@@ -872,9 +945,14 @@ export function MockupPage() {
                                 {/* 우: 통계 */}
                                 <div className="flex items-center pl-1 pr-2">
                                   {stat && (
-                                    <div className="flex justify-between w-full">
-                                      <span className="text-[9px] font-bold text-stone-400">{stat.label}</span>
-                                      <span className="text-[9px] font-bold" style={{ color: stat.color }}>{stat.value}</span>
+                                    <div className="flex flex-col w-full gap-0.5">
+                                      <div className="flex justify-between w-full">
+                                        <span className="text-[9px] font-bold text-stone-400">{stat.label}</span>
+                                        <span className="text-[9px] font-bold" style={{ color: stat.color }}>{stat.value}</span>
+                                      </div>
+                                      {stat.unimplemented && (
+                                        <span className="text-[8px] font-bold text-amber-400 text-right">미구현</span>
+                                      )}
                                     </div>
                                   )}
                                 </div>

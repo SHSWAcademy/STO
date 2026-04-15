@@ -17,7 +17,17 @@ export function useTradingSocket({
                                    onCandle,
                                    onPendingOrders,
                                  }) {
-  const clientRef = useRef(null);
+  const clientRef        = useRef(null);
+  const onOrderBookRef   = useRef(onOrderBook);
+  const onTradesRef      = useRef(onTrades);
+  const onCandleRef      = useRef(onCandle);
+  const onPendingOrdersRef = useRef(onPendingOrders);
+
+  // 매 렌더마다 ref를 최신 콜백으로 갱신 — 재연결 없이 항상 최신 함수 호출
+  onOrderBookRef.current   = onOrderBook;
+  onTradesRef.current      = onTrades;
+  onCandleRef.current      = onCandle;
+  onPendingOrdersRef.current = onPendingOrders;
 
   useEffect(() => {
     if (!tokenId) return;
@@ -28,24 +38,24 @@ export function useTradingSocket({
       reconnectDelay: 5000,
       onConnect: () => {
         const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
-        if (onOrderBook) {
+        if (onOrderBookRef.current) {
           client.subscribe(`/topic/orderBook/${tokenId}`, (msg) => {
-            try { onOrderBook(JSON.parse(msg.body)); } catch (e) {}
+            try { onOrderBookRef.current(JSON.parse(msg.body)); } catch (e) {}
           }, authHeader);
         }
-        if (onTrades) {
+        if (onTradesRef.current) {
           client.subscribe(`/topic/trades/${tokenId}`, (msg) => {
-            try { onTrades(JSON.parse(msg.body)); } catch (e) {}
+            try { onTradesRef.current(JSON.parse(msg.body)); } catch (e) {}
           }, authHeader);
         }
-        if (onCandle) {
+        if (onCandleRef.current) {
           client.subscribe(`/topic/candle/live/${tokenId}/${candleType}`, (msg) => {
-            try { onCandle(JSON.parse(msg.body)); } catch (e) {}
+            try { onCandleRef.current(JSON.parse(msg.body)); } catch (e) {}
           }, authHeader);
         }
-        if (onPendingOrders && memberId) {
+        if (onPendingOrdersRef.current && memberId) {
           client.subscribe(`/topic/pendingOrders/${tokenId}/${memberId}`, (msg) => {
-            try { onPendingOrders(JSON.parse(msg.body)); } catch (e) {}
+            try { onPendingOrdersRef.current(JSON.parse(msg.body)); } catch (e) {}
           }, authHeader);
         }
       },
