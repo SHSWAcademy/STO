@@ -63,6 +63,9 @@ export function AllocationList({ items, loading, error, onSelect, onNew }) {
                 <th className="px-6 py-4 text-right text-[10px] font-semibold uppercase tracking-wide text-stone-400">
                   월 수익
                 </th>
+                <th className="px-6 py-4 text-right text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                  전월 배당잔여금
+                </th>
                 <th className="px-6 py-4 text-center text-[10px] font-semibold uppercase tracking-wide text-stone-400">
                   정산월
                 </th>
@@ -78,7 +81,7 @@ export function AllocationList({ items, loading, error, onSelect, onNew }) {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-6 py-16 text-center text-sm text-stone-400"
                   >
                     불러오는 중...
@@ -87,7 +90,7 @@ export function AllocationList({ items, loading, error, onSelect, onNew }) {
               ) : items.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-6 py-16 text-center text-sm text-stone-400"
                   >
                     등록된 배당 이벤트가 없습니다.
@@ -128,6 +131,9 @@ export function AllocationList({ items, loading, error, onSelect, onNew }) {
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-bold text-stone-800">
                         {formatCurrency(item.monthlyDividendIncome)}
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm font-bold text-stone-500">
+                        {formatCurrency(item.remainder)}
                       </td>
                       <td className="px-6 py-4 text-center text-sm font-medium text-stone-500">
                         {formatYearMonth(item.targetMonth)}

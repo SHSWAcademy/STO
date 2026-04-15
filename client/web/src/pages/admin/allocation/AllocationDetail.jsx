@@ -179,9 +179,6 @@ export function AllocationDetail({
                         <td className="px-6 py-4 text-center">
                           {detail.storedName ? (
                             <div className="flex items-center justify-center gap-2">
-                              <span className="max-w-[180px] truncate text-xs font-medium text-stone-600">
-                                {detail.originName ?? detail.storedName}
-                              </span>
                               <a
                                 href={pdfViewUrl(detail.storedName)}
                                 target="_blank"

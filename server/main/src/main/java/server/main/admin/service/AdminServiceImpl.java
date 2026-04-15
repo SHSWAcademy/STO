@@ -18,6 +18,8 @@ import server.main.admin.repository.PlatformTokenHoldingsRepository;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
 import server.main.asset.entity.Asset;
+import server.main.asset.entity.AssetAccount;
+import server.main.asset.repository.AssetAccountRepository;
 import server.main.asset.service.AssetService;
 import server.main.blockchain.service.ContractGatewayService;
 import server.main.disclosure.service.DisclosureService;
@@ -62,6 +64,7 @@ public class AdminServiceImpl implements AdminService {
     private final LoginLogService loginLogService;
     private final OrderLogService orderLogService;
     private final TradeLogService tradeLogService;
+    private final AssetAccountRepository assetAccountRepository;
 
     // 자산등록
     // 자산 이미지 등록 -> 자산 등록 ->  토큰 등록 -> 플랫폼 소유 토큰 등록 -> 자산 계좌 생성 및 입금 -> 공시 / 공지 등록 -> 첨부파일 등록
@@ -180,17 +183,24 @@ public class AdminServiceImpl implements AdminService {
         LocalDate adminTargetMonth = getAdminTargetMonth();
         log.info("관리자 마감일 : {}", adminTargetMonth );
         // 배당 이벤트내역 조회
-        // 자산ID를 MAP의 키값으로 설정
+        // 자산ID를 MAP의 키값으로 생성
         Map<Long, AllocationEvent> allocationEventMap = allocationEventRepository
                 .findAllBySettlementMonth(targetMonth.getYear(), targetMonth.getMonthValue())
                 .stream()
                 .collect(Collectors.toMap(e -> e.getAssetId(), e -> e));
         log.info("배당 이벤트 내역 조회 : {}", allocationEventMap);
+
+        // 자산ID를 MAP의 키값으로 생성
+        Map<Long, AssetAccount> assetAccountMap = assetAccountRepository.findAll()
+                .stream()
+                .collect(Collectors.toMap(e -> e.getAssetId(), e -> e));
+
         // assetId를 기준으로 매핑 후 리턴
         return tokens.stream()
                 .map(token -> {
                     AllocationEvent event = allocationEventMap.get(token.getAsset().getAssetId());
-                    return adminMapper.toAllocationListResponseDTO(token, event, targetMonth, adminTargetMonth);
+                    AssetAccount assetAccount = assetAccountMap.get(token.getAsset().getAssetId());
+                    return adminMapper.toAllocationListResponseDTO(token, event, targetMonth, adminTargetMonth, assetAccount);
                 }).collect(Collectors.toList());
     }
 
@@ -486,6 +496,7 @@ public class AdminServiceImpl implements AdminService {
                              .createdAt(loginLog.getCreatedAt())
                              .identifier(loginLog.getIdentifier())
                              .build());
+             log.info("로그인 로그 조회 : {}", list);
         } else if (category.equals("oderLog")) {
             list = orderLogService.findOrderLog(pageable)
                     .map(orderLog -> SystemLogResponseDTO.builder()
@@ -497,6 +508,7 @@ public class AdminServiceImpl implements AdminService {
                             .detail(orderLog.getDetail())
                             .createdAt(orderLog.getCreatedAt())
                             .build());
+            log.info("주문 로그 조회 : {}", list);
         } else {
             list = tradeLogService.findTradeLog(pageable)
                     .map(tradeLog -> SystemLogResponseDTO.builder()
@@ -507,6 +519,7 @@ public class AdminServiceImpl implements AdminService {
                             .result(tradeLog.getResult())
                             .createdAt(tradeLog.getCreatedAt())
                             .build());
+            log.info("거래 로그 조회 : {}", list);
         }
         return list;
     }
