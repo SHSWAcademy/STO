@@ -8,7 +8,7 @@ import server.main.log.LogBaseEntity;
 
 @Entity
 @Getter
-@Table(name = "TRADE_LOGS")
+@Table(name = "order_logs")
 @NoArgsConstructor
 @SuperBuilder
 public class OrderLog extends LogBaseEntity {
@@ -16,4 +16,5 @@ public class OrderLog extends LogBaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "order_log_id")
     private Long orderLogId;
+    private String orderType;
 }
