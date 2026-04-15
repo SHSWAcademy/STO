@@ -20,6 +20,9 @@ import server.main.myaccount.dto.PortfolioResponse;
 import server.main.myaccount.dto.VerifyAccountPasswordRequest;
 import server.main.myaccount.dto.WithdrawRequest;
 import server.main.myaccount.dto.*;
+import server.main.order.entity.Order;
+import server.main.order.entity.OrderStatus;
+import server.main.order.repository.OrderRepository;
 
 import java.util.List;
 
@@ -32,6 +35,7 @@ public class MyAccountServiceImpl implements MyAccountService{
     private final MemberBankRepository memberBankRepository;
     private final MemberTokenHoldingRepository memberTokenHoldingRepository;
     private final PasswordEncoder passwordEncoder;
+    private final OrderRepository orderRepository;
 
     @Override
     public void deposit(DepositRequest depositRequest) {
@@ -133,5 +137,25 @@ public class MyAccountServiceImpl implements MyAccountService{
         }
         return memberBankRepository.findByAccountAndTxTypeIn(account, txTypes, pageable)
                 .map(BankingHistoryResponse::from);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrderHistoryResponse> getOrderHistory(String orderTab, Pageable pageable) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Page<Order> orders;
+
+        if ("open".equals(orderTab)) {
+            List<OrderStatus> openStatuses = List.of(OrderStatus.OPEN, OrderStatus.PENDING, OrderStatus.PARTIAL);
+            orders = orderRepository.findAllByMemberIdAndStatuses(memberId, openStatuses, pageable);
+        } else if ("filled".equals(orderTab)) {
+            List<OrderStatus> filledStatuses = List.of(OrderStatus.FILLED);
+            orders = orderRepository.findAllByMemberIdAndStatuses(memberId, filledStatuses, pageable);
+        } else {
+            orders = orderRepository.findAllByMemberId(memberId,pageable);
+        }
+        return orders.map(OrderHistoryResponse::from);
     }
 }

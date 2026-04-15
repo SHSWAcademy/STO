@@ -25,4 +25,6 @@ public interface MyAccountService {
 
     Page<BankingHistoryResponse> getBankingHistory(List<TxType> txTypes, Pageable pageable);
 
+    Page<OrderHistoryResponse> getOrderHistory(String orderTab, Pageable pageable);
+
 }
