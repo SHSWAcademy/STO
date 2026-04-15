@@ -1,6 +1,8 @@
 package server.main.myaccount.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import server.main.myaccount.dto.DepositRequest;
 import server.main.myaccount.dto.PortfolioResponse;
 import server.main.myaccount.dto.VerifyAccountPasswordRequest;
 import server.main.myaccount.dto.WithdrawRequest;
+import server.main.myaccount.dto.*;
 
 import java.util.List;
 
@@ -105,6 +108,7 @@ public class MyAccountServiceImpl implements MyAccountService{
     @Override
     @Transactional(readOnly = true)
     public void verifyAccountPassword(VerifyAccountPasswordRequest request) {
+    public Page<BankingHistoryResponse> getBankingHistory(List<TxType> txTypes, Pageable pageable) {
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal()).getId();
 
@@ -114,5 +118,12 @@ public class MyAccountServiceImpl implements MyAccountService{
         if (!passwordEncoder.matches(request.getAccountPassword(), account.getAccountPassword())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
+        if (txTypes == null || txTypes.isEmpty()) {
+            return memberBankRepository.findByAccount(account, pageable)
+                    .map(BankingHistoryResponse::from);
+        }
+
+        return memberBankRepository.findByAccountAndTxTypeIn(account, txTypes, pageable)
+                .map(BankingHistoryResponse::from);
     }
 }

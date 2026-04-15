@@ -39,4 +39,23 @@ export const deposit = (amount) =>
   api.post("/api/myaccount/deposit", { amount });
 export const withdraw = (amount) =>
   api.post("/api/myaccount/withdraw", { amount });
+export const fetchBankingHistory = (page = 0, txTypes = []) =>
+  api.get("/api/myaccount/history", {
+    params: {
+      page,
+      size: 10,
+      ...(txTypes.length > 0 && { txTypes }),
+    },
+    paramsSerializer: (params) => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          value.forEach((v) => searchParams.append(key, v));
+        } else {
+          searchParams.append(key, value);
+        }
+      });
+      return searchParams.toString();
+    },
+  });
 export default api;

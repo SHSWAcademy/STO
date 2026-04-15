@@ -5,6 +5,10 @@ import server.main.myaccount.dto.DepositRequest;
 import server.main.myaccount.dto.PortfolioResponse;
 import server.main.myaccount.dto.VerifyAccountPasswordRequest;
 import server.main.myaccount.dto.WithdrawRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import server.main.member.entity.TxType;
+import server.main.myaccount.dto.*;
 
 import java.util.List;
 
@@ -18,5 +22,6 @@ public interface MyAccountService {
     List<PortfolioResponse> getPortfolio();
 
     void verifyAccountPassword(VerifyAccountPasswordRequest request);
+    Page<BankingHistoryResponse> getBankingHistory(List<TxType> txTypes, Pageable pageable);
 
 }
