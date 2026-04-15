@@ -19,6 +19,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE o.member.memberId =:memberId AND o.orderId =:orderId")
     Optional<Order> findByMemberIdAndOrderId(@Param("memberId") Long memberId, @Param("orderId") Long orderId);
 
+    @Query("SELECT o FROM Order o WHERE o.token.tokenId = :tokenId AND o.orderStatus IN ('OPEN', 'PARTIAL')")
+    List<Order> findOpenAndPartialByTokenId(@Param("tokenId") Long tokenId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Order o WHERE o.orderId = :orderId")
     Optional<Order> findWithLockById(@Param("orderId") Long orderId);

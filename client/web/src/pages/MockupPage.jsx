@@ -2,7 +2,7 @@
 // /token/:tokenId 로 접근
 // 팀원 작업 중인 TradingPage와 분리된 독립 테스트 공간
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   ResponsiveContainer, ComposedChart, BarChart, Bar,
@@ -84,6 +84,44 @@ function mapCandle(dto, period) {
     close: Math.round(dto.closePrice || 0),
     vol:   Math.round(dto.volume     || 0),
   };
+}
+
+// 현재 시간 기준 35개 고정 슬롯 생성 (오래된 → 최근 순, 현재 분 제외)
+function generate35Slots(period) {
+  const now = new Date();
+  const slots = [];
+  for (let i = 34; i >= 0; i--) {
+    const d = new Date(now);
+    if (period === '분') {
+      d.setSeconds(0, 0);
+      d.setMinutes(d.getMinutes() - (i + 1));
+    } else if (period === '시간') {
+      d.setMinutes(0, 0, 0);
+      d.setHours(d.getHours() - (i + 1));
+    } else if (period === '일') {
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - (i + 1));
+    } else if (period === '월') {
+      d.setDate(1); d.setHours(0, 0, 0, 0);
+      d.setMonth(d.getMonth() - (i + 1));
+    } else if (period === '년') {
+      d.setMonth(0, 1); d.setHours(0, 0, 0, 0);
+      d.setFullYear(d.getFullYear() - (i + 1));
+    }
+    slots.push({
+      ts: d.getTime(),
+      time: formatCandleTime(d.getTime(), period),
+      open: null, high: null, low: null, close: null, vol: null,
+    });
+  }
+  return slots;
+}
+
+// 35개 슬롯 + 실제 캔들 병합 — 데이터 없는 슬롯은 null OHLCV 유지
+function buildChartData(fetchedCandles, period) {
+  const slots = generate35Slots(period);
+  const candleByTime = new Map(fetchedCandles.map(c => [c.time, c]));
+  return slots.map(slot => candleByTime.get(slot.time) ?? slot);
 }
 
 // ── 캔들스틱 shape ───────────────────────────────────────────────
@@ -523,18 +561,52 @@ export function MockupPage() {
         .catch(e => console.warn('[MockupPage] 체결 목록 조회 실패:', e));
   }, [TOKEN_ID, user?.accessToken]);
 
-  // ── 현재가 계산 ──────────────────────────────────────────────
-  const currentPrice = chartData.length > 0
-      ? chartData[chartData.length - 1].close
-      : (tokenInfo?.currentPrice ?? 0);
+  // ── 현재가 계산 (null 슬롯 제외하고 가장 최근 종가) ────────────
+  const lastWithData = useMemo(
+    () => [...chartData].reverse().find(c => c.close != null),
+    [chartData]
+  );
+  const currentPrice = lastWithData?.close ?? (tokenInfo?.currentPrice ?? 0);
 
-  // 전날 종가: 백엔드에서 받은 yesterdayClosePrice 고정값 사용 (차트 기간 무관)
-  // fallback: yesterdayClosePrice 없으면 currentPrice
   const basePrice = tokenInfo?.yesterdayClosePrice || currentPrice || 1;
-  const displayData = hoveredData || (chartData.length > 0 ? chartData[chartData.length - 1] : null);
+  const displayData = hoveredData || lastWithData || null;
 
-  const dailyHigh = chartData.length > 0 ? Math.max(...chartData.map(c => c.high)) : 0;
-  const dailyLow  = chartData.length > 0 ? Math.min(...chartData.map(c => c.low))  : 0;
+  const validHighs = useMemo(() => chartData.map(c => c.high).filter(v => v != null), [chartData]);
+  const validLows  = useMemo(() => chartData.map(c => c.low).filter(v  => v != null), [chartData]);
+  const dailyHigh  = validHighs.length > 0 ? Math.max(...validHighs) : 0;
+  const dailyLow   = validLows.length  > 0 ? Math.min(...validLows)  : 0;
+
+  // Y축 도메인 — null 슬롯 제외한 실제 가격 기준
+  // 호가 단위 정책 (TickSizePolicy.java 동일 기준)
+  const getTickSize = (price) => {
+    if (price < 100)   return 10;
+    if (price < 1000)  return 50;
+    if (price < 10000) return 100;
+    return 500;
+  };
+
+  const { yDomain, yTicks } = useMemo(() => {
+    const prices = chartData.flatMap(d => [d.low, d.high]).filter(v => v != null);
+    if (prices.length === 0) return { yDomain: ['auto', 'auto'], yTicks: undefined };
+
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const mid = (min + max) / 2;
+    const tickSize = getTickSize(mid);
+
+    // 패딩: 최소 tickSize 1칸, 범위의 10%
+    const pad = Math.max(tickSize, Math.ceil((max - min) * 0.1 / tickSize) * tickSize);
+    const domainMin = Math.floor((min - pad) / tickSize) * tickSize;
+    const domainMax = Math.ceil((max + pad) / tickSize) * tickSize;
+
+    // 5~7개 tick — 호가 단위 배수로 정렬
+    const range = domainMax - domainMin;
+    const interval = Math.ceil(range / (5 * tickSize)) * tickSize;
+    const ticks = [];
+    for (let t = domainMin; t <= domainMax; t += interval) ticks.push(t);
+
+    return { yDomain: [domainMin, domainMax], yTicks: ticks };
+  }, [chartData]);
 
   const maxAskAmount = Math.max(...asks.map(r => r.amount), 1);
   const maxBidAmount = Math.max(...bids.map(r => r.amount), 1);
@@ -566,7 +638,7 @@ export function MockupPage() {
     try {
       const type = PERIOD_TO_TYPE[chartPeriod];
       const res = await api.get(`/api/token/${TOKEN_ID}/candle?type=${type}`);
-      setChartData(res.data.map(d => mapCandle(d, chartPeriod)));
+      setChartData(buildChartData(res.data.map(d => mapCandle(d, chartPeriod)), chartPeriod));
     } catch (e) {
       console.warn('[MockupPage] 캔들 조회 실패:', e.message);
     } finally {
@@ -617,11 +689,15 @@ export function MockupPage() {
       const newCandle = mapCandle(data, chartPeriod);
       setChartData(prev => {
         if (prev.length === 0) return [newCandle];
-        const last = prev[prev.length - 1];
-        // 같은 봉: 마지막 캔들 교체 / 새 봉: 끝에 추가
-        return last.time === newCandle.time
-            ? [...prev.slice(0, -1), newCandle]
-            : [...prev, newCandle];
+        const idx = prev.findIndex(c => c.time === newCandle.time);
+        if (idx >= 0) {
+          // 기존 슬롯(빈 슬롯 포함) 교체
+          const updated = [...prev];
+          updated[idx] = newCandle;
+          return updated;
+        }
+        // 새 시간대 캔들 — 오른쪽 끝에 추가
+        return [...prev, newCandle];
       });
     },
     onPendingOrders: (data) => {
@@ -631,8 +707,7 @@ export function MockupPage() {
 
   // ── 렌더 ────────────────────────────────────────────────────
   return (
-      <div className="flex flex-col bg-stone-100 text-stone-800 overflow-hidden"
-           style={{ height: 'calc(100vh - 64px)' }}>
+      <div className="h-full flex flex-col bg-stone-100 text-stone-800 overflow-hidden">
 
         {loginModal && (
             <LoginRequiredModal message={loginModal} onClose={() => setLoginModal(null)} />
@@ -661,10 +736,10 @@ export function MockupPage() {
           {activeTab === 'chart' ? (
               <>
                 {/* ────────── 차트 패널 ────────── */}
-                <div className="flex-[2] flex flex-col gap-6 overflow-hidden">
+                <div className="flex-[2] flex flex-col gap-6 overflow-hidden min-h-0">
 
                   {/* 캔들 차트 */}
-                  <div className="bg-white rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm">
+                  <div className="flex-none bg-white rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm">
                     <div className="p-4 border-b border-stone-200 flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className="flex bg-stone-200 p-1 rounded-lg">
@@ -692,7 +767,7 @@ export function MockupPage() {
                       </button>
                     </div>
 
-                    <div className="h-[400px] flex flex-col">
+                    <div className="h-[260px] flex flex-col">
                       {/* OHLCV 인디케이터 */}
                       <div className="px-6 pt-4 pb-1 flex items-center gap-3">
                         {[
@@ -731,11 +806,8 @@ export function MockupPage() {
                                   <CartesianGrid strokeDasharray="3 3" stroke="#f0efee" vertical={false} />
                                   <XAxis dataKey="time" hide />
                                   <YAxis orientation="right"
-                                         domain={([min, max]) => {
-                                           const pad = Math.max(Math.ceil((max - min) * 0.05), 1);
-                                           return [min - pad, max + pad];
-                                         }}
-                                         tickCount={5}
+                                         domain={yDomain}
+                                         ticks={yTicks}
                                          tick={{ fontSize: 10, fill: '#a8a29e', fontWeight: 'bold' }}
                                          axisLine={false} tickLine={false}
                                          tickFormatter={v => v.toLocaleString()} width={56} />
@@ -761,12 +833,13 @@ export function MockupPage() {
                               </ResponsiveContainer>
                             </div>
 
-                            {/* 거래량 차트 */}
-                            <div className="h-[64px] px-2 border-t border-stone-100">
+                            {/* 거래량 차트 + x축 레이블 */}
+                            <div className="h-[72px] px-2 border-t border-stone-100">
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={chartData} margin={{ top: 2, right: 48, left: 0, bottom: 0 }}>
                                   <XAxis dataKey="time" axisLine={false} tickLine={false}
-                                         tick={{ fontSize: 9, fill: '#a8a29e' }} minTickGap={30} />
+                                         tick={{ fontSize: 9, fill: '#a8a29e' }} minTickGap={40}
+                                         interval="preserveStartEnd" />
                                   <YAxis hide domain={[0, 'auto']} />
                                   <Bar dataKey="vol" fill="#d6d3d1" radius={[2, 2, 0, 0]} isAnimationActive={false} />
                                 </BarChart>
@@ -778,7 +851,7 @@ export function MockupPage() {
                   </div>
 
                   {/* 시세 섹션 */}
-                  <div className="flex-1 min-h-[240px] bg-white rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm">
+                  <div className="flex-1 min-h-0 bg-white rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm">
                     <div className="p-4 border-b border-stone-200 flex items-center justify-between">
                       <h3 className="text-sm font-bold text-stone-800">시세</h3>
                       <span className="text-xs font-bold text-stone-400">실시간</span>
@@ -806,7 +879,7 @@ export function MockupPage() {
                 </div>
 
                 {/* ────────── 호가 패널 ────────── */}
-                <div className="w-[400px] bg-white rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm text-stone-800">
+                <div className="w-[400px] min-h-0 bg-white rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm text-stone-800">
                   <div className="p-4 border-b border-stone-200 flex items-center justify-between bg-stone-100">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-black text-stone-800">호가</h3>
@@ -819,137 +892,142 @@ export function MockupPage() {
                     </div>
                   </div>
 
-                  <div className="flex-1 flex overflow-hidden">
-                    {/* 왼쪽: 체결강도 + 미니 체결 목록 */}
-                    <div className="w-24 border-r border-stone-200 flex flex-col bg-stone-100/50">
-                      <div className="p-2 border-b border-stone-200">
-                        <p className="text-[9px] font-bold text-stone-400 mb-1">체결강도</p>
-                        {(() => {
-                          const buyVol  = executions.filter(e => e.isBuy).reduce((s, e) => s + e.qty, 0);
-                          const sellVol = executions.filter(e => !e.isBuy).reduce((s, e) => s + e.qty, 0);
-                          const strength = sellVol > 0
-                              ? Math.round((buyVol / sellVol) * 100)
-                              : buyVol > 0 ? 200 : null;
-                          const color = strength == null ? 'text-stone-400'
-                              : strength >= 100 ? 'text-brand-red' : 'text-brand-blue';
-                          return (
-                              <p className={`text-[11px] font-black ${color}`}>
-                                {strength != null ? `${strength}%` : '-'}
-                              </p>
-                          );
-                        })()}
-                      </div>
-                      <div className="flex-1 overflow-y-auto scrollbar-hide py-2">
-                        {executions.map((ex, i) => (
-                            <div key={i} className="flex justify-between px-2 py-0.5 text-[9px] font-mono font-bold">
-                              <span className="text-stone-400">{ex.price.toLocaleString()}</span>
-                              <span className={ex.isBuy ? 'text-brand-red' : 'text-brand-blue'}>{ex.qty}</span>
+                  {/* 토스 스타일 3열 호가창 */}
+                  {(() => {
+                    // 체결강도 계산
+                    const buyVol  = executions.filter(e => e.isBuy).reduce((s, e) => s + e.qty, 0);
+                    const sellVol = executions.filter(e => !e.isBuy).reduce((s, e) => s + e.qty, 0);
+                    const strengthNum = sellVol > 0 ? Math.round((buyVol / sellVol) * 100) : buyVol > 0 ? 200 : null;
+                    const strengthVal = strengthNum != null ? `${strengthNum}%` : '-';
+                    const strengthColor = strengthNum == null ? 'text-stone-400' : strengthNum >= 100 ? 'text-brand-red' : 'text-brand-blue';
+
+                    // 매도 우측 통계 항목
+                    const statItems = [
+                      // TODO: 백엔드 로직 미구현 — 전일 종가 기준 ±30% 하드코딩
+                      { label: '상한가', value: basePrice > 0 ? Math.round(basePrice * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)', unimplemented: true },
+                      { label: '하한가', value: basePrice > 0 ? Math.round(basePrice * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)', unimplemented: true },
+                      { label: '시작',   value: chartData.find(c => c.open != null)?.open.toLocaleString() ?? '-', color: '#292524' },
+                      { label: '1일최고', value: dailyHigh > 0 ? dailyHigh.toLocaleString() : '-', color: 'var(--color-brand-red)' },
+                      { label: '1일최저', value: dailyLow  > 0 ? dailyLow.toLocaleString()  : '-', color: 'var(--color-brand-blue)' },
+                      { label: '거래량',  value: (() => { const v = trades[0]?.vol ?? 0; return v > 0 ? (v >= 10000 ? `${(v/10000).toFixed(1)}만` : v.toLocaleString()) : '-'; })(), color: '#292524' },
+                    ];
+
+                    // 높은 가격 → 낮은 가격 순 (현재가 바 바로 위가 가장 낮은 매도호가)
+                    const reversedAsks = [...asks].reverse();
+
+                    return (
+                      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                        {/* 컬럼 헤더 */}
+                        <div className="grid grid-cols-[80px_1fr_80px] border-b border-stone-200 bg-stone-100">
+                          <span className="text-[10px] font-bold text-stone-400 text-right pr-2 py-1.5">매도수량</span>
+                          <span className="text-[10px] font-bold text-stone-400 text-center py-1.5">호가</span>
+                          <span className="text-[10px] font-bold text-stone-400 text-left pl-2 py-1.5">매수수량</span>
+                        </div>
+
+                        {/* ── 매도 영역 (상단 절반) — justify-end로 현재가 바에 붙게 ── */}
+                        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-end">
+                          {reversedAsks.map((row, i) => {
+                            const cp = basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0;
+                            const dp = maxAskAmount > 0 ? (row.amount / maxAskAmount) * 100 : 0;
+                            const stat = statItems[i];
+                            return (
+                              <div key={`ask-${i}`} className="grid grid-cols-[80px_1fr_80px] h-9 border-b border-stone-100 hover:bg-blue-50/20 cursor-pointer">
+                                {/* 좌: 매도수량 */}
+                                <div className="relative flex items-center justify-end pr-2 overflow-hidden">
+                                  <div className="absolute right-0 top-0 bottom-0 bg-brand-blue/10" style={{ width: `${dp}%` }} />
+                                  <span className="relative z-10 text-[11px] font-mono font-bold text-brand-blue">{row.amount.toLocaleString()}</span>
+                                </div>
+                                {/* 중: 가격 + % */}
+                                <div className="flex flex-col items-center justify-center">
+                                  <span className="text-[12px] font-mono font-black text-brand-blue">{row.price.toLocaleString()}</span>
+                                  <span className="text-[9px] font-bold text-brand-blue/60">{cp >= 0 ? '+' : ''}{cp.toFixed(2)}%</span>
+                                </div>
+                                {/* 우: 통계 */}
+                                <div className="flex items-center pl-1 pr-2">
+                                  {stat && (
+                                    <div className="flex flex-col w-full gap-0.5">
+                                      <div className="flex justify-between w-full">
+                                        <span className="text-[9px] font-bold text-stone-400">{stat.label}</span>
+                                        <span className="text-[9px] font-bold" style={{ color: stat.color }}>{stat.value}</span>
+                                      </div>
+                                      {stat.unimplemented && (
+                                        <span className="text-[8px] font-bold text-amber-400 text-right">미구현</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* ── 현재가 바 (중앙 고정) ── */}
+                        <div className="h-10 bg-stone-200 flex items-center justify-center relative flex-none border-y border-stone-300">
+                          <div className="absolute left-2 w-5 h-5 bg-brand-blue rounded flex items-center justify-center text-[9px] font-black text-white">현</div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-sm font-black text-stone-800 font-mono tracking-tight">
+                              {currentPrice > 0 ? currentPrice.toLocaleString() : '-'}
+                            </span>
+                            {currentPrice > 0 && basePrice > 0 && (() => {
+                              const r = ((currentPrice - basePrice) / basePrice) * 100;
+                              return (
+                                <span className={`text-[10px] font-bold ${r >= 0 ? 'text-brand-red' : 'text-brand-blue'}`}>
+                                  {r >= 0 ? '+' : ''}{r.toFixed(2)}%
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        </div>
+
+                        {/* ── 매수 영역 (하단 절반) ── */}
+                        <div className="flex-1 min-h-0 overflow-y-auto">
+                          {/* 체결강도 행 */}
+                          <div className="grid grid-cols-[80px_1fr_80px] h-9 border-b border-stone-100 bg-stone-50/60">
+                            <div className="flex items-center px-2">
+                              <div>
+                                <p className="text-[9px] font-bold text-stone-400 leading-none">체결강도</p>
+                                <p className={`text-[11px] font-black leading-none mt-0.5 ${strengthColor}`}>{strengthVal}</p>
+                              </div>
                             </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 중앙: 호가 목록 */}
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                      <div className="flex-1 overflow-y-auto scrollbar-hide">
-                        <div className="flex flex-col-reverse">
-                          {asks.map((row, i) => (
-                              <HogaRow
-                                  key={`ask-${i}`}
-                                  price={row.price}
-                                  amount={row.amount}
-                                  changePercent={basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0}
-                                  side="ask"
-                                  maxAmount={maxAskAmount}
-                              />
-                          ))}
-                        </div>
-
-                        <div className="h-9 bg-stone-200 flex items-center justify-center relative">
-                          <div className="absolute left-2 w-4 h-4 bg-brand-blue rounded flex items-center justify-center text-[9px] font-black text-white">
-                            현
+                            <div className="flex items-center justify-center">
+                              <span className="text-[11px] font-bold text-stone-300">—</span>
+                            </div>
+                            <div />
                           </div>
-                          <div className="flex flex-col items-center">
-                        <span className="text-xs font-black text-stone-800 font-mono tracking-tight">
-                          {currentPrice > 0 ? currentPrice.toLocaleString() : '-'}
-                        </span>
-                            {currentPrice > 0 && basePrice > 0 && (
-                                <span className="text-[8px] font-bold text-brand-blue">
-                            {(((currentPrice - basePrice) / basePrice) * 100).toFixed(2)}%
-                          </span>
-                            )}
-                          </div>
-                        </div>
 
-                        <div className="flex flex-col">
-                          {bids.map((row, i) => (
-                              <HogaRow
-                                  key={`bid-${i}`}
-                                  price={row.price}
-                                  amount={row.amount}
-                                  changePercent={basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0}
-                                  side="bid"
-                                  maxAmount={maxBidAmount}
-                              />
-                          ))}
+                          {/* 매수 호가 rows */}
+                          {bids.map((row, i) => {
+                            const cp = basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0;
+                            const dp = maxBidAmount > 0 ? (row.amount / maxBidAmount) * 100 : 0;
+                            const ex = executions[i];
+                            return (
+                              <div key={`bid-${i}`} className="grid grid-cols-[80px_1fr_80px] h-9 border-b border-stone-100 hover:bg-red-50/20 cursor-pointer">
+                                {/* 좌: 체결 내역 */}
+                                <div className="flex items-center px-2 overflow-hidden">
+                                  {ex && (
+                                    <div className="flex justify-between w-full">
+                                      <span className="text-[10px] font-mono text-stone-400 truncate">{ex.price.toLocaleString()}</span>
+                                      <span className={`text-[10px] font-bold ml-1 flex-shrink-0 ${ex.isBuy ? 'text-brand-red' : 'text-brand-blue'}`}>{ex.qty}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                {/* 중: 가격 + % */}
+                                <div className="flex flex-col items-center justify-center">
+                                  <span className="text-[12px] font-mono font-black text-brand-red">{row.price.toLocaleString()}</span>
+                                  <span className="text-[9px] font-bold text-brand-red/60">{cp >= 0 ? '+' : ''}{cp.toFixed(2)}%</span>
+                                </div>
+                                {/* 우: 매수수량 */}
+                                <div className="relative flex items-center justify-start pl-2 overflow-hidden">
+                                  <div className="absolute left-0 top-0 bottom-0 bg-brand-red/10" style={{ width: `${dp}%` }} />
+                                  <span className="relative z-10 text-[11px] font-mono font-bold text-brand-red">{row.amount.toLocaleString()}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                    </div>
-
-                    {/* 오른쪽: 통계 패널 */}
-                    <div className="w-28 border-l border-stone-200 bg-stone-100 flex flex-col p-2 space-y-4 overflow-y-auto scrollbar-hide">
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[8px] font-bold text-stone-400">
-                          <span>상한가</span>
-                          <span className="text-brand-red">
-                        {currentPrice > 0 ? Math.round(currentPrice * 1.3).toLocaleString() : '-'}
-                      </span>
-                        </div>
-                        <div className="flex justify-between text-[8px] font-bold text-stone-400">
-                          <span>하한가</span>
-                          <span className="text-brand-blue">
-                        {currentPrice > 0 ? Math.round(currentPrice * 0.7).toLocaleString() : '-'}
-                      </span>
-                        </div>
-                        <div className="flex justify-between text-[8px] font-bold text-stone-400">
-                          <span>상승VI</span><span>-</span>
-                        </div>
-                        <div className="flex justify-between text-[8px] font-bold text-stone-400">
-                          <span>하강VI</span><span>-</span>
-                        </div>
-                      </div>
-                      <div className="h-px bg-stone-200" />
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-[8px] font-bold text-stone-400">
-                          <span>시작</span>
-                          <span>{chartData.length > 0 ? chartData[0].open.toLocaleString() : '-'}</span>
-                        </div>
-                        <div className="flex justify-between text-[8px] font-bold text-stone-400">
-                          <span>1일 최고</span>
-                          <span className="text-brand-red">
-                        {dailyHigh > 0 ? dailyHigh.toLocaleString() : '-'}
-                      </span>
-                        </div>
-                        <div className="flex justify-between text-[8px] font-bold text-stone-400">
-                          <span>1일 최저</span>
-                          <span className="text-brand-blue">
-                        {dailyLow > 0 ? dailyLow.toLocaleString() : '-'}
-                      </span>
-                        </div>
-                      </div>
-                      <div className="h-px bg-stone-200" />
-                      <div className="space-y-1">
-                        <p className="text-[8px] font-bold text-stone-400">거래량</p>
-                        <p className="text-[9px] font-black text-stone-800">
-                          {(() => {
-                            const vol = trades.length > 0 ? trades[0].vol : 0;
-                            if (vol <= 0) return '-';
-                            return vol >= 10000 ? `${(vol / 10000).toFixed(1)}만` : vol.toLocaleString();
-                          })()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   {/* 하단 요약 바 */}
                   <div className="h-10 bg-stone-100 border-t border-stone-200 flex items-center justify-between px-4 text-[9px] font-black">
@@ -979,12 +1057,13 @@ export function MockupPage() {
           )}
 
           {/* 주문창: 항상 오른쪽 고정 */}
-          <SecureOrderPanel
+          <LoginGateOrderPanel
               currentPrice={currentPrice}
+              isLoggedIn={!!user?.accessToken}
+              onLoginRequired={setLoginModal}
               tokenId={TOKEN_ID}
               token={user?.accessToken}
               wsPendingData={wsPendingData}
-              onLoginRequired={setLoginModal}
           />
         </div>
 
@@ -1298,3 +1377,881 @@ function NewsTab({ disclosures }) {
 
 // ── 로그인 게이트 주문창 ────────────────────────────────────────
 // 비로그인 시 매수/매도/대기 버튼에 로그인 안내 처리
+function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenId, token, wsPendingData }) {
+  const [orderSide, setOrderSide] = useState('buy');
+  const [inputMode, setInputMode] = useState('qty');
+  const [price, setPrice]             = useState(currentPrice > 0 ? String(currentPrice) : '');
+  const [qty, setQty]                 = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
+
+  // currentPrice 로드 완료 시 가격 필드 자동 세팅 (비어있을 때만)
+  useEffect(() => {
+    if (currentPrice > 0) setPrice(p => p === '' ? String(currentPrice) : p);
+  }, [currentPrice]);
+  const [amount, setAmount]           = useState('');
+  const [submitting, setSubmitting]   = useState(false);
+  const [orderMsg, setOrderMsg]       = useState(null); // { type: 'success'|'error', text }
+
+  // ── 대기 주문 목록 ───────────────────────────────────────────
+  const [pendingOrders, setPendingOrders] = useState([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+
+  // ── 주문 수정 상태 ───────────────────────────────────────────
+  const [editingOrderId, setEditingOrderId] = useState(null);
+  const [editPrice, setEditPrice]           = useState('');
+  const [editQty, setEditQty]               = useState('');
+  const [editAccountPassword, setEditAccountPassword] = useState('');
+  const [updateMsg, setUpdateMsg]           = useState(null); // { orderId, type, text }
+  const [capacity, setCapacity]             = useState({ availableBalance: 0, availableQuantity: 0 });
+  const [passwordModal, setPasswordModal]   = useState(null); // { action, orderId? }
+  const [confirmModal, setConfirmModal]     = useState(null); // { action, orderId? }
+
+  // WS 실시간 업데이트 수신 시 목록 교체 (편집 중인 주문은 유지)
+  useEffect(() => {
+    if (!wsPendingData) return;
+
+    if (editingOrderId === null) {
+      setPendingOrders(wsPendingData);
+      return;
+    }
+
+    const editingOrderExists = wsPendingData.some(o => o.orderId === editingOrderId);
+
+    if (!editingOrderExists) {
+      setPendingOrders(wsPendingData);
+      setEditingOrderId(null);
+      setEditPrice('');
+      setEditQty('');
+      setUpdateMsg({
+        orderId: editingOrderId,
+        type: 'error',
+        text: '편집 중인 주문이 체결되었거나 취소되어 편집이 종료되었습니다.',
+      });
+      return;
+    }
+
+    setPendingOrders(prev =>
+        wsPendingData.map(incoming => {
+          if (incoming.orderId === editingOrderId) {
+            return prev.find(o => o.orderId === editingOrderId) ?? incoming;
+          }
+          return incoming;
+        })
+    );
+  }, [wsPendingData, editingOrderId]);
+
+  const fetchPendingOrders = useCallback(async () => {
+    if (!isLoggedIn || !token) return;
+    setPendingLoading(true);
+    try {
+      const res = await api.get(`/api/token/${tokenId}/order/pending`);
+      setPendingOrders(res.data);
+    } catch (e) {
+      console.warn('[OrderPanel] 대기 주문 조회 실패:', e.message);
+    } finally {
+      setPendingLoading(false);
+    }
+  }, [isLoggedIn, token, tokenId]);
+
+  useEffect(() => {
+    if (orderSide === 'pending') fetchPendingOrders();
+  }, [orderSide, fetchPendingOrders]);
+
+  // 가용 잔고/수량 조회
+  const fetchCapacity = useCallback(async () => {
+    if (!isLoggedIn || !tokenId) return;
+    try {
+      const res = await api.get(`/api/token/${tokenId}/order/capacity`);
+      setCapacity({
+        availableBalance:  res.data.availableBalance  ?? 0,
+        availableQuantity: res.data.availableQuantity ?? 0,
+      });
+    } catch (e) {
+      console.warn('[OrderPanel] capacity 조회 실패:', e.message);
+    }
+  }, [isLoggedIn, token, tokenId]);
+
+  useEffect(() => {
+    if (orderSide === 'buy' || orderSide === 'sell') fetchCapacity();
+  }, [orderSide, fetchCapacity]);
+
+  const isBuy     = orderSide === 'buy';
+  const isPending = orderSide === 'pending';
+
+  const numPrice  = Number(price) || 0;
+  const numQty    = inputMode === 'qty'
+      ? (Number(qty) || 0)
+      : (numPrice > 0 ? Math.floor((Number(amount) || 0) / numPrice) : 0);
+  const numAmount = inputMode === 'amount'
+      ? (Number(amount) || 0)
+      : numPrice * numQty;
+
+  function isValidAccountPassword(value) {
+    return /^\d{4}$/.test(value);
+  }
+
+  function getApiErrorMessage(error, fallback) {
+    return error?.response?.data?.errorMessage || error?.response?.data?.message || error?.message || fallback;
+  }
+
+  function openPasswordModal(action, orderId = null) {
+    setPasswordModal({ action, orderId });
+    setConfirmModal(null);
+    if (action === 'create') {
+      setAccountPassword('');
+      setOrderMsg(null);
+    } else {
+      setEditAccountPassword('');
+      setUpdateMsg(null);
+    }
+  }
+
+  function closePasswordModal() {
+    setPasswordModal(null);
+    setAccountPassword('');
+    setEditAccountPassword('');
+  }
+
+  function resetOrderAuthFlow() {
+    setPasswordModal(null);
+    setConfirmModal(null);
+    setAccountPassword('');
+    setEditAccountPassword('');
+  }
+
+  async function verifyPasswordBeforeConfirm() {
+    const password = passwordModal?.action === 'create' ? accountPassword : editAccountPassword;
+
+    try {
+      await api.post('/api/myaccount/verify-password', { accountPassword: password });
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, message: getApiErrorMessage(e, '계좌 비밀번호를 다시 확인해 주세요.') };
+    }
+  }
+
+  function handleTabClick(side) {
+    if (!isLoggedIn && side === 'pending') {
+      onLoginRequired('로그인해야 볼 수 있습니다');
+      return;
+    }
+    setOrderMsg(null);
+    setOrderSide(side);
+  }
+
+  async function handleSubmit() {
+    if (!isLoggedIn) {
+      onLoginRequired('매수/매도 주문을 하려면\n먼저 로그인해야 합니다');
+      return;
+    }
+    if (!Number.isInteger(numPrice) || !Number.isInteger(numQty) || numPrice <= 0 || numQty <= 0) {
+      setOrderMsg({ type: 'error', text: '가격과 수량은 양의 정수만 입력하세요.' });
+      return;
+    }
+    const tick = getTickSize(numPrice);
+    if (numPrice % tick !== 0) {
+      setOrderMsg({ type: 'error', text: `호가 단위에 맞지 않습니다. ${numPrice.toLocaleString()}원 근처 호가 단위는 ${tick.toLocaleString()}원입니다.` });
+      return;
+    }
+    if (false && !isValidAccountPassword(accountPassword)) {
+      setOrderMsg({ type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
+      return;
+    }
+    openPasswordModal('create');
+    return;
+    setSubmitting(true);
+    setOrderMsg(null);
+    try {
+      const body = {
+        orderPrice:    numPrice,
+        orderQuantity: numQty,
+        orderType:     isBuy ? 'BUY' : 'SELL',
+        accountPassword,
+      };
+      await api.post(`/api/token/${tokenId}/order`, body);
+      setOrderMsg({ type: 'success', text: `${isBuy ? '매수' : '매도'} 주문이 접수되었습니다.` });
+      setQty('');
+      setAmount('');
+      setAccountPassword('');
+      fetchCapacity();
+    } catch (e) {
+      setOrderMsg({ type: 'error', text: getApiErrorMessage(e, '주문 접수에 실패했습니다.') });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitCreateOrder() {
+    if (!isValidAccountPassword(accountPassword)) {
+      setOrderMsg({ type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
+      return;
+    }
+    setSubmitting(true);
+    setOrderMsg(null);
+    try {
+      const body = {
+        orderPrice:    numPrice,
+        orderQuantity: numQty,
+        orderType:     isBuy ? 'BUY' : 'SELL',
+        accountPassword,
+      };
+      await api.post(`/api/token/${tokenId}/order`, body);
+      setOrderMsg({ type: 'success', text: `${isBuy ? '매수' : '매도'} 주문이 접수되었습니다.` });
+      setQty('');
+      setAmount('');
+      resetOrderAuthFlow();
+      fetchCapacity();
+    } catch (e) {
+      setOrderMsg({ type: 'error', text: getApiErrorMessage(e, '주문 접수에 실패했습니다.') });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleCancelOrder(orderId) {
+    openPasswordModal('cancel', orderId);
+  }
+
+  async function submitCancelOrder(orderId) {
+    if (!token) return;
+    if (false && !isValidAccountPassword(editAccountPassword)) {
+      setUpdateMsg({ orderId, type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
+      return;
+    }
+    try {
+      await api.delete(`/api/token/order/cancel/${orderId}`, {
+        data: { accountPassword: editAccountPassword },
+      });
+      setPendingOrders(prev => prev.filter(o => o.orderId !== orderId));
+      resetOrderAuthFlow();
+    } catch (e) {
+      console.warn('[OrderPanel] 주문 취소 실패:', e.message);
+    }
+  }
+
+  function handleEditStart(o) {
+    setEditingOrderId(o.orderId);
+    setEditPrice(String(o.orderPrice ?? ''));
+    setEditQty(String(o.orderQuantity ?? ''));
+    setEditAccountPassword('');
+    setUpdateMsg(null);
+  }
+
+  function handleEditCancel() {
+    setEditingOrderId(null);
+    setEditPrice('');
+    setEditQty('');
+    setEditAccountPassword('');
+    setUpdateMsg(null);
+  }
+
+  async function handleUpdateOrder(orderId) {
+    const p = Number(editPrice);
+    const q = Number(editQty);
+    if (false && !isValidAccountPassword(editAccountPassword)) {
+      setUpdateMsg({ orderId, type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
+      return;
+    }
+    if (!Number.isInteger(p) || !Number.isInteger(q) || p <= 0 || q <= 0) {
+      setUpdateMsg({ orderId, type: 'error', text: '가격과 수량은 양의 정수만 입력하세요.' });
+      return;
+    }
+    const tick = getTickSize(p);
+    if (p % tick !== 0) {
+      setUpdateMsg({ orderId, type: 'error', text: `호가 단위에 맞지 않습니다. 이 가격대 호가 단위: ${tick.toLocaleString()}원` });
+      return;
+    }
+    try {
+      await api.put(`/api/token/order/update/${orderId}`, {
+        updatePrice: p,
+        updateQuantity: q,
+        accountPassword: editAccountPassword,
+      });
+      setPendingOrders(prev =>
+          prev.map(o => {
+            if (o.orderId !== orderId) return o;
+            const filledQuantity = Number(o.filledQuantity) || 0;
+            const remainingQuantity = Math.max(q - filledQuantity, 0);
+            return { ...o, orderPrice: p, remainingQuantity, orderQuantity: q };
+          })
+      );
+      setEditingOrderId(null);
+      setEditPrice('');
+      setEditQty('');
+      setEditAccountPassword('');
+      setUpdateMsg(null);
+    } catch (e) {
+      setUpdateMsg({ orderId, type: 'error', text: getApiErrorMessage(e, '수정에 실패했습니다.') });
+    }
+  }
+
+  // ── TickSizePolicy (백엔드와 동일한 로직) ────────────────────
+  async function submitUpdateOrder(orderId) {
+    const p = Number(editPrice);
+    const q = Number(editQty);
+    if (!Number.isInteger(p) || !Number.isInteger(q) || p <= 0 || q <= 0) {
+      setUpdateMsg({ orderId, type: 'error', text: '가격과 수량을 올바르게 입력해 주세요.' });
+      return;
+    }
+    const tick = getTickSize(p);
+    if (p % tick !== 0) {
+      setUpdateMsg({ orderId, type: 'error', text: `호가 단위를 확인해 주세요. 현재 가격의 호가 단위는 ${tick.toLocaleString()}원입니다.` });
+      return;
+    }
+    if (!isValidAccountPassword(editAccountPassword)) {
+      setUpdateMsg({ orderId, type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
+      return;
+    }
+    try {
+      await api.put(`/api/token/order/update/${orderId}`, {
+        updatePrice: p,
+        updateQuantity: q,
+        accountPassword: editAccountPassword,
+      });
+      setPendingOrders(prev =>
+          prev.map(o => {
+            if (o.orderId !== orderId) return o;
+            const filledQuantity = Number(o.filledQuantity) || 0;
+            const remainingQuantity = Math.max(q - filledQuantity, 0);
+            return { ...o, orderPrice: p, remainingQuantity, orderQuantity: q };
+          })
+      );
+      setEditingOrderId(null);
+      setEditPrice('');
+      setEditQty('');
+      resetOrderAuthFlow();
+      setUpdateMsg(null);
+    } catch (e) {
+      setUpdateMsg({ orderId, type: 'error', text: getApiErrorMessage(e, '주문 수정에 실패했습니다.') });
+    }
+  }
+
+  async function handlePasswordConfirm() {
+    if (!passwordModal) return;
+    const result = await verifyPasswordBeforeConfirm();
+    if (!result.ok) {
+      if (passwordModal.action === 'create') {
+        setAccountPassword('');
+        setOrderMsg({ type: 'error', text: result.message });
+      } else {
+        setEditAccountPassword('');
+        setUpdateMsg({ orderId: passwordModal.orderId, type: 'error', text: result.message });
+      }
+      return;
+    }
+
+    setPasswordModal(null);
+    setConfirmModal(passwordModal);
+  }
+
+  function getConfirmModalSpec() {
+    if (!confirmModal) return null;
+
+    if (confirmModal.action === 'create') {
+      return {
+        title: `${isBuy ? '매수' : '매도'} 주문 최종 확인`,
+        items: [
+          { label: '구분', value: isBuy ? '매수' : '매도' },
+          { label: '주문가', value: `${numPrice.toLocaleString()}원` },
+          { label: '주문수량', value: `${numQty.toLocaleString()}주` },
+          { label: '총 주문금액', value: `${numAmount.toLocaleString()}원` },
+        ],
+      };
+    }
+
+    const order = pendingOrders.find(o => o.orderId === confirmModal.orderId);
+    const updateTotalAmount = (Number(editPrice) || 0) * (Number(editQty) || 0);
+
+    if (confirmModal.action === 'update') {
+      return {
+        title: '주문 수정 최종 확인',
+        items: [
+          { label: '주문번호', value: String(confirmModal.orderId ?? '-') },
+          { label: '구분', value: order?.orderType === 'BUY' ? '매수' : '매도' },
+          { label: '수정가', value: `${(Number(editPrice) || 0).toLocaleString()}원` },
+          { label: '수정수량', value: `${(Number(editQty) || 0).toLocaleString()}주` },
+          { label: '주문금액', value: `${updateTotalAmount.toLocaleString()}원` },
+        ],
+      };
+    }
+
+    return {
+      title: '주문 취소 최종 확인',
+      items: [
+        { label: '주문번호', value: String(confirmModal.orderId ?? '-') },
+        { label: '구분', value: order?.orderType === 'BUY' ? '매수' : '매도' },
+        { label: '주문가', value: `${Number(order?.orderPrice || 0).toLocaleString()}원` },
+        { label: '잔여수량', value: `${Number(order?.remainingQuantity || 0).toLocaleString()}주` },
+      ],
+    };
+  }
+
+  async function handleConfirmExecution() {
+    if (!confirmModal) return;
+    if (confirmModal.action === 'create') {
+      await submitCreateOrder();
+      return;
+    }
+    if (confirmModal.action === 'update') {
+      await submitUpdateOrder(confirmModal.orderId);
+      return;
+    }
+    await submitCancelOrder(confirmModal.orderId);
+  }
+
+  function getTickSize(p) {
+    if (p < 100)   return 10;
+    if (p < 1000)  return 50;
+    if (p < 10000) return 100;
+    return 500;
+  }
+
+  const RATIO_MAP = { '10%': 0.1, '25%': 0.25, '50%': 0.5, '최대': 1.0 };
+
+  function handleRatioClick(label) {
+    const pct = RATIO_MAP[label];
+    const newQty = isBuy
+        ? (numPrice > 0 ? Math.floor(capacity.availableBalance * pct / numPrice) : 0)
+        : Math.floor(capacity.availableQuantity * pct);
+    setQty(String(newQty));
+    setInputMode('qty');
+  }
+
+  return (
+      <div className="w-[360px] min-h-0 bg-white rounded-lg border border-stone-200 flex flex-col overflow-hidden">
+
+        {/* 탭: 매수 / 매도 / 대기 */}
+        <div className="flex border-b border-stone-200">
+          {[
+            { id: 'buy',     label: '매수',  active: 'text-brand-red border-b-2 border-brand-red bg-brand-red-light/40' },
+            { id: 'sell',    label: '매도',  active: 'text-brand-blue border-b-2 border-brand-blue bg-brand-blue-light/60' },
+            { id: 'pending', label: '대기',  active: 'text-stone-800 border-b-2 border-stone-800 bg-stone-100/60' },
+          ].map(t => (
+              <button
+                  key={t.id}
+                  onClick={() => handleTabClick(t.id)}
+                  className={cn(
+                      'flex-1 py-4 text-sm font-black transition-all',
+                      orderSide === t.id ? t.active : 'text-stone-400 hover:text-stone-500'
+                  )}
+              >
+                {t.label}
+              </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+
+          {/* 대기 탭 */}
+          {isPending ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-stone-400">미체결 주문</span>
+                  <button
+                      onClick={fetchPendingOrders}
+                      disabled={pendingLoading}
+                      className="text-[10px] font-bold text-stone-400 hover:text-stone-700 transition-colors"
+                  >
+                    {pendingLoading ? '조회 중...' : '새로고침'}
+                  </button>
+                </div>
+                {pendingLoading && pendingOrders.length === 0 ? (
+                    <div className="py-16 flex flex-col items-center gap-3 text-center">
+                      <div className="w-12 h-12 bg-stone-200 rounded-lg flex items-center justify-center">
+                        <MoreHorizontal size={24} className="text-stone-400 animate-pulse" />
+                      </div>
+                      <p className="text-sm font-bold text-stone-400">조회 중...</p>
+                    </div>
+                ) : pendingOrders.length === 0 ? (
+                    <div className="py-16 flex flex-col items-center gap-3 text-center">
+                      <div className="w-12 h-12 bg-stone-200 rounded-lg flex items-center justify-center">
+                        <MoreHorizontal size={24} className="text-stone-400" />
+                      </div>
+                      <p className="text-sm font-bold text-stone-400">대기 중인 주문이 없습니다</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                      {pendingOrders.map(o => {
+                        const isBuy      = o.orderType === 'BUY';
+                        const isPending  = o.orderStatus === 'PENDING';
+                        const isEditing  = editingOrderId === o.orderId;
+                        const totalAmount = isEditing
+                            ? (Number(editPrice) || 0) * (Number(editQty) || 0)
+                            : (o.orderPrice ?? 0) * (o.orderQuantity ?? 0);
+                        return (
+                            <div key={o.orderId} className="p-4 bg-stone-100 rounded-lg border border-stone-200 space-y-3">
+                              {/* 헤더: 매수/매도 뱃지 + 시간 */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                          <span className={cn(
+                              'text-[10px] font-black px-2 py-0.5 rounded-md',
+                              isBuy ? 'bg-brand-red-light text-brand-red' : 'bg-brand-blue-light text-brand-blue'
+                          )}>
+                            {isBuy ? '매수' : '매도'}
+                          </span>
+                                  <span className={cn(
+                                      'text-[10px] font-black px-2 py-0.5 rounded-md',
+                                      isPending
+                                          ? 'bg-stone-200 text-stone-400'
+                                          : isEditing
+                                              ? 'bg-blue-100 text-blue-600'
+                                              : 'bg-[#fef6dc] text-[#a07828]'
+                                  )}>
+                            {isPending ? '처리중' : isEditing ? '수정중' : '대기'}
+                          </span>
+                                </div>
+                                <span className="text-[9px] text-stone-400 font-bold">
+                          {o.createdAt ? new Date(o.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                        </span>
+                              </div>
+
+                              {/* 수정 모드 */}
+                              {isEditing ? (
+                                  <div className="space-y-2">
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between">
+                                        <label className="text-[10px] font-bold text-stone-400">수정 가격</label>
+                                        {Number(editPrice) > 0 && (
+                                          <span className="text-[10px] font-bold text-stone-400">
+                                            호가 단위: {getTickSize(Number(editPrice)).toLocaleString()}원
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            step={Number(editPrice) > 0 ? getTickSize(Number(editPrice)) : 1}
+                                            value={editPrice}
+                                            onChange={e => setEditPrice(e.target.value)}
+                                            className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800"
+                                        />
+                                        <span className="text-[11px] font-bold text-stone-400">원</span>
+                                      </div>
+                                      {Number(editPrice) > 0 && Number(editPrice) % getTickSize(Number(editPrice)) !== 0 && (
+                                        <p className="text-[10px] font-bold text-amber-600">
+                                          호가 단위({getTickSize(Number(editPrice)).toLocaleString()}원)에 맞지 않습니다
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="space-y-1">
+                                      <label className="text-[10px] font-bold text-stone-400">수정 수량</label>
+                                      <div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            step="1"
+                                            value={editQty}
+                                            onChange={e => setEditQty(e.target.value)}
+                                            className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800"
+                                        />
+                                        <span className="text-[11px] font-bold text-stone-400">주</span>
+                                      </div>
+                                    </div>
+                                    <div className="hidden">
+                                      <label className="text-[10px] font-bold text-stone-400">계좌 비밀번호</label>
+                                      <div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2">
+                                        <input
+                                            type="password"
+                                            inputMode="numeric"
+                                            maxLength={4}
+                                            value={editAccountPassword}
+                                            onChange={e => setEditAccountPassword(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                            placeholder="숫자 4자리"
+                                            className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800 placeholder-stone-400"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="flex justify-between text-[11px] font-bold border-t border-stone-200 pt-1.5">
+                                      <span className="text-stone-400">주문금액</span>
+                                      <span className="font-mono font-black text-stone-800">{totalAmount.toLocaleString()}원</span>
+                                    </div>
+                                    {updateMsg?.orderId === o.orderId && (
+                                        <p className={cn(
+                                            'text-[10px] font-bold text-center',
+                                            updateMsg.type === 'error' ? 'text-brand-red' : 'text-green-600'
+                                        )}>
+                                          {updateMsg.text}
+                                        </p>
+                                    )}
+                                    <div className="flex gap-2 pt-1">
+                                      <button
+                                          onClick={() => openPasswordModal('update', o.orderId)}
+                                          className="flex-1 py-2 bg-stone-800 border border-stone-800 rounded-md text-[11px] font-black text-white hover:bg-stone-700 transition-all"
+                                      >
+                                        확인
+                                      </button>
+                                      <button
+                                          onClick={handleEditCancel}
+                                          className="flex-1 py-2 bg-white border border-stone-200 rounded-md text-[11px] font-black text-stone-500 hover:bg-stone-200 transition-all"
+                                      >
+                                        취소
+                                      </button>
+                                    </div>
+                                  </div>
+                              ) : (
+                                  <>
+                                    {/* 일반 표시 모드 */}
+                                    <div className="space-y-1.5 text-[11px] font-bold">
+                                      <div className="flex justify-between">
+                                        <span className="text-stone-400">지정가격</span>
+                                        <span className="font-mono text-stone-800">{o.orderPrice?.toLocaleString()}원</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-stone-400">미체결/전체</span>
+                                        <span className="font-mono text-stone-800">{o.remainingQuantity} / {o.orderQuantity}주</span>
+                                      </div>
+                                      <div className="flex justify-between border-t border-stone-200 pt-1.5">
+                                        <span className="text-stone-400">주문금액</span>
+                                        <span className="font-mono font-black text-stone-800">{totalAmount.toLocaleString()}원</span>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-2 pt-1">
+                                      <button
+                                          disabled={isPending}
+                                          onClick={() => !isPending && handleEditStart(o)}
+                                          className={cn(
+                                              'flex-1 py-2 border rounded-md text-[11px] font-black transition-all flex items-center justify-center gap-1',
+                                              isPending
+                                                  ? 'bg-stone-100 border-stone-200 text-stone-300 cursor-not-allowed'
+                                                  : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-200'
+                                          )}
+                                      >
+                                        <Edit3 size={12} /> 수정
+                                      </button>
+                                      <button
+                                          disabled={isPending}
+                                          onClick={() => !isPending && handleCancelOrder(o.orderId)}
+                                          className={cn(
+                                              'flex-1 py-2 border rounded-md text-[11px] font-black transition-all flex items-center justify-center gap-1',
+                                              isPending
+                                                  ? 'bg-stone-100 border-stone-200 text-stone-300 cursor-not-allowed'
+                                                  : 'bg-brand-red-light border-brand-red-light text-brand-red hover:bg-[#fccfcf]'
+                                          )}
+                                      >
+                                        <X size={12} /> 취소
+                                      </button>
+                                    </div>
+                                  </>
+                              )}
+                            </div>
+                        );
+                      })}
+                    </div>
+                )}
+              </div>
+          ) : (
+              <div className="space-y-5">
+                {/* 주문 유형(지정가 고정) + 입력 모드 */}
+                <div className="flex items-center justify-between">
+              <span className="px-3 py-1 bg-stone-200 rounded-lg text-[10px] font-bold text-stone-500">
+                지정가
+              </span>
+                  <div className="flex bg-stone-200 p-1 rounded-lg">
+                    {[{ id: 'qty', label: '수량' }, { id: 'amount', label: '금액' }].map(m => (
+                        <button key={m.id} onClick={() => setInputMode(m.id)}
+                                className={cn(
+                                    'px-3 py-1 rounded-md text-[10px] font-bold transition-all',
+                                    inputMode === m.id ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-400'
+                                )}>
+                          {m.label}
+                        </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 가격 입력 */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-stone-400">
+                      {isBuy ? '매수' : '매도'} 가격
+                    </label>
+                    {numPrice > 0 && (
+                      <span className="text-[10px] font-bold text-stone-400">
+                        호가 단위: {getTickSize(numPrice).toLocaleString()}원
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5">
+                    <input
+                        type="text"
+                        value={price}
+                        onChange={e => setPrice(e.target.value)}
+                        placeholder="가격 입력"
+                        className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800 placeholder-stone-400"
+                    />
+                    <span className="text-sm font-bold text-stone-400">원</span>
+                  </div>
+                  {numPrice > 0 && numPrice % getTickSize(numPrice) !== 0 && (
+                    <p className="text-[10px] font-bold text-amber-600">
+                      호가 단위({getTickSize(numPrice).toLocaleString()}원)에 맞지 않습니다
+                    </p>
+                  )}
+                </div>
+
+                {/* 수량 / 금액 입력 */}
+                {inputMode === 'qty' ? (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-stone-400">
+                        {isBuy ? '매수' : '매도'} 수량
+                      </label>
+                      <div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5">
+                        <input type="text" placeholder="수량 입력" value={qty}
+                               onChange={e => setQty(e.target.value)}
+                               className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800" />
+                        <span className="text-sm font-bold text-stone-400">주</span>
+                      </div>
+                    </div>
+                ) : (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-stone-400">
+                        {isBuy ? '매수' : '매도'} 금액
+                      </label>
+                      <div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5">
+                        <input type="text" placeholder="금액 입력" value={amount}
+                               onChange={e => setAmount(e.target.value)}
+                               className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800" />
+                        <span className="text-sm font-bold text-stone-400">원</span>
+                      </div>
+                      {amount && numPrice > 0 && (
+                          <p className="text-[10px] text-stone-400 font-bold text-right">
+                            ≈ {Math.floor(Number(amount) / numPrice)}주
+                          </p>
+                      )}
+                    </div>
+                )}
+
+                {/* 비율 버튼 */}
+                <div className="hidden">
+                  <label className="text-[10px] font-bold text-stone-400">계좌 비밀번호</label>
+                  <div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5">
+                    <input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder="숫자 4자리"
+                        value={accountPassword}
+                        onChange={e => setAccountPassword(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800 placeholder-stone-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  {['10%', '25%', '50%', '최대'].map(p => (
+                      <button key={p}
+                              onClick={() => handleRatioClick(p)}
+                              disabled={!isLoggedIn}
+                              className={cn(
+                                  'py-1.5 rounded-lg text-[10px] font-bold transition-all border',
+                                  isLoggedIn
+                                      ? 'bg-stone-200 hover:bg-stone-300 border-stone-200 text-stone-400'
+                                      : 'bg-stone-100 border-stone-100 text-stone-300 cursor-not-allowed'
+                              )}>
+                        {p}
+                      </button>
+                  ))}
+                </div>
+
+                {/* 주문 요약 */}
+                <div className="pt-3 border-t border-stone-200 space-y-2">
+                  <div className="flex justify-between text-[10px] font-bold">
+                    <span className="text-stone-400">{isBuy ? '매수가능 금액' : '매도가능 수량'}</span>
+                    <span className="text-stone-800">
+                  {isBuy
+                      ? `${capacity.availableBalance.toLocaleString()}원`
+                      : `${capacity.availableQuantity.toLocaleString()}주`}
+                </span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-bold">
+                    <span className="text-stone-400">총 주문 금액</span>
+                    <span className="text-stone-800">{numAmount.toLocaleString()}원</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] text-[#a07828] font-bold bg-[#fef6dc] px-3 py-2 rounded-lg">
+                    <MoreHorizontal size={12} />
+                    지정가 주문은 체결 전까지 대기 상태로 유지됩니다
+                  </div>
+                </div>
+
+                {/* 주문 버튼 */}
+                <button
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    className={cn(
+                        'w-full py-3.5 text-white rounded-md font-black text-sm transition-colors disabled:opacity-50',
+                        isBuy
+                            ? 'bg-brand-red hover:bg-red-700'
+                            : 'bg-brand-blue hover:bg-blue-700'
+                    )}
+                >
+                  {submitting ? '처리 중...' : (isBuy ? '매수하기' : '매도하기')}
+                </button>
+
+                {/* 주문 결과 메시지 */}
+                {orderMsg && (
+                    <p className={cn(
+                        'text-center text-[10px] font-bold',
+                        orderMsg.type === 'success' ? 'text-green-600' : 'text-red-500'
+                    )}>
+                      {orderMsg.text}
+                    </p>
+                )}
+
+                {/* 비로그인 안내 */}
+                {!isLoggedIn && (
+                    <p className="text-center text-[10px] text-stone-400 font-bold">
+                      주문하려면 로그인이 필요합니다
+                    </p>
+                )}
+              </div>
+          )}
+        </div>
+
+        {passwordModal && (
+            <OrderPinPadModal
+                title={
+                  passwordModal.action === 'create'
+                      ? `${isBuy ? '매수' : '매도'} 주문 확인`
+                      : passwordModal.action === 'update'
+                          ? '주문 수정 확인'
+                          : '주문 취소 확인'
+                }
+                description={
+                  passwordModal.action === 'create'
+                      ? `${isBuy ? '매수' : '매도'} 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.`
+                      : passwordModal.action === 'update'
+                          ? '수정할 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.'
+                          : '취소할 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.'
+                }
+                password={passwordModal.action === 'create' ? accountPassword : editAccountPassword}
+                errorMessage={
+                  passwordModal.action === 'create'
+                      ? (orderMsg?.type === 'error' ? orderMsg.text : null)
+                      : (updateMsg?.orderId === passwordModal.orderId && updateMsg.type === 'error' ? updateMsg.text : null)
+                }
+                submitting={submitting}
+                onChange={value => {
+                  if (passwordModal.action === 'create') setAccountPassword(value);
+                  else setEditAccountPassword(value);
+                }}
+                onClose={closePasswordModal}
+                onConfirm={handlePasswordConfirm}
+            />
+        )}
+
+        {(() => {
+          const spec = getConfirmModalSpec();
+          if (!spec) return null;
+          return (
+              <OrderExecutionConfirmModal
+                  title={spec.title}
+                  items={spec.items}
+                  submitting={submitting}
+                  onClose={() => setConfirmModal(null)}
+                  onConfirm={handleConfirmExecution}
+              />
+          );
+        })()}
+      </div>
+  );
+}
