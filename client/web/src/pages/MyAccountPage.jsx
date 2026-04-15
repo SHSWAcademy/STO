@@ -74,6 +74,8 @@ export function MyAccountPage() {
   const [history, setHistory] = useState([]);
   const [historyPage, setHistoryPage] = useState(0);
   const [historyTotalPages, setHistoryTotalPages] = useState(0);
+  const [cancelPassword, setCancelPassword] = useState("");
+  const [cancelOrderId, setCancelOrderId] = useState(null);
 
   // 알람 클릭으로 넘어온 경우 해당 탭 자동 선택
   useEffect(() => {
@@ -159,11 +161,16 @@ export function MyAccountPage() {
     }
   }
 
-  async function handleCancelOrder(orderId) {
-    if (!window.confirm("정말 이 주문을 취소하시겠습니까?")) return;
+  function handleCancelOrder(orderId) {
+    setCancelOrderId(orderId);
+    setCancelPassword("");
+  }
 
+  async function handleCancelConfirm() {
     try {
-      await cancelOrder(orderId);
+      await cancelOrder(cancelOrderId, cancelPassword);
+      setCancelOrderId(null);
+      setCancelPassword("");
       loadOrders(ordersPage);
     } catch (e) {
       alert(e.response?.data?.message || "주문 취소에 실패했습니다.");
@@ -222,7 +229,7 @@ export function MyAccountPage() {
             onOrderTab={setOrderTab}
             orders={orders}
             page={ordersPage}
-            totalPage={ordersTotalPages}
+            totalPages={ordersTotalPages}
             onPageChange={(p) => loadOrders(p)}
             onCancel={handleCancelOrder}
           />
@@ -283,6 +290,17 @@ export function MyAccountPage() {
           </button>
         </div>
       </Modal>
+
+      {cancelOrderId && (
+        <OrderPinPadModal
+          title="주문 취소 확인"
+          description="취소할 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요."
+          password={cancelPassword}
+          onChange={setCancelPassword}
+          onClose={() => setCancelOrderId(null)}
+          onConfirm={handleCancelConfirm}
+        />
+      )}
     </div>
   );
 }
@@ -678,12 +696,14 @@ function OrdersTab({
                       <p
                         className={cn(
                           "text-sm font-black",
-                          order.type === "BUY"
+                          order.orderType === "BUY"
                             ? "text-brand-red"
                             : "text-brand-blue",
                         )}
                       >
-                        {order.type === "BUY" ? "지정가 매수" : "지정가 매도"}
+                        {order.orderType === "BUY"
+                          ? "지정가 매수"
+                          : "지정가 매도"}
                       </p>
                       <span
                         className={cn(
@@ -699,7 +719,7 @@ function OrdersTab({
                     <p className="text-[10px] text-stone-400 font-bold mt-0.5">
                       {order.orderPrice.toLocaleString()}원 |{" "}
                       {order.orderQuantity}주
-                      {order.orderStatus === "FILLED" &&
+                      {order.orderStatus !== "FILLED" &&
                         ` (잔량 ${order.remainingQuantity}주)`}
                     </p>
                   </div>
@@ -708,14 +728,20 @@ function OrdersTab({
                   {order.orderStatus === "FILLED" ? (
                     <div>
                       <p className="text-sm font-black text-stone-800">
-                        {order.orderPrice *
-                          order.filledQuantity?.toLocaleString()}
+                        {(
+                          order.orderPrice * order.filledQuantity
+                        )?.toLocaleString()}
                         원
                       </p>
                       <span className="text-[10px] font-black text-brand-red uppercase tracking-widest">
                         체결완료
                       </span>
                     </div>
+                  ) : order.orderStatus === "CANCELLED" ||
+                    order.orderStatus === "FAILED" ? (
+                    <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest">
+                      {order.orderStatus === "CANCELLED" ? "취소됨" : "실패"}
+                    </span>
                   ) : (
                     <button
                       onClick={() => onCancel(order.orderId)}
@@ -1008,6 +1034,112 @@ function SettingsTab() {
               </div>
             );
           })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderPinPadModal({
+  title,
+  description,
+  password,
+  errorMessage,
+  submitting,
+  onChange,
+  onClose,
+  onConfirm,
+}) {
+  const masked = password.length > 0 ? "•".repeat(password.length) : "○ ○ ○ ○";
+  const keys = [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "reset",
+    "0",
+    "delete",
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className="w-[360px] rounded-2xl border border-stone-200 bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-2">
+          <h3 className="text-base font-black text-stone-800">{title}</h3>
+          <p className="text-sm font-medium text-stone-500">{description}</p>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-stone-200 bg-stone-100 px-4 py-5">
+          <div className="text-center font-mono text-2xl font-black tracking-[0.35em] text-stone-800">
+            {masked}
+          </div>
+        </div>
+
+        {errorMessage && (
+          <p className="mt-3 text-center text-[11px] font-bold text-brand-red">
+            {errorMessage}
+          </p>
+        )}
+
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          {keys.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                if (key === "reset") {
+                  onChange("");
+                  return;
+                }
+                if (key === "delete") {
+                  onChange(password.slice(0, -1));
+                  return;
+                }
+                if (password.length >= 4) return;
+                onChange(`${password}${key}`);
+              }}
+              className={cn(
+                "rounded-xl border py-3 text-sm font-black transition-colors",
+                key === "reset" || key === "delete"
+                  ? "border-stone-200 bg-stone-100 text-stone-500 hover:bg-stone-200"
+                  : "border-stone-200 bg-white text-stone-800 hover:bg-stone-100",
+              )}
+            >
+              {key === "reset" ? "초기화" : key === "delete" ? "지우기" : key}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
+          {description}
+        </div>
+
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="flex-1 rounded-xl border border-stone-200 bg-white py-3 text-sm font-black text-stone-500 hover:bg-stone-100 disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={submitting || password.length !== 4}
+            className="flex-1 rounded-xl bg-stone-800 py-3 text-sm font-black text-white hover:bg-stone-700 disabled:opacity-50"
+          >
+            {submitting ? "처리 중..." : "확인"}
+          </button>
         </div>
       </div>
     </div>

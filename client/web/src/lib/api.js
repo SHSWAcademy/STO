@@ -64,7 +64,8 @@ export const fetchOrderHistory = (page = 0, orderTab = "all") =>
     params: { page, size: 10, orderTab },
   });
 
-export const cancelOrder = (orderId) =>
-  api.delete(`/api/token/order/cancel/${orderId}`);
-
+export const cancelOrder = (orderId, accountPassword) =>
+  api.delete(`/api/token/order/cancel/${orderId}`, {
+    data: { accountPassword },
+  });
 export default api;
