@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import server.main.order.dto.OrderCapacityResponseDto;
+import server.main.order.dto.CancelOrderRequestDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.UpdateOrderRequestDto;
@@ -65,8 +66,9 @@ public class OrderController {
 
     // 호가 삭제 (soft delete)
     @DeleteMapping("/order/cancel/{orderId}")
-    public ResponseEntity<Void> orderCancel(@PathVariable Long orderId) {
-        orderFacade.cancelOrder(orderId);
+    public ResponseEntity<Void> orderCancel(@PathVariable Long orderId,
+            @Validated @RequestBody CancelOrderRequestDto dto) {
+        orderFacade.cancelOrder(orderId, dto);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 

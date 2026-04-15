@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Download, FileText } from 'lucide-react';
 import { TOKENS, DIVIDEND_HISTORY, DISCLOSURES } from '../data/mock.js';
 import { useApp } from '../context/AppContext.jsx';
+import { useTradingSocket } from '../hooks/useTradingSocket.js';
 
 // mock asset.id(string) → 백엔드 tokenId(number) 매핑
 const TOKEN_ID_MAP = {
@@ -15,7 +16,7 @@ const TOKEN_ID_MAP = {
 import { AssetHeader } from '../components/trading/AssetHeader.jsx';
 import { ChartPanel }  from '../components/trading/ChartPanel.jsx';
 import { HogaPanel }   from '../components/trading/HogaPanel.jsx';
-import { OrderPanel }  from '../components/trading/OrderPanel.jsx';
+import { SecureOrderPanel }  from '../components/trading/SecureOrderPanel.jsx';
 
 // TradingPage — 원본 TradingPage.tsx 구조 복원
 //
@@ -31,6 +32,7 @@ import { OrderPanel }  from '../components/trading/OrderPanel.jsx';
 export function TradingPage() {
   const [activeTab, setActiveTab]           = useState('chart');
   const [currentAssetId, setCurrentAssetId] = useState('SEOULST');
+  const [orderBook, setOrderBook]           = useState({ asks: [], bids: [] });
   const { user, likedTokenIds, toggleLike } = useApp();
 
   const asset        = TOKENS.find(t => t.id === currentAssetId) || TOKENS[0];
@@ -38,6 +40,12 @@ export function TradingPage() {
   const tokenId      = TOKEN_ID_MAP[asset.id] ?? null;
   const isLiked      = tokenId != null && likedTokenIds.includes(tokenId);
   const token        = user?.accessToken ?? null;
+
+  useTradingSocket({
+    tokenId,
+    token,
+    onOrderBook: (data) => setOrderBook({ asks: data.asks ?? [], bids: data.bids ?? [] }),
+  });
 
   return (
     // 원본: h-[calc(100vh-64px)] -m-8 (MainLayout p-8을 상쇄)
@@ -62,7 +70,7 @@ export function TradingPage() {
           <>
             {/* 차트·호가 탭: 좌(chart) + 중(hoga) + 우(order) */}
             <ChartPanel currentPrice={currentPrice} />
-            <HogaPanel  currentPrice={currentPrice} />
+            <HogaPanel  currentPrice={currentPrice} asks={orderBook.asks} bids={orderBook.bids} />
           </>
         ) : (
           /* 기타 탭: 콘텐츠 패널 */
@@ -74,7 +82,7 @@ export function TradingPage() {
         )}
 
         {/* 주문창: 항상 오른쪽에 고정 */}
-        <OrderPanel asset={asset} currentPrice={currentPrice} tokenId={tokenId} token={token} />
+        <SecureOrderPanel currentPrice={currentPrice} tokenId={tokenId} token={token} />
       </div>
     </div>
   );

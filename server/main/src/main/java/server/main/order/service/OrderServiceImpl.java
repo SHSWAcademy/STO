@@ -17,6 +17,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +55,7 @@ import server.main.member.repository.BankingRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.CancelOrderContext;
+import server.main.order.dto.CancelOrderRequestDto;
 import server.main.order.dto.MatchOrderRequestDto;
 import server.main.order.dto.MatchResultDto;
 import server.main.order.dto.OrderCapacityResponseDto;
@@ -99,6 +101,7 @@ public class OrderServiceImpl implements OrderService {
     private final AlarmService alarmService;
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+    private final PasswordEncoder passwordEncoder;
     private final CommonRepository commonRepository;
     private final PlatformAccountRepository platformAccountRepository;
     private final BankingRepository bankingRepository;
@@ -124,6 +127,7 @@ public class OrderServiceImpl implements OrderService {
 
             Account findMemberAccount = accountRepository.findWithLockByMember(findMember)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            validateAccountPassword(findMemberAccount, dto.getAccountPassword());
 
             double chargeRate = getChargeRate();
 
@@ -139,6 +143,10 @@ public class OrderServiceImpl implements OrderService {
 
         // 매도일 경우
         if (OrderType.SELL.equals(dto.getOrderType())) {
+            Account findMemberAccount = accountRepository.findWithLockByMember(findMember)
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            validateAccountPassword(findMemberAccount, dto.getAccountPassword());
+
             MemberTokenHolding findMemberHolding = memberTokenHoldingRepository
                     .findWithLockByMemberAndToken(findMember, findToken)
                     .orElseThrow(() -> new BusinessException(INSUFFICIENT_TOKEN_BALANCE));
@@ -545,6 +553,7 @@ public class OrderServiceImpl implements OrderService {
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
             Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            validateAccountPassword(findAccount, dto.getAccountPassword());
 
             long oldAmount = Math.multiplyExact(findOrder.getOrderPrice(), findOrder.getRemainingQuantity());
             long oldFee = (long) (oldAmount * (chargeRate / 100));
@@ -561,6 +570,10 @@ public class OrderServiceImpl implements OrderService {
         }
 
         if (OrderType.SELL.equals(findOrder.getOrderType())) {
+            Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            validateAccountPassword(findAccount, dto.getAccountPassword());
+
             MemberTokenHolding tokenHolding = memberTokenHoldingRepository
                     .findWithLockByMemberAndToken(findOrder.getMember(), findOrder.getToken())
                     .orElseThrow(() -> new BusinessException(INSUFFICIENT_TOKEN_BALANCE));
@@ -635,7 +648,7 @@ public class OrderServiceImpl implements OrderService {
     // cancelOrder Phase 1: 검증 + 잔고 복구 + PENDING 전환
     @Transactional
     @Override
-    public CancelOrderContext validateAndCancelOrder(Long orderId) {
+    public CancelOrderContext validateAndCancelOrder(Long orderId, CancelOrderRequestDto dto) {
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
                 .getId();
 
@@ -652,9 +665,16 @@ public class OrderServiceImpl implements OrderService {
         if (OrderType.BUY.equals(findOrder.getOrderType())) {
             Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            validateAccountPassword(findAccount, dto.getAccountPassword());
             long lockedAmount = Math.multiplyExact(findOrder.getOrderPrice(), findOrder.getRemainingQuantity());
             long feeOnLock = (long) (lockedAmount * (getChargeRate() / 100));
             findAccount.cancelOrder(lockedAmount + feeOnLock);
+        }
+
+        if (OrderType.SELL.equals(findOrder.getOrderType())) {
+            Account findAccount = accountRepository.findWithLockByMember(findOrder.getMember())
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+            validateAccountPassword(findAccount, dto.getAccountPassword());
         }
 
         if (OrderType.SELL.equals(findOrder.getOrderType())) {
@@ -729,5 +749,11 @@ public class OrderServiceImpl implements OrderService {
         Common common = commonRepository.findCommon();
         if (common == null) throw new BusinessException(ENTITY_NOT_FOUNT_ERROR);
         return common.getChargeRate();
+    }
+
+    private void validateAccountPassword(Account account, String rawAccountPassword) {
+        if (!passwordEncoder.matches(rawAccountPassword, account.getAccountPassword())) {
+            throw new BusinessException(INVALID_PASSWORD);
+        }
     }
 }

@@ -299,10 +299,10 @@ class TokenServiceImplTest {
     @Test
     void getTokenAssetsWith10Paging_BASIC_DAY_정상조회() {
         Asset asset = Asset.builder().assetId(1L).assetName("서울 빌딩").build();
-        Token token = Token.builder().tokenId(1L).currentPrice(12000.0).asset(asset).build();
+        Token token = Token.builder().tokenId(1L).currentPrice(12000L).asset(asset).build();
 
-        CandleDay todayCandle = CandleDay.builder().openPrice(10000.0).closePrice(11000.0).token(token).build();
-        CandleDay sparkCandle = CandleDay.builder().closePrice(11500.0).token(token).build();
+        CandleDay todayCandle = CandleDay.builder().openPrice(10000L).closePrice(11000L).token(token).build();
+        CandleDay sparkCandle = CandleDay.builder().closePrice(11500L).token(token).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
         when(candleDayRepository.findTodayByTokenIds(anyList(), any(), any())).thenReturn(List.of(todayCandle));
@@ -355,7 +355,7 @@ class TokenServiceImplTest {
     @Test
     void getTokenAssetsWith10Paging_거래없는토큰_집계기본값0() {
         Asset asset = Asset.builder().assetId(1L).assetName("무거래 토큰").build();
-        Token token = Token.builder().tokenId(1L).currentPrice(5000.0).asset(asset).build();
+        Token token = Token.builder().tokenId(1L).currentPrice(5000L).asset(asset).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.TOTAL_TRADE_VALUE)).thenReturn(List.of(token));
         when(candleDayRepository.findTodayByTokenIds(anyList(), any(), any())).thenReturn(List.of());
@@ -371,7 +371,7 @@ class TokenServiceImplTest {
     @Test
     void getTokenAssetsWith10Paging_basePrice없으면_등락률0() {
         Asset asset = Asset.builder().assetId(1L).assetName("빌딩A").build();
-        Token token = Token.builder().tokenId(1L).currentPrice(8000.0).asset(asset).build();
+        Token token = Token.builder().tokenId(1L).currentPrice(8000L).asset(asset).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
         when(candleDayRepository.findTodayByTokenIds(anyList(), any(), any())).thenReturn(List.of());  // 시가 없음
@@ -386,9 +386,9 @@ class TokenServiceImplTest {
     @Test
     void getTokenAssetsWith10Paging_MONTH_candleMonth사용() {
         Asset asset = Asset.builder().assetId(1L).assetName("월간 토큰").build();
-        Token token = Token.builder().tokenId(1L).currentPrice(20000.0).asset(asset).build();
+        Token token = Token.builder().tokenId(1L).currentPrice(20000L).asset(asset).build();
 
-        CandleMonth monthCandle = CandleMonth.builder().openPrice(18000.0).closePrice(19000.0).token(token).build();
+        CandleMonth monthCandle = CandleMonth.builder().openPrice(18000L).closePrice(19000L).token(token).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
         when(candleMonthRepository.findThisMonthByTokenIds(anyList(), any(), any())).thenReturn(List.of(monthCandle));
@@ -406,9 +406,9 @@ class TokenServiceImplTest {
     @Test
     void getTokenAssetsWith10Paging_YEAR_candleYear사용() {
         Asset asset = Asset.builder().assetId(1L).assetName("연간 토큰").build();
-        Token token = Token.builder().tokenId(1L).currentPrice(30000.0).asset(asset).build();
+        Token token = Token.builder().tokenId(1L).currentPrice(30000L).asset(asset).build();
 
-        CandleYear yearCandle = CandleYear.builder().openPrice(25000.0).closePrice(28000.0).token(token).build();
+        CandleYear yearCandle = CandleYear.builder().openPrice(25000L).closePrice(28000L).token(token).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
         when(candleYearRepository.findThisYearByTokenIds(anyList(), any(), any())).thenReturn(List.of(yearCandle));
@@ -426,12 +426,12 @@ class TokenServiceImplTest {
     void getTokenAssetsWith10Paging_스파크라인_복수토큰_tokenId별그룹핑() {
         Asset asset1 = Asset.builder().assetId(1L).assetName("A토큰").build();
         Asset asset2 = Asset.builder().assetId(2L).assetName("B토큰").build();
-        Token token1 = Token.builder().tokenId(1L).currentPrice(1000.0).asset(asset1).build();
-        Token token2 = Token.builder().tokenId(2L).currentPrice(2000.0).asset(asset2).build();
+        Token token1 = Token.builder().tokenId(1L).currentPrice(1000L).asset(asset1).build();
+        Token token2 = Token.builder().tokenId(2L).currentPrice(2000L).asset(asset2).build();
 
-        CandleDay spark1a = CandleDay.builder().closePrice(900.0).token(token1).build();
-        CandleDay spark1b = CandleDay.builder().closePrice(950.0).token(token1).build();
-        CandleDay spark2a = CandleDay.builder().closePrice(1800.0).token(token2).build();
+        CandleDay spark1a = CandleDay.builder().closePrice(900L).token(token1).build();
+        CandleDay spark1b = CandleDay.builder().closePrice(950L).token(token1).build();
+        CandleDay spark2a = CandleDay.builder().closePrice(1800L).token(token2).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token1, token2));
         when(candleDayRepository.findTodayByTokenIds(anyList(), any(), any())).thenReturn(List.of());

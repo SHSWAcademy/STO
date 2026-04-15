@@ -2,12 +2,19 @@ package server.main.myaccount.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import server.main.myaccount.dto.AccountBalanceResponse;
 import server.main.myaccount.dto.DepositRequest;
 import server.main.myaccount.dto.PortfolioResponse;
+import server.main.myaccount.dto.VerifyAccountPasswordRequest;
 import server.main.myaccount.dto.WithdrawRequest;
+import server.main.member.entity.TxType;
+import server.main.myaccount.dto.*;
 import server.main.myaccount.service.MyAccountService;
 
 import java.util.List;
@@ -39,5 +46,24 @@ public class MyAccountController {
     @GetMapping("/portfolio")
     public ResponseEntity<List<PortfolioResponse>> getPortfolio() {
         return ResponseEntity.ok(myAccountService.getPortfolio());
+    }
+
+    @PostMapping("/verify-password")
+    public ResponseEntity<Void> verifyPassword(@RequestBody @Valid VerifyAccountPasswordRequest request) {
+        myAccountService.verifyAccountPassword(request);
+        return ResponseEntity.ok().build();
+    }
+    @GetMapping("/history")
+    public ResponseEntity<Page<BankingHistoryResponse>> getBankingHistory(
+            @RequestParam(required = false) List<TxType> txTypes,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(myAccountService.getBankingHistory(txTypes, pageable));
+    }
+
+    @GetMapping("/orders")
+    public ResponseEntity<Page<OrderHistoryResponse>> getOrderHistory(
+            @RequestParam(defaultValue = "all") String orderTab,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(myAccountService.getOrderHistory(orderTab, pageable));
     }
 }

@@ -1,7 +1,10 @@
 package server.main.myaccount.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.global.error.BusinessException;
@@ -14,7 +17,12 @@ import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.myaccount.dto.AccountBalanceResponse;
 import server.main.myaccount.dto.DepositRequest;
 import server.main.myaccount.dto.PortfolioResponse;
+import server.main.myaccount.dto.VerifyAccountPasswordRequest;
 import server.main.myaccount.dto.WithdrawRequest;
+import server.main.myaccount.dto.*;
+import server.main.order.entity.Order;
+import server.main.order.entity.OrderStatus;
+import server.main.order.repository.OrderRepository;
 
 import java.util.List;
 
@@ -26,6 +34,8 @@ public class MyAccountServiceImpl implements MyAccountService{
     private final AccountRepository accountRepository;
     private final MemberBankRepository memberBankRepository;
     private final MemberTokenHoldingRepository memberTokenHoldingRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final OrderRepository orderRepository;
 
     @Override
     public void deposit(DepositRequest depositRequest) {
@@ -97,5 +107,55 @@ public class MyAccountServiceImpl implements MyAccountService{
                 .filter(h -> h.getCurrentQuantity() > 0)
                 .map(PortfolioResponse :: from)
                 .toList();
+    }
+
+    @Override
+    public void verifyAccountPassword(VerifyAccountPasswordRequest request) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Account account = accountRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+
+        if (!passwordEncoder.matches(request.getAccountPassword(), account.getAccountPassword())) {
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BankingHistoryResponse> getBankingHistory(List<TxType> txTypes, Pageable pageable) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Account account = accountRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+
+        if (txTypes == null || txTypes.isEmpty()) {
+            return memberBankRepository.findByAccount(account, pageable)
+                    .map(BankingHistoryResponse::from);
+        }
+        return memberBankRepository.findByAccountAndTxTypeIn(account, txTypes, pageable)
+                .map(BankingHistoryResponse::from);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrderHistoryResponse> getOrderHistory(String orderTab, Pageable pageable) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Page<Order> orders;
+
+        if ("open".equals(orderTab)) {
+            List<OrderStatus> openStatuses = List.of(OrderStatus.OPEN, OrderStatus.PENDING, OrderStatus.PARTIAL);
+            orders = orderRepository.findAllByMemberIdAndStatuses(memberId, openStatuses, pageable);
+        } else if ("filled".equals(orderTab)) {
+            List<OrderStatus> filledStatuses = List.of(OrderStatus.FILLED);
+            orders = orderRepository.findAllByMemberIdAndStatuses(memberId, filledStatuses, pageable);
+        } else {
+            orders = orderRepository.findAllByMemberId(memberId,pageable);
+        }
+        return orders.map(OrderHistoryResponse::from);
     }
 }

@@ -1,41 +1,75 @@
 package server.main.global.websocket;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
-import server.main.global.security.JwtTokenProvider;
-import server.main.global.util.MatchClient;
+import server.main.order.entity.Order;
+import server.main.order.entity.OrderType;
+import server.main.order.repository.OrderRepository;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 @Component
 @RequiredArgsConstructor
 public class OrderBookSubscribeHandler {
-    // // 상세 페이지 접속 시 처음 호가창 스냅샷을 전달
-
-    //- Stomp 에서는 순수 웹소켓과 다르게 직접 클라이언트 세션들을 개발자가 관리하지 않는다.
-    //- 클라이언트 세션들은 Stomp 에서 자동으로 편리하게 관리하고 있다.
-    //- 웹소켓을 이용하며 발생한 사건(event)들을 catch 하여 기록, 로깅할 수 있도록 돕는 객체가 EventListener 이다.
-    //- 웹소켓 시스템의 기록 일지 역할
 
     private final SimpMessagingTemplate template;
-    private final MatchClient matchClient;
+    private final OrderRepository orderRepository;
+    private final ObjectMapper objectMapper;
 
-    // 클라이언트가 상세 페이지 접속 시 stomp 실행 -> 그 때 발생하는 일을 이벤트 리스너가 확인 (처음 1회만)
     @EventListener
     public void handleSubscribe(SessionSubscribeEvent event) {
-        // 클라이언트가 구독한 주소를 확인
+
+        // match 서버 (OrderBookInitializer) — 서버 시작 시 DB 조회 -> 매치 in-memory에 적재
+        // main 서버 (OrderBookSubscribeHandler) — 상세 페이지 접근 시 DB 조회 -> 화면에 스냅샷 전송
+        // 각각 DB 조회
+
+        // 상세 페이지 접근 시 처음 DB 에서 조회하는 호가창 정보
         String destination = (String) event.getMessage().getHeaders()
                 .get(SimpMessageHeaderAccessor.DESTINATION_HEADER);
 
-        // 검증, 구독 : /topic 이 추가되도록 WebsocketConfig 에서 설정
         if (destination == null || !destination.startsWith("/topic/orderBook/")) return;
 
-        String tokenId = destination.replace("/topic/orderBook/", "");
+        Long tokenId = Long.parseLong(destination.replace("/topic/orderBook/", ""));
 
-        // matchClient를 통해 match 서버에서 현재까지의 호가 정보 스냅샷을 받아 추출
-        String snapshot = matchClient.getOrderBookSnapshot(Long.parseLong(tokenId));
-        template.convertAndSend(destination, snapshot);
+        // DB에서 OPEN/PARTIAL 주문 조회 → 가격별 잔량 집계
+        List<Order> orders = orderRepository.findOpenAndPartialByTokenId(tokenId);
+
+        Map<Long, Long> askMap = new TreeMap<>();                          // 매도: 낮은 가격 우선
+        Map<Long, Long> bidMap = new TreeMap<>(Comparator.reverseOrder()); // 매수: 높은 가격 우선
+
+        for (Order o : orders) {
+            if (o.getOrderType() == OrderType.SELL) {
+                askMap.merge(o.getOrderPrice(), o.getRemainingQuantity(), Long::sum);
+            } else {
+                bidMap.merge(o.getOrderPrice(), o.getRemainingQuantity(), Long::sum);
+            }
+        }
+
+        List<Map<String, Long>> asks = askMap.entrySet().stream()
+                .map(e -> Map.of("price", e.getKey(), "quantity", e.getValue()))
+                .toList();
+
+        List<Map<String, Long>> bids = bidMap.entrySet().stream()
+                .map(e -> Map.of("price", e.getKey(), "quantity", e.getValue()))
+                .toList();
+
+        try {
+            String snapshot = objectMapper.writeValueAsString(
+                    Map.of("tokenId", tokenId, "asks", asks, "bids", bids)
+            );
+            template.convertAndSend(destination, snapshot);
+        } catch (Exception e) {
+            // 직렬화 실패 시 빈 호가창 전송
+            template.convertAndSend(destination,
+                    "{\"tokenId\":" + tokenId + ",\"asks\":[],\"bids\":[]}");
+        }
     }
 }

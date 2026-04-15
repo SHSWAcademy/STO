@@ -27,7 +27,7 @@ public interface OrderService {
     List<PendingOrderResponseDto> getPendingOrders(Long tokenId);
 
     // cancelOrder Phase 1: 검증 + 잔고 복구 + PENDING 전환 → 커밋
-    CancelOrderContext validateAndCancelOrder(Long orderId);
+    CancelOrderContext validateAndCancelOrder(Long orderId, CancelOrderRequestDto dto);
 
     // cancelOrder Phase 2: CANCELLED 최종 전환 → 커밋
     void completeCancelOrder(Long orderId);

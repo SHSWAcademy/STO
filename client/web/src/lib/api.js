@@ -15,13 +15,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 응답 인터셉터 — 401 처리
+// 응답 인터셉터 - 401 처리
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const token = localStorage.getItem("token");
+    const errorCode = error.response?.data?.errorCode;
+    const shouldLogout =
+      error.response?.status === 401 &&
+      token &&
+      ["UNAUTHORIZED", "INVALID_TOKEN", "TOKEN_EXPIRED"].includes(errorCode);
 
-    if (error.response?.status === 401 && token) {
+    if (shouldLogout) {
       localStorage.removeItem("token");
       window.location.href = "/";
     }
@@ -34,4 +39,33 @@ export const deposit = (amount) =>
   api.post("/api/myaccount/deposit", { amount });
 export const withdraw = (amount) =>
   api.post("/api/myaccount/withdraw", { amount });
+export const fetchBankingHistory = (page = 0, txTypes = []) =>
+  api.get("/api/myaccount/history", {
+    params: {
+      page,
+      size: 10,
+      ...(txTypes.length > 0 && { txTypes }),
+    },
+    paramsSerializer: (params) => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          value.forEach((v) => searchParams.append(key, v));
+        } else {
+          searchParams.append(key, value);
+        }
+      });
+      return searchParams.toString();
+    },
+  });
+
+export const fetchOrderHistory = (page = 0, orderTab = "all") =>
+  api.get("/api/myaccount/orders", {
+    params: { page, size: 10, orderTab },
+  });
+
+export const cancelOrder = (orderId, accountPassword) =>
+  api.delete(`/api/token/order/cancel/${orderId}`, {
+    data: { accountPassword },
+  });
 export default api;
