@@ -19,6 +19,7 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
   const [price, setPrice]         = useState(currentPrice > 0 ? String(currentPrice) : '');
   const [qty, setQty]             = useState('');
   const [amount, setAmount]       = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
   const [submitting, setSubmitting]   = useState(false);
   const [orderMsg, setOrderMsg]       = useState(null); // { type: 'success'|'error', text }
 
@@ -30,6 +31,7 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
   const [editingOrderId, setEditingOrderId] = useState(null);
   const [editPrice, setEditPrice]           = useState('');
   const [editQty, setEditQty]               = useState('');
+  const [editAccountPassword, setEditAccountPassword] = useState('');
   const [updateMsg, setUpdateMsg]           = useState(null); // { orderId, type, text }
   const [capacity, setCapacity]             = useState({ availableBalance: 0, availableQuantity: 0 });
 
@@ -83,6 +85,26 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
     ? (Number(amount) || 0)
     : numPrice * numQty;
 
+  function isValidAccountPassword(value) {
+    return /^\d{4}$/.test(value);
+  }
+
+  function getUserFriendlyErrorMessage(message, fallback) {
+    if (!message || /^HTTP \d+$/.test(message)) {
+      return fallback;
+    }
+    if (message.includes('비밀번호')) {
+      return '계좌 비밀번호가 올바르지 않습니다. 다시 확인해 주세요.';
+    }
+    if (message.includes('잔고')) {
+      return '주문 가능 금액이 부족합니다. 잔고를 확인해 주세요.';
+    }
+    if (message.includes('수량')) {
+      return '주문 수량을 다시 확인해 주세요.';
+    }
+    return message;
+  }
+
   // 대기 주문 REST 조회
   const fetchPendingOrders = useCallback(async () => {
     if (!isLoggedIn || !token || !tokenId) return;
@@ -134,7 +156,11 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
       return;
     }
     if (!Number.isInteger(numPrice) || !Number.isInteger(numQty) || numPrice <= 0 || numQty <= 0) {
-      setOrderMsg({ type: 'error', text: '가격과 수량은 양의 정수만 입력하세요.' });
+      setOrderMsg({ type: 'error', text: '가격과 수량을 올바르게 입력해 주세요.' });
+      return;
+    }
+    if (!isValidAccountPassword(accountPassword)) {
+      setOrderMsg({ type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
       return;
     }
     setSubmitting(true);
@@ -150,18 +176,23 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
           orderPrice:    numPrice,
           orderQuantity: numQty,
           orderType:     isBuy ? 'BUY' : 'SELL',
+          accountPassword,
         }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || `HTTP ${res.status}`);
       }
-      setOrderMsg({ type: 'success', text: `${isBuy ? '매수' : '매도'} 주문이 접수되었습니다.` });
+      setOrderMsg({ type: 'success', text: `${isBuy ? '매수' : '매도'} 주문이 정상적으로 접수되었습니다.` });
       setQty('');
       setAmount('');
+      setAccountPassword('');
       fetchCapacity();
     } catch (e) {
-      setOrderMsg({ type: 'error', text: e.message || '주문 접수에 실패했습니다.' });
+      setOrderMsg({
+        type: 'error',
+        text: getUserFriendlyErrorMessage(e.message, '주문 접수 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'),
+      });
     } finally {
       setSubmitting(false);
     }
@@ -187,6 +218,7 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
     setEditingOrderId(o.orderId);
     setEditPrice(String(o.orderPrice ?? ''));
     setEditQty(String(o.orderQuantity ?? ''));
+    setEditAccountPassword('');
     setUpdateMsg(null);
   }
 
@@ -194,6 +226,7 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
     setEditingOrderId(null);
     setEditPrice('');
     setEditQty('');
+    setEditAccountPassword('');
     setUpdateMsg(null);
   }
 
@@ -201,8 +234,12 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
   async function handleUpdateOrder(orderId) {
     const p = Number(editPrice);
     const q = Number(editQty);
+    if (!isValidAccountPassword(editAccountPassword)) {
+      setUpdateMsg({ orderId, type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
+      return;
+    }
     if (!Number.isInteger(p) || !Number.isInteger(q) || p <= 0 || q <= 0) {
-      setUpdateMsg({ orderId, type: 'error', text: '가격과 수량은 양의 정수만 입력하세요.' });
+      setUpdateMsg({ orderId, type: 'error', text: '가격과 수량을 올바르게 입력해 주세요.' });
       return;
     }
     try {
@@ -212,7 +249,11 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ updatePrice: p, updateQuantity: q }),
+        body: JSON.stringify({
+          updatePrice: p,
+          updateQuantity: q,
+          accountPassword: editAccountPassword,
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -227,9 +268,16 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
         })
       );
       setEditingOrderId(null);
+      setEditPrice('');
+      setEditQty('');
+      setEditAccountPassword('');
       setUpdateMsg(null);
     } catch (e) {
-      setUpdateMsg({ orderId, type: 'error', text: e.message || '수정에 실패했습니다.' });
+      setUpdateMsg({
+        orderId,
+        type: 'error',
+        text: getUserFriendlyErrorMessage(e.message, '주문 수정 중 오류가 발생했습니다. 다시 시도해 주세요.'),
+      });
     }
   }
 
@@ -362,6 +410,20 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
                                 className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800"
                               />
                               <span className="text-[11px] font-bold text-stone-400">주</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-stone-400">계좌 비밀번호</label>
+                            <div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2">
+                              <input
+                                type="password"
+                                inputMode="numeric"
+                                maxLength={4}
+                                value={editAccountPassword}
+                                onChange={e => setEditAccountPassword(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                placeholder="숫자 4자리"
+                                className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800 placeholder-stone-400"
+                              />
                             </div>
                           </div>
                           <div className="flex justify-between text-[11px] font-bold border-t border-stone-200 pt-1.5">
@@ -525,6 +587,21 @@ export function OrderPanel({ asset, currentPrice, tokenId, token, wsPendingData 
             )}
 
             {/* 비율 버튼 */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-stone-400">계좌 비밀번호</label>
+              <div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5">
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="숫자 4자리"
+                  value={accountPassword}
+                  onChange={e => setAccountPassword(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800 placeholder-stone-400"
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-4 gap-2">
               {['10%', '25%', '50%', '최대'].map(p => (
                 <button

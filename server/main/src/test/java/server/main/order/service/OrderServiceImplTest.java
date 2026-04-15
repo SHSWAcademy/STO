@@ -20,7 +20,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
+import server.main.admin.entity.Common;
+import server.main.admin.entity.PlatformAccount;
+import server.main.admin.repository.CommonRepository;
+import server.main.admin.repository.PlatformAccountRepository;
+import server.main.admin.repository.PlatformBankingRepository;
 import server.main.blockchain.service.BlockchainOutboxService;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
@@ -30,6 +36,7 @@ import server.main.member.entity.Account;
 import server.main.member.entity.Member;
 import server.main.member.entity.MemberTokenHolding;
 import server.main.member.repository.AccountRepository;
+import server.main.member.repository.BankingRepository;
 import server.main.member.repository.MemberRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
 import server.main.order.dto.MatchOrderRequestDto;
@@ -68,6 +75,12 @@ class OrderServiceImplTest {
     @Mock OrderDuplicatedRepository orderDuplicatedRepository;
     @Mock TradeDuplicatedRepository tradeDuplicatedRepository;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock PasswordEncoder passwordEncoder;
+    @Mock CommonRepository commonRepository;
+    @Mock PlatformAccountRepository platformAccountRepository;
+    @Mock BankingRepository bankingRepository;
+    @Mock PlatformBankingRepository platformBankingRepository;
+    @Mock PlatformAccount platformAccount;
 
     @InjectMocks
     OrderServiceImpl orderService;
@@ -83,6 +96,12 @@ class OrderServiceImplTest {
         lenient().when(securityContext.getAuthentication()).thenReturn(authentication);
         lenient().when(authentication.getPrincipal()).thenReturn(principal);
         SecurityContextHolder.setContext(securityContext);
+
+        Common common = mock(Common.class);
+        lenient().when(commonRepository.findCommon()).thenReturn(common);
+        lenient().when(common.getChargeRate()).thenReturn(0.0);
+        lenient().when(passwordEncoder.matches(any(CharSequence.class), nullable(String.class))).thenReturn(true);
+        lenient().when(platformAccountRepository.findWithLock()).thenReturn(Optional.of(platformAccount));
     }
 
     // ──────────────── getPendingOrders ────────────────
@@ -169,9 +188,12 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
+        when(account.getAccountPassword()).thenReturn("encoded");
+        when(passwordEncoder.matches("1234", "encoded")).thenReturn(true);
         when(account.getAvailableBalance()).thenReturn(1_000_000L);
 
-        OrderRequestDto dto = OrderRequestDto.builder()
+        OrderRequestDto dto = OrderRequestDto.builder().accountPassword("1234")
+                .accountPassword("1234")
                 .orderType(OrderType.BUY)
                 .orderPrice(12000L)
                 .orderQuantity(5L) // 총 60000 < 잔고 1000000
@@ -202,7 +224,7 @@ class OrderServiceImplTest {
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(account.getAvailableBalance()).thenReturn(10_000L); // 잔고 부족
 
-        OrderRequestDto dto = OrderRequestDto.builder()
+        OrderRequestDto dto = OrderRequestDto.builder().accountPassword("1234")
                 .orderType(OrderType.BUY)
                 .orderPrice(12000L)
                 .orderQuantity(5L) // 총 60000 > 잔고 10000
@@ -217,15 +239,17 @@ class OrderServiceImplTest {
     @Test
     void validateAndSaveOrder_매도_토큰미보유_예외발생() {
         // given
+        Account account = mock(Account.class);
         Member member = mock(Member.class);
         Token token = mock(Token.class);
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.empty());
 
-        OrderRequestDto dto = OrderRequestDto.builder()
+        OrderRequestDto dto = OrderRequestDto.builder().accountPassword("1234")
                 .orderType(OrderType.SELL)
                 .orderPrice(12000L)
                 .orderQuantity(5L)
@@ -240,17 +264,19 @@ class OrderServiceImplTest {
     @Test
     void validateAndSaveOrder_매도_수량부족_예외발생() {
         // given
+        Account account = mock(Account.class);
         Member member = mock(Member.class);
         Token token = mock(Token.class);
         MemberTokenHolding holding = mock(MemberTokenHolding.class);
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
         when(holding.getCurrentQuantity()).thenReturn(3L); // 보유 3주
 
-        OrderRequestDto dto = OrderRequestDto.builder()
+        OrderRequestDto dto = OrderRequestDto.builder().accountPassword("1234")
                 .orderType(OrderType.SELL)
                 .orderPrice(12000L)
                 .orderQuantity(5L) // 요청 5주 > 보유 3주
@@ -265,17 +291,19 @@ class OrderServiceImplTest {
     @Test
     void validateAndSaveOrder_매도_정상접수() {
         // given
+        Account account = mock(Account.class);
         Member member = mock(Member.class);
         Token token = mock(Token.class);
         MemberTokenHolding holding = mock(MemberTokenHolding.class);
 
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
         when(holding.getCurrentQuantity()).thenReturn(10L); // 보유 10주
 
-        OrderRequestDto dto = OrderRequestDto.builder()
+        OrderRequestDto dto = OrderRequestDto.builder().accountPassword("1234")
                 .orderType(OrderType.SELL)
                 .orderPrice(12000L)
                 .orderQuantity(5L) // 요청 5주 <= 보유 10주
@@ -303,6 +331,7 @@ class OrderServiceImplTest {
                 .thenReturn(Optional.of(order));
 
         UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
+                .accountPassword("1234")
                 .updatePrice(12000L)
                 .updateQuantity(5L)
                 .build();
@@ -324,6 +353,7 @@ class OrderServiceImplTest {
                 .thenReturn(Optional.of(order));
 
         UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
+                .accountPassword("1234")
                 .updatePrice(12000L)
                 .updateQuantity(5L) // filledQuantity(5)와 같음 → 예외
                 .build();
@@ -357,16 +387,17 @@ class OrderServiceImplTest {
         when(account.getAvailableBalance()).thenReturn(0L);  // availableBalance(0) + oldAmount(500) >= updateAmount(360)
 
         UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
-                .updatePrice(120L)
-                .updateQuantity(8L)  // newRemaining = 8 - 5 = 3, updateAmount = 120 * 3 = 360
+                .accountPassword("1234")
+                .updatePrice(150L)
+                .updateQuantity(8L)  // newRemaining = 8 - 5 = 3, updateAmount = 150 * 3 = 450
                 .build();
 
         // when
         UpdateMatchOrderRequestDto result = orderService.validateAndUpdateOrder(orderId, dto);
 
         // then: total 기준(120*8=960)이 아닌 remaining 기준(120*3=360)으로 호출되어야 한다
-        verify(account).relockBalance(500L, 360L);
-        assertThat(result.getUpdatePrice()).isEqualTo(120L);
+        verify(account).relockBalance(500L, 450L);
+        assertThat(result.getUpdatePrice()).isEqualTo(150L);
         assertThat(result.getUpdateQuantity()).isEqualTo(3L); // remaining 기준
         assertThat(result.getOriginalPrice()).isEqualTo(100L);
         assertThat(result.getOriginalQuantity()).isEqualTo(10L);
@@ -377,6 +408,7 @@ class OrderServiceImplTest {
         // given
         Long orderId = 1L;
         Order order = mock(Order.class);
+        Account account = mock(Account.class);
         Member member = mock(Member.class);
         Token token = mock(Token.class);
         MemberTokenHolding holding = mock(MemberTokenHolding.class);
@@ -391,12 +423,14 @@ class OrderServiceImplTest {
         when(order.getToken()).thenReturn(token);
         when(token.getTokenId()).thenReturn(TOKEN_ID);
         when(orderRepository.findByMemberIdAndOrderId(MEMBER_ID, orderId)).thenReturn(Optional.of(order));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
         when(holding.getCurrentQuantity()).thenReturn(0L);  // currentQuantity(0) + oldQuantity(5) >= newRemaining(3)
 
         UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
-                .updatePrice(120L)
+                .accountPassword("1234")
+                .updatePrice(150L)
                 .updateQuantity(8L)  // newRemaining = 8 - 5 = 3
                 .build();
 
@@ -421,7 +455,8 @@ class OrderServiceImplTest {
 
         // when & then
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> orderService.validateAndCancelOrder(orderId));
+                () -> orderService.validateAndCancelOrder(orderId,
+                        server.main.order.dto.CancelOrderRequestDto.builder().accountPassword("1234").build()));
         assertThat(ex.getErrorCode()).isEqualTo(ORDER_CANNOT_CANCEL);
     }
 
@@ -501,8 +536,8 @@ class OrderServiceImplTest {
         orderService.processMatchResult(orderId, TOKEN_ID, matchResult);
 
         // then — orderPrice == tradePrice(12000)이라 차액 없음, lockedAmount == tradeAmount
-        verify(account).settleBuyTrade(60_000L, 60_000L); // tradeAmount=60000, lockedAmount=12000*5=60000
-        verify(counterAccount).settleSellTrade(60_000L);
+        verify(account).settleBuyTrade(60_000L, 60_000L, 0L); // tradeAmount=60000, lockedAmount=12000*5=60000
+        verify(counterAccount).settleSellTrade(60_000L, 0L);
         verify(buyerHolding).settleBuyTrade(5L, 12000L);
         verify(sellerHolding).settleSellTrade(5L);
         verify(tradeRepository).save(any());
@@ -582,8 +617,8 @@ class OrderServiceImplTest {
         // then
         // tradeAmount = 10000 * 5 = 50000, lockedAmount = 12000 * 5 = 60000
         // lockedBalance -= 60000, availableBalance += (60000 - 50000) = 10000 환급
-        verify(account).settleBuyTrade(50_000L, 60_000L);
-        verify(counterAccount).settleSellTrade(50_000L);
+        verify(account).settleBuyTrade(50_000L, 60_000L, 0L);
+        verify(counterAccount).settleSellTrade(50_000L, 0L);
     }
 
     @Test
@@ -830,8 +865,8 @@ class OrderServiceImplTest {
 
         // then — SELL incoming이므로 buyer=counter, seller=incoming
         // tradeAmount = 60000, lockedAmount = counterOrder.orderPrice(12000) * 5 = 60000
-        verify(counterAccount).settleBuyTrade(60_000L, 60_000L);
-        verify(sellerAccount).settleSellTrade(60_000L);
+        verify(counterAccount).settleBuyTrade(60_000L, 60_000L, 0L);
+        verify(sellerAccount).settleSellTrade(60_000L, 0L);
         verify(buyerHolding).settleBuyTrade(5L, 12000L);
         verify(sellerHolding).settleSellTrade(5L);
         verify(tradeRepository).save(any());
