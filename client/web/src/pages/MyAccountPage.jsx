@@ -710,10 +710,23 @@ function OrdersTab({
                           "text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest",
                           order.orderStatus === "FILLED"
                             ? "bg-brand-red-light text-brand-red"
-                            : "bg-[#fef6dc] text-[#a07828]",
+                            : order.orderStatus === "PARTIAL"
+                              ? "bg-blue-100 text-blue-600"
+                              : order.orderStatus === "CANCELLED" ||
+                                  order.orderStatus === "FAILED"
+                                ? "bg-stone-100 text-stone-400"
+                                : "bg-[#fef6dc] text-[#a07828]",
                         )}
                       >
-                        {order.orderStatus === "FILLED" ? "체결" : "미체결"}
+                        {order.orderStatus === "FILLED"
+                          ? "체결"
+                          : order.orderStatus === "PARTIAL"
+                            ? "부분체결"
+                            : order.orderStatus === "CANCELLED"
+                              ? "취소"
+                              : order.orderStatus === "FAILED"
+                                ? "실패"
+                                : "미체결"}
                       </span>
                     </div>
                     <p className="text-[10px] text-stone-400 font-bold mt-0.5">
