@@ -9,12 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.*;
-import server.main.admin.entity.Common;
 import server.main.admin.service.AdminService;
 
-import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/admin")
@@ -142,6 +139,15 @@ public class AdminController {
     public ResponseEntity<Page<DashBoardTradeListDTO>> getDashBoardTradeList(@RequestParam(defaultValue = "0") int page,
                                                                           @RequestParam(defaultValue = "10") int size) {
         Page<DashBoardTradeListDTO> list = adminService.getDashBoardTradeList(page, size);
+        return ResponseEntity.ok(list);
+    }
+
+    // 로그관리 조회
+    @GetMapping("/systemlog")
+    public ResponseEntity<Page<SystemLogResponseDTO>> getSystemLog(@RequestParam String category,
+                                                                   @RequestParam(defaultValue = "0") int page,
+                                                                   @RequestParam(defaultValue = "10") int size) {
+        Page<SystemLogResponseDTO> list = adminService.getSystemLong(category, page, size);
         return ResponseEntity.ok(list);
     }
  }

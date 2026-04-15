@@ -165,9 +165,9 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(createOrder);
 
         // 로그 저장
-        String detail = String.format("토큰 ID=%d 매수매도=%s 가격=%d 수량=%d",
-                tokenId, dto.getOrderType(), dto.getOrderPrice(), dto.getOrderQuantity());
-        orderLogService.save(findMember.getMemberName(), detail, true);
+        String detail = String.format("토큰=%s 가격=%d 수량=%d",
+                findToken.getTokenName(), dto.getOrderPrice(), dto.getOrderQuantity());
+        orderLogService.save(findMember.getMemberName(), String.valueOf(dto.getOrderType()), detail, true);
 
         return MatchOrderRequestDto.builder()
                 .tokenId(tokenId)

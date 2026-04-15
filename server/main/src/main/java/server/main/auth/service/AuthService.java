@@ -1,5 +1,6 @@
 package server.main.auth.service;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -67,8 +68,9 @@ public class AuthService {
         return new MemberSignupResponse(member.getMemberId(), member.getEmail(), member.getMemberName(), wallet.getWalletAddress());
     }
 
-    public LoginResponse memberLogin(MemberLoginRequest request) {
+    public LoginResponse memberLogin(MemberLoginRequest request, HttpServletRequest httpServletRequest) {
         Member member = memberRepository.findByEmailAndIsActiveTrue(request.getEmail()).orElse(null);
+        String ClientIp = getClientIp(httpServletRequest);
 
         if (member == null) {
             passwordEncoder.matches(request.getPassword(), DUMMY_HASH); // timing 완화
@@ -78,11 +80,12 @@ public class AuthService {
 
         if (!passwordEncoder.matches(request.getPassword(), member.getMemberPassword())) {
             log.warn("[AUTH] 회원 로그인 실패 - 비밀번호 불일치: memberId={}", member.getMemberId());
+            loginLogService.save(request.getEmail(),ClientIp, "MEMBER_LOGIN", "로그인 실패", false);
             throw new BusinessException(ErrorCode.LOGIN_FAILED);
         }
 
         // 회원 로그 저장
-        loginLogService.save(maskEmail(request.getEmail()), "MEMBER_LOGIN", "로그인 성공", true);
+        loginLogService.save(request.getEmail(),ClientIp, "MEMBER_LOGIN", "로그인 성공", true);
 
         String token = jwtTokenProvider.createMemberToken(member.getMemberId(), member.getEmail());
         return new LoginResponse(token, "MEMBER");
@@ -131,5 +134,20 @@ public class AuthService {
     private String maskId(String id) {
         if (id == null || id.length() <= 2) return "***";
         return id.substring(0, 2) + "***";
+    }
+
+    // 클라이언트 IP 기록용 (admin)
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
     }
 }
