@@ -7,8 +7,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import server.main.allocation.entity.AllocationEvent;
-import server.main.allocation.repository.AllocationEventRepository;
 import server.main.allocation.repository.AllocationPayoutRepository;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
@@ -26,8 +24,6 @@ import server.main.myaccount.dto.*;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.repository.OrderRepository;
-import server.main.token.entity.Token;
-import server.main.token.repository.TokenRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

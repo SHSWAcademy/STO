@@ -17,6 +17,7 @@ import server.main.member.entity.TxType;
 import server.main.myaccount.dto.*;
 import server.main.myaccount.service.MyAccountService;
 
+import java.time.Year;
 import java.util.List;
 
 @RestController
@@ -74,16 +75,19 @@ public class MyAccountController {
 
     @GetMapping("/dividends")
     public ResponseEntity<Page<DividendHistoryResponse>> getDividendHistory(
-            @RequestParam(defaultValue = "2026") int year,
+            @RequestParam(required = false) Integer year,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(myAccountService.getDividendHistory(year, pageable));
+        int resolvedYear = (year != null) ? year : Year.now().getValue();
+        return ResponseEntity.ok(myAccountService.getDividendHistory(resolvedYear, pageable));
     }
 
     @GetMapping("/dividends/total")
     public ResponseEntity<Long> getDividendTotal(
-            @RequestParam(defaultValue = "2026") int year) {
-        return ResponseEntity.ok(myAccountService.getDividendTotal(year));
+            @RequestParam(required = false) Integer year) {
+        int resolvedYear = (year != null) ? year : Year.now().getValue();
+        return ResponseEntity.ok(myAccountService.getDividendTotal(resolvedYear));
     }
+
 
 
 
