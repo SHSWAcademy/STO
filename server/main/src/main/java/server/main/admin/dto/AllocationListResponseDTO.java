@@ -19,4 +19,5 @@ public class AllocationListResponseDTO {
     private Boolean allocationBatchStatus; // 배당 지급 여부
     private YearMonth targetMonth;      // 배당 정산월
     private LocalDate allocateSetMonth; // 관리자 마감월
+    private Long remainder;     // 배당 잔여금 (전월)
 }

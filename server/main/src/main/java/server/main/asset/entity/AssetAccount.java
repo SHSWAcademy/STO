@@ -18,6 +18,7 @@ public class AssetAccount extends BaseEntity {
     private Long assetAccountId;        // 계좌ID
     private Long assetAccountBalance;   // 출금가능한 잔고
     private Long assetId;               // 자산ID
+    private Long accumulated_remainder; // 배당 전월 잔여금
 
     // 초기 자산 계좌 생성용
     @Builder

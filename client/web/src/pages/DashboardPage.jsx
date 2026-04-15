@@ -6,6 +6,7 @@ import { useApp } from "../context/AppContext.jsx";
 import { cn } from "../lib/utils.js";
 import { API_BASE_URL } from "../lib/config.js";
 import { TabSwitcher } from "../components/ui/TabSwitcher.jsx";
+import { AssetAvatar } from "../components/ui/AssetAvatar.jsx";
 import { useDashboardSocket } from "../hooks/useDashboardSocket.js";
 
 const API = API_BASE_URL;
@@ -216,11 +217,24 @@ export function DashboardPage() {
                             </button>
                           </div>
 
-                          <div className="flex items-center gap-4 py-4">
+                          <div className="flex min-w-0 items-center gap-4 py-4">
                             <span className="w-4 font-mono text-stone-400">{page * PAGE_SIZE + index + 1}</span>
-                            <p className="font-bold text-stone-800 transition-colors group-hover:text-stone-900">
-                              {token.assetName}
-                            </p>
+                            <AssetAvatar
+                              symbol={token.tokenSymbol}
+                              src={token.imgUrl}
+                              alt={token.assetName}
+                              size="md"
+                              variant="light"
+                              className="shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className="truncate font-bold text-stone-800 transition-colors group-hover:text-stone-900">
+                                {token.assetName}
+                              </p>
+                              <p className="mt-0.5 truncate font-mono text-[11px] font-bold text-stone-400">
+                                {token.tokenSymbol || "-"}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -272,22 +286,35 @@ export function DashboardPage() {
           <div className="sticky top-24 rounded-xl border border-stone-200 bg-white p-8 shadow-sm">
             {previewToken ? (
               <>
-                <div className="mb-8">
-                  <h3 className="text-xl font-black text-stone-800">{previewToken.assetName}</h3>
-                  <p className="mt-1 text-sm font-bold">
-                    <span className="font-mono text-stone-800">
-                      {(previewToken.currentPrice ?? 0).toLocaleString()}원
-                    </span>
-                    <span
-                      className={cn(
-                        "ml-2",
-                        (previewToken.fluctuationRate ?? 0) >= 0 ? "text-brand-red" : "text-brand-blue",
-                      )}
-                    >
-                      {(previewToken.fluctuationRate ?? 0) >= 0 ? "+" : ""}
-                      {previewToken.fluctuationRate ?? 0}%
-                    </span>
-                  </p>
+                <div className="mb-8 flex items-start gap-4">
+                  <AssetAvatar
+                    symbol={previewToken.tokenSymbol}
+                    src={previewToken.imgUrl}
+                    alt={previewToken.assetName}
+                    size="lg"
+                    variant="light"
+                    className="shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <h3 className="truncate text-xl font-black text-stone-800">{previewToken.assetName}</h3>
+                    <p className="mt-1 font-mono text-xs font-bold text-stone-400">
+                      {previewToken.tokenSymbol || "-"}
+                    </p>
+                    <p className="mt-2 text-sm font-bold">
+                      <span className="font-mono text-stone-800">
+                        {(previewToken.currentPrice ?? 0).toLocaleString()}원
+                      </span>
+                      <span
+                        className={cn(
+                          "ml-2",
+                          (previewToken.fluctuationRate ?? 0) >= 0 ? "text-brand-red" : "text-brand-blue",
+                        )}
+                      >
+                        {(previewToken.fluctuationRate ?? 0) >= 0 ? "+" : ""}
+                        {previewToken.fluctuationRate ?? 0}%
+                      </span>
+                    </p>
+                  </div>
                 </div>
 
                 <div className="mb-8 h-64">

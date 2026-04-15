@@ -6,6 +6,7 @@ import server.main.admin.entity.PlatformBanking;
 import server.main.admin.entity.PlatformTokenHolding;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.asset.entity.Asset;
+import server.main.asset.entity.AssetAccount;
 import server.main.global.file.File;
 import server.main.member.entity.Member;
 import server.main.token.entity.Token;
@@ -98,7 +99,8 @@ public class AdminMapper {
     }
 
     // 베당 리스트 조회 (기존 자산리스트 + allocation 테이블 합쳐서)
-    public AllocationListResponseDTO toAllocationListResponseDTO(Token token, AllocationEvent allocationEvent, YearMonth targetMonth, LocalDate adminTargetMonth) {
+    public AllocationListResponseDTO toAllocationListResponseDTO(Token token, AllocationEvent allocationEvent,
+                                                                 YearMonth targetMonth, LocalDate adminTargetMonth, AssetAccount assetAccount) {
         return AllocationListResponseDTO.builder()
                 .assetId(token.getAsset().getAssetId())
                 .assetName(token.getAsset().getAssetName())
@@ -109,6 +111,7 @@ public class AdminMapper {
                 .allocationBatchStatus(allocationEvent != null ? allocationEvent.getAllocationBatchStatus() : null)
                 .targetMonth(targetMonth)
                 .allocateSetMonth(adminTargetMonth)
+                .remainder(assetAccount.getAccumulated_remainder())
                 .build();
     }
 
