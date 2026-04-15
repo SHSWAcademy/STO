@@ -15,6 +15,7 @@ import server.main.blockchain.entity.*;
 import server.main.blockchain.repository.BlockchainOutboxQRepository;
 import server.main.blockchain.repository.BlockchainTxRepository;
 import server.main.trade.entity.SettlementStatus;
+import server.main.trade.repository.TradeRepository;
 
 import java.math.BigInteger;
 import java.time.LocalDateTime;
@@ -66,6 +67,7 @@ public class BlockchainWorkerService {
                 if (isSuccess) {
                     blockchainOutboxQ.markConfirmed();
                     blockchainOutboxQ.getTrade().updateSettlementStatus(SettlementStatus.SUCCESS);
+
                 } else {
                     blockchainOutboxQ.incrementRetry();
                     if (blockchainOutboxQ.isMaxRetryExceeded()) {

@@ -3,6 +3,8 @@ package server.main.allocation.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @AllArgsConstructor
@@ -19,6 +21,12 @@ public class AllocationPayout {
     private Long tokenId;
     private Long memberIncome;
     private Long holdingQuantity;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
     private AllocationPayoutStatus allocationPayoutStatus;
+
+    private Long memberId;
+    private LocalDateTime createdAt;
 
 }
