@@ -47,9 +47,9 @@ function MainLayout() {
 // MockupPage 전용 독립 레이아웃 (비로그인 접근 가능)
 function MockupLayout() {
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-800">
+    <div className="h-screen overflow-hidden bg-stone-100 text-stone-800 flex flex-col">
       <AppHeader />
-      <main>
+      <main className="flex-1 min-h-0 overflow-hidden">
         <MockupPage />
       </main>
     </div>
