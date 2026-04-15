@@ -20,4 +20,6 @@ public class TokenMainResponseDto {
     private Long totalTradeValue;
     private Long totalTradeQuantity;
     private List<SparkPointDto> sparkLine;
+    private String tokenSymbol;
+    private String imgUrl;
 }

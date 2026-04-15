@@ -201,6 +201,8 @@ public class TokenServiceImpl implements TokenService{
                     .totalTradeValue(agg[0])
                     .totalTradeQuantity(agg[1])
                     .sparkLine(sparklineMap.getOrDefault(tokenId, List.of()))
+                    .tokenSymbol(t.getTokenSymbol())
+                    .imgUrl(t.getAsset().getImgUrl())
                     .build();
         }).collect(Collectors.toList());
     }
