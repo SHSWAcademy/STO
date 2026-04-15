@@ -3,6 +3,7 @@ package server.main.order.service;
 import static server.main.global.error.ErrorCode.*;
 
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 
 import lombok.RequiredArgsConstructor;
@@ -26,10 +27,8 @@ public class OrderFacade {
     private final MatchClient matchClient;
 
     public void createOrder(Long tokenId, OrderRequestDto dto) {
-        // phase 1
         MatchOrderRequestDto matchDto = orderService.validateAndSaveOrder(tokenId, dto);
 
-        // match 호출
         MatchResultDto matchResult;
         try {
             matchResult = matchClient.sendOrder(matchDto);
@@ -39,43 +38,39 @@ public class OrderFacade {
             throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
         }
 
-        // phase 2
         orderService.processMatchResult(matchDto.getOrderId(), tokenId, matchResult);
     }
-    
+
     public void updateOrder(Long orderId, UpdateOrderRequestDto dto) {
-        
-        // phase 1
         UpdateMatchOrderRequestDto matchDto = orderService.validateAndUpdateOrder(orderId, dto);
-        
-        // match
+
         MatchResultDto matchResult;
         try {
             matchResult = matchClient.updateOrder(matchDto);
-        } catch (RestClientException e){
+        } catch (RestClientException e) {
             log.error("match 서버 호출 실패. orderId={}", orderId, e);
             orderService.compensateFailedUpdate(orderId, matchDto.getOriginalPrice(), matchDto.getOriginalQuantity());
             throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
         }
 
-        // phase 2
         orderService.processMatchResult(orderId, matchDto.getTokenId(), matchResult);
     }
 
     public void cancelOrder(Long orderId, CancelOrderRequestDto dto) {
-        // phase 1
         CancelOrderContext ctx = orderService.validateAndCancelOrder(orderId, dto);
 
-        // match 호출
         try {
             matchClient.cancelOrder(ctx.getOrderId(), ctx.getTokenId());
+        } catch (HttpClientErrorException.NotFound e) {
+            log.warn("match 서버에 취소 대상 주문이 없어 취소 완료로 정리합니다. orderId={}", orderId, e);
+            orderService.completeCancelOrder(orderId);
+            return;
         } catch (RestClientException e) {
             log.error("match 서버 호출 실패. orderId={}", orderId, e);
             orderService.compensateFailedCancel(ctx);
             throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
         }
 
-        // phase 2
         orderService.completeCancelOrder(orderId);
     }
 }
