@@ -41,6 +41,7 @@ class OrderFacadeTest {
     void createOrder_정상_phase1_match_phase2_순서검증() {
         // given
         OrderRequestDto requestDto = OrderRequestDto.builder()
+                .accountPassword("1234")
                 .orderType(OrderType.BUY)
                 .orderPrice(12000L)
                 .orderQuantity(5L)
@@ -80,6 +81,7 @@ class OrderFacadeTest {
     void createOrder_match실패_보상트랜잭션_호출검증() {
         // given
         OrderRequestDto requestDto = OrderRequestDto.builder()
+                .accountPassword("1234")
                 .orderType(OrderType.BUY)
                 .orderPrice(12000L)
                 .orderQuantity(5L)
@@ -110,6 +112,7 @@ class OrderFacadeTest {
     void updateOrder_정상_phase1_match_phase2_순서검증() {
         // given
         UpdateOrderRequestDto requestDto = UpdateOrderRequestDto.builder()
+                .accountPassword("1234")
                 .updatePrice(13000L)
                 .updateQuantity(8L)
                 .build();
@@ -149,6 +152,7 @@ class OrderFacadeTest {
     void updateOrder_match실패_보상트랜잭션_호출검증() {
         // given
         UpdateOrderRequestDto requestDto = UpdateOrderRequestDto.builder()
+                .accountPassword("1234")
                 .updatePrice(13000L)
                 .updateQuantity(8L)
                 .build();

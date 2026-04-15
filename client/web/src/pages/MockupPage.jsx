@@ -147,6 +147,297 @@ function LoginRequiredModal({ message, onClose }) {
             확인
           </button>
         </div>
+
+        {false && passwordModal && (
+            <OrderPinPadModal
+                title={
+                  passwordModal.action === 'create'
+                      ? `${isBuy ? '매수' : '매도'} 주문 확인`
+                      : passwordModal.action === 'update'
+                          ? '주문 수정 확인'
+                          : '주문 취소 확인'
+                }
+                description={
+                  passwordModal.action === 'create'
+                      ? `${isBuy ? '매수' : '매도'} 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.`
+                      : passwordModal.action === 'update'
+                          ? '수정할 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.'
+                          : '취소할 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.'
+                }
+                password={passwordModal.action === 'create' ? accountPassword : editAccountPassword}
+                errorMessage={
+                  passwordModal.action === 'create'
+                      ? (orderMsg?.type === 'error' ? orderMsg.text : null)
+                      : (updateMsg?.orderId === passwordModal.orderId && updateMsg.type === 'error' ? updateMsg.text : null)
+                }
+                submitting={submitting}
+                onChange={value => {
+                  if (passwordModal.action === 'create') setAccountPassword(value);
+                  else setEditAccountPassword(value);
+                }}
+                onClose={closePasswordModal}
+                onConfirm={handlePasswordConfirm}
+            />
+        )}
+      </div>
+  );
+}
+
+function OrderPinPadModal({
+  title,
+  description,
+  password,
+  errorMessage,
+  submitting,
+  onChange,
+  onClose,
+  onConfirm,
+}) {
+  const masked = password.length > 0 ? '•'.repeat(password.length) : '○ ○ ○ ○';
+  const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'reset', '0', 'delete'];
+
+  return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50" onClick={onClose}>
+        <div
+            className="w-[360px] rounded-2xl border border-stone-200 bg-white p-6 shadow-xl"
+            onClick={e => e.stopPropagation()}
+        >
+          <div className="space-y-2">
+            <h3 className="text-base font-black text-stone-800">{title}</h3>
+            <p className="text-sm font-medium text-stone-500">{description}</p>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-stone-200 bg-stone-100 px-4 py-5">
+            <div className="text-center font-mono text-2xl font-black tracking-[0.35em] text-stone-800">
+              {masked}
+            </div>
+          </div>
+
+          {errorMessage && (
+              <p className="mt-3 text-center text-[11px] font-bold text-brand-red">{errorMessage}</p>
+          )}
+
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            {keys.map(key => (
+                <button
+                    key={key}
+                    type="button"
+                    onClick={() => {
+                      if (key === 'reset') {
+                        onChange('');
+                        return;
+                      }
+                      if (key === 'delete') {
+                        onChange(password.slice(0, -1));
+                        return;
+                      }
+                      if (password.length >= 4) return;
+                      onChange(`${password}${key}`);
+                    }}
+                    className={cn(
+                        'rounded-xl border py-3 text-sm font-black transition-colors',
+                        key === 'reset' || key === 'delete'
+                            ? 'border-stone-200 bg-stone-100 text-stone-500 hover:bg-stone-200'
+                            : 'border-stone-200 bg-white text-stone-800 hover:bg-stone-100'
+                    )}
+                >
+                  {key === 'reset' ? '초기화' : key === 'delete' ? '지우기' : key}
+                </button>
+            ))}
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
+            {description}
+          </div>
+
+          <div className="mt-4 flex gap-2">
+            <button
+                onClick={onClose}
+                disabled={submitting}
+                className="flex-1 rounded-xl border border-stone-200 bg-white py-3 text-sm font-black text-stone-500 hover:bg-stone-100 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+                onClick={onConfirm}
+                disabled={submitting || password.length !== 4}
+                className="flex-1 rounded-xl bg-stone-800 py-3 text-sm font-black text-white hover:bg-stone-700 disabled:opacity-50"
+            >
+              {submitting ? '처리 중...' : '확인'}
+            </button>
+          </div>
+        </div>
+
+        {false && passwordModal && (
+            <OrderPinPadModal
+                title={
+                  passwordModal.action === 'create'
+                      ? `${isBuy ? '매수' : '매도'} 주문 확인`
+                      : passwordModal.action === 'update'
+                          ? '주문 수정 확인'
+                          : '주문 취소 확인'
+                }
+                description={
+                  passwordModal.action === 'create'
+                      ? `${isBuy ? '매수' : '매도'} 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.`
+                      : passwordModal.action === 'update'
+                          ? '수정할 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.'
+                          : '취소할 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.'
+                }
+                password={passwordModal.action === 'create' ? accountPassword : editAccountPassword}
+                errorMessage={
+                  passwordModal.action === 'create'
+                      ? (orderMsg?.type === 'error' ? orderMsg.text : null)
+                      : (updateMsg?.orderId === passwordModal.orderId && updateMsg.type === 'error' ? updateMsg.text : null)
+                }
+                submitting={submitting}
+                onChange={value => {
+                  if (passwordModal.action === 'create') setAccountPassword(value);
+                  else setEditAccountPassword(value);
+                }}
+                onClose={closePasswordModal}
+                onConfirm={handlePasswordConfirm}
+            />
+        )}
+      </div>
+  );
+}
+
+function OrderExecutionConfirmModal({
+  title,
+  items,
+  submitting,
+  onClose,
+  onConfirm,
+}) {
+  return (
+      <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55" onClick={onClose}>
+        <div
+            className="w-[360px] rounded-2xl border border-stone-200 bg-white p-6 shadow-xl"
+            onClick={e => e.stopPropagation()}
+        >
+          <div className="space-y-1">
+            <h3 className="text-base font-black text-stone-800">{title}</h3>
+            <p className="text-sm text-stone-500">주문 내역을 확인한 뒤 최종 진행해 주세요.</p>
+          </div>
+
+          <div className="mt-5 space-y-2 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+            {items.map(item => (
+                <div key={item.label} className="flex items-center justify-between text-sm">
+                  <span className="font-bold text-stone-400">{item.label}</span>
+                  <span className="font-mono font-black text-stone-800">{item.value}</span>
+                </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex gap-2">
+            <button
+                onClick={onClose}
+                disabled={submitting}
+                className="flex-1 rounded-xl border border-stone-200 bg-white py-3 text-sm font-black text-stone-500 hover:bg-stone-100 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+                onClick={onConfirm}
+                disabled={submitting}
+                className="flex-1 rounded-xl bg-stone-800 py-3 text-sm font-black text-white hover:bg-stone-700 disabled:opacity-50"
+            >
+              {submitting ? '처리 중...' : '최종 확인'}
+            </button>
+          </div>
+        </div>
+      </div>
+  );
+}
+
+function OrderPasswordModal({
+  title,
+  description,
+  password,
+  errorMessage,
+  submitting,
+  onChange,
+  onClose,
+  onConfirm,
+}) {
+  return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+        <div
+            className="w-[360px] rounded-2xl border border-stone-200 bg-white p-6 shadow-xl"
+            onClick={e => e.stopPropagation()}
+        >
+          <div className="space-y-2">
+            <h3 className="text-base font-black text-stone-800">{title}</h3>
+            <p className="text-sm font-medium text-stone-500">{description}</p>
+          </div>
+
+          <div className="mt-5 space-y-2">
+            <label className="text-[11px] font-bold text-stone-400">계좌 비밀번호</label>
+            <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-stone-100 px-4 py-3">
+              <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  autoFocus
+                  value={password}
+                  onChange={e => onChange(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="숫자 4자리"
+                  className="flex-1 bg-transparent text-right font-mono text-sm font-bold text-stone-800 outline-none placeholder-stone-400"
+              />
+            </div>
+            {errorMessage && <p className="text-[11px] font-bold text-brand-red">{errorMessage}</p>}
+          </div>
+
+          <div className="mt-6 flex gap-2">
+            <button
+                onClick={onClose}
+                disabled={submitting}
+                className="flex-1 rounded-xl border border-stone-200 bg-white py-3 text-sm font-black text-stone-500 transition-colors hover:bg-stone-100 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+                onClick={onConfirm}
+                disabled={submitting}
+                className="flex-1 rounded-xl bg-stone-800 py-3 text-sm font-black text-white transition-colors hover:bg-stone-700 disabled:opacity-50"
+            >
+              {submitting ? '처리 중...' : '확인'}
+            </button>
+          </div>
+        </div>
+
+        {false && passwordModal && (
+            <OrderPasswordModal
+                title={
+                  passwordModal.action === 'create'
+                      ? `${isBuy ? '매수' : '매도'} 주문 확인`
+                      : passwordModal.action === 'update'
+                          ? '주문 수정 확인'
+                          : '주문 취소 확인'
+                }
+                description={
+                  passwordModal.action === 'create'
+                      ? '계좌 비밀번호를 입력한 뒤 주문을 진행해 주세요.'
+                      : passwordModal.action === 'update'
+                          ? '계좌 비밀번호를 입력한 뒤 주문 수정을 진행해 주세요.'
+                          : '계좌 비밀번호를 입력한 뒤 주문 취소를 진행해 주세요.'
+                }
+                password={passwordModal.action === 'create' ? accountPassword : editAccountPassword}
+                errorMessage={
+                  passwordModal.action === 'create'
+                      ? (orderMsg?.type === 'error' ? orderMsg.text : null)
+                      : (updateMsg?.orderId === passwordModal.orderId && updateMsg.type === 'error' ? updateMsg.text : null)
+                }
+                submitting={submitting}
+                onChange={value => {
+                  if (passwordModal.action === 'create') setAccountPassword(value);
+                  else setEditAccountPassword(value);
+                }}
+                onClose={closePasswordModal}
+                onConfirm={handlePasswordConfirm}
+            />
+        )}
       </div>
   );
 }
@@ -1013,6 +1304,7 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   const [inputMode, setInputMode] = useState('qty');
   const [price, setPrice]             = useState(currentPrice > 0 ? String(currentPrice) : '');
   const [qty, setQty]                 = useState('');
+  const [accountPassword, setAccountPassword] = useState('');
 
   // currentPrice 로드 완료 시 가격 필드 자동 세팅 (비어있을 때만)
   useEffect(() => {
@@ -1030,8 +1322,11 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
   const [editingOrderId, setEditingOrderId] = useState(null);
   const [editPrice, setEditPrice]           = useState('');
   const [editQty, setEditQty]               = useState('');
+  const [editAccountPassword, setEditAccountPassword] = useState('');
   const [updateMsg, setUpdateMsg]           = useState(null); // { orderId, type, text }
   const [capacity, setCapacity]             = useState({ availableBalance: 0, availableQuantity: 0 });
+  const [passwordModal, setPasswordModal]   = useState(null); // { action, orderId? }
+  const [confirmModal, setConfirmModal]     = useState(null); // { action, orderId? }
 
   // WS 실시간 업데이트 수신 시 목록 교체 (편집 중인 주문은 유지)
   useEffect(() => {
@@ -1113,6 +1408,50 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
       ? (Number(amount) || 0)
       : numPrice * numQty;
 
+  function isValidAccountPassword(value) {
+    return /^\d{4}$/.test(value);
+  }
+
+  function getApiErrorMessage(error, fallback) {
+    return error?.response?.data?.errorMessage || error?.response?.data?.message || error?.message || fallback;
+  }
+
+  function openPasswordModal(action, orderId = null) {
+    setPasswordModal({ action, orderId });
+    setConfirmModal(null);
+    if (action === 'create') {
+      setAccountPassword('');
+      setOrderMsg(null);
+    } else {
+      setEditAccountPassword('');
+      setUpdateMsg(null);
+    }
+  }
+
+  function closePasswordModal() {
+    setPasswordModal(null);
+    setAccountPassword('');
+    setEditAccountPassword('');
+  }
+
+  function resetOrderAuthFlow() {
+    setPasswordModal(null);
+    setConfirmModal(null);
+    setAccountPassword('');
+    setEditAccountPassword('');
+  }
+
+  async function verifyPasswordBeforeConfirm() {
+    const password = passwordModal?.action === 'create' ? accountPassword : editAccountPassword;
+
+    try {
+      await api.post('/api/myaccount/verify-password', { accountPassword: password });
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, message: getApiErrorMessage(e, '계좌 비밀번호를 다시 확인해 주세요.') };
+    }
+  }
+
   function handleTabClick(side) {
     if (!isLoggedIn && side === 'pending') {
       onLoginRequired('로그인해야 볼 수 있습니다');
@@ -1136,6 +1475,12 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
       setOrderMsg({ type: 'error', text: `호가 단위에 맞지 않습니다. ${numPrice.toLocaleString()}원 근처 호가 단위는 ${tick.toLocaleString()}원입니다.` });
       return;
     }
+    if (false && !isValidAccountPassword(accountPassword)) {
+      setOrderMsg({ type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
+      return;
+    }
+    openPasswordModal('create');
+    return;
     setSubmitting(true);
     setOrderMsg(null);
     try {
@@ -1143,24 +1488,64 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
         orderPrice:    numPrice,
         orderQuantity: numQty,
         orderType:     isBuy ? 'BUY' : 'SELL',
+        accountPassword,
       };
       await api.post(`/api/token/${tokenId}/order`, body);
       setOrderMsg({ type: 'success', text: `${isBuy ? '매수' : '매도'} 주문이 접수되었습니다.` });
       setQty('');
       setAmount('');
+      setAccountPassword('');
       fetchCapacity();
     } catch (e) {
-      setOrderMsg({ type: 'error', text: e.response?.data?.message || e.message || '주문 접수에 실패했습니다.' });
+      setOrderMsg({ type: 'error', text: getApiErrorMessage(e, '주문 접수에 실패했습니다.') });
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function handleCancelOrder(orderId) {
-    if (!token) return;
+  async function submitCreateOrder() {
+    if (!isValidAccountPassword(accountPassword)) {
+      setOrderMsg({ type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
+      return;
+    }
+    setSubmitting(true);
+    setOrderMsg(null);
     try {
-      await api.delete(`/api/token/order/cancel/${orderId}`);
+      const body = {
+        orderPrice:    numPrice,
+        orderQuantity: numQty,
+        orderType:     isBuy ? 'BUY' : 'SELL',
+        accountPassword,
+      };
+      await api.post(`/api/token/${tokenId}/order`, body);
+      setOrderMsg({ type: 'success', text: `${isBuy ? '매수' : '매도'} 주문이 접수되었습니다.` });
+      setQty('');
+      setAmount('');
+      resetOrderAuthFlow();
+      fetchCapacity();
+    } catch (e) {
+      setOrderMsg({ type: 'error', text: getApiErrorMessage(e, '주문 접수에 실패했습니다.') });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleCancelOrder(orderId) {
+    openPasswordModal('cancel', orderId);
+  }
+
+  async function submitCancelOrder(orderId) {
+    if (!token) return;
+    if (false && !isValidAccountPassword(editAccountPassword)) {
+      setUpdateMsg({ orderId, type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
+      return;
+    }
+    try {
+      await api.delete(`/api/token/order/cancel/${orderId}`, {
+        data: { accountPassword: editAccountPassword },
+      });
       setPendingOrders(prev => prev.filter(o => o.orderId !== orderId));
+      resetOrderAuthFlow();
     } catch (e) {
       console.warn('[OrderPanel] 주문 취소 실패:', e.message);
     }
@@ -1170,6 +1555,7 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
     setEditingOrderId(o.orderId);
     setEditPrice(String(o.orderPrice ?? ''));
     setEditQty(String(o.orderQuantity ?? ''));
+    setEditAccountPassword('');
     setUpdateMsg(null);
   }
 
@@ -1177,12 +1563,17 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
     setEditingOrderId(null);
     setEditPrice('');
     setEditQty('');
+    setEditAccountPassword('');
     setUpdateMsg(null);
   }
 
   async function handleUpdateOrder(orderId) {
     const p = Number(editPrice);
     const q = Number(editQty);
+    if (false && !isValidAccountPassword(editAccountPassword)) {
+      setUpdateMsg({ orderId, type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
+      return;
+    }
     if (!Number.isInteger(p) || !Number.isInteger(q) || p <= 0 || q <= 0) {
       setUpdateMsg({ orderId, type: 'error', text: '가격과 수량은 양의 정수만 입력하세요.' });
       return;
@@ -1193,7 +1584,11 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
       return;
     }
     try {
-      await api.put(`/api/token/order/update/${orderId}`, { updatePrice: p, updateQuantity: q });
+      await api.put(`/api/token/order/update/${orderId}`, {
+        updatePrice: p,
+        updateQuantity: q,
+        accountPassword: editAccountPassword,
+      });
       setPendingOrders(prev =>
           prev.map(o => {
             if (o.orderId !== orderId) return o;
@@ -1203,13 +1598,129 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
           })
       );
       setEditingOrderId(null);
+      setEditPrice('');
+      setEditQty('');
+      setEditAccountPassword('');
       setUpdateMsg(null);
     } catch (e) {
-      setUpdateMsg({ orderId, type: 'error', text: e.response?.data?.message || e.message || '수정에 실패했습니다.' });
+      setUpdateMsg({ orderId, type: 'error', text: getApiErrorMessage(e, '수정에 실패했습니다.') });
     }
   }
 
   // ── TickSizePolicy (백엔드와 동일한 로직) ────────────────────
+  async function submitUpdateOrder(orderId) {
+    const p = Number(editPrice);
+    const q = Number(editQty);
+    if (!Number.isInteger(p) || !Number.isInteger(q) || p <= 0 || q <= 0) {
+      setUpdateMsg({ orderId, type: 'error', text: '가격과 수량을 올바르게 입력해 주세요.' });
+      return;
+    }
+    const tick = getTickSize(p);
+    if (p % tick !== 0) {
+      setUpdateMsg({ orderId, type: 'error', text: `호가 단위를 확인해 주세요. 현재 가격의 호가 단위는 ${tick.toLocaleString()}원입니다.` });
+      return;
+    }
+    if (!isValidAccountPassword(editAccountPassword)) {
+      setUpdateMsg({ orderId, type: 'error', text: '계좌 비밀번호 4자리를 입력해 주세요.' });
+      return;
+    }
+    try {
+      await api.put(`/api/token/order/update/${orderId}`, {
+        updatePrice: p,
+        updateQuantity: q,
+        accountPassword: editAccountPassword,
+      });
+      setPendingOrders(prev =>
+          prev.map(o => {
+            if (o.orderId !== orderId) return o;
+            const filledQuantity = Number(o.filledQuantity) || 0;
+            const remainingQuantity = Math.max(q - filledQuantity, 0);
+            return { ...o, orderPrice: p, remainingQuantity, orderQuantity: q };
+          })
+      );
+      setEditingOrderId(null);
+      setEditPrice('');
+      setEditQty('');
+      resetOrderAuthFlow();
+      setUpdateMsg(null);
+    } catch (e) {
+      setUpdateMsg({ orderId, type: 'error', text: getApiErrorMessage(e, '주문 수정에 실패했습니다.') });
+    }
+  }
+
+  async function handlePasswordConfirm() {
+    if (!passwordModal) return;
+    const result = await verifyPasswordBeforeConfirm();
+    if (!result.ok) {
+      if (passwordModal.action === 'create') {
+        setAccountPassword('');
+        setOrderMsg({ type: 'error', text: result.message });
+      } else {
+        setEditAccountPassword('');
+        setUpdateMsg({ orderId: passwordModal.orderId, type: 'error', text: result.message });
+      }
+      return;
+    }
+
+    setPasswordModal(null);
+    setConfirmModal(passwordModal);
+  }
+
+  function getConfirmModalSpec() {
+    if (!confirmModal) return null;
+
+    if (confirmModal.action === 'create') {
+      return {
+        title: `${isBuy ? '매수' : '매도'} 주문 최종 확인`,
+        items: [
+          { label: '구분', value: isBuy ? '매수' : '매도' },
+          { label: '주문가', value: `${numPrice.toLocaleString()}원` },
+          { label: '주문수량', value: `${numQty.toLocaleString()}주` },
+          { label: '총 주문금액', value: `${numAmount.toLocaleString()}원` },
+        ],
+      };
+    }
+
+    const order = pendingOrders.find(o => o.orderId === confirmModal.orderId);
+    const updateTotalAmount = (Number(editPrice) || 0) * (Number(editQty) || 0);
+
+    if (confirmModal.action === 'update') {
+      return {
+        title: '주문 수정 최종 확인',
+        items: [
+          { label: '주문번호', value: String(confirmModal.orderId ?? '-') },
+          { label: '구분', value: order?.orderType === 'BUY' ? '매수' : '매도' },
+          { label: '수정가', value: `${(Number(editPrice) || 0).toLocaleString()}원` },
+          { label: '수정수량', value: `${(Number(editQty) || 0).toLocaleString()}주` },
+          { label: '주문금액', value: `${updateTotalAmount.toLocaleString()}원` },
+        ],
+      };
+    }
+
+    return {
+      title: '주문 취소 최종 확인',
+      items: [
+        { label: '주문번호', value: String(confirmModal.orderId ?? '-') },
+        { label: '구분', value: order?.orderType === 'BUY' ? '매수' : '매도' },
+        { label: '주문가', value: `${Number(order?.orderPrice || 0).toLocaleString()}원` },
+        { label: '잔여수량', value: `${Number(order?.remainingQuantity || 0).toLocaleString()}주` },
+      ],
+    };
+  }
+
+  async function handleConfirmExecution() {
+    if (!confirmModal) return;
+    if (confirmModal.action === 'create') {
+      await submitCreateOrder();
+      return;
+    }
+    if (confirmModal.action === 'update') {
+      await submitUpdateOrder(confirmModal.orderId);
+      return;
+    }
+    await submitCancelOrder(confirmModal.orderId);
+  }
+
   function getTickSize(p) {
     if (p < 100)   return 10;
     if (p < 1000)  return 50;
@@ -1359,6 +1870,20 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
                                         <span className="text-[11px] font-bold text-stone-400">주</span>
                                       </div>
                                     </div>
+                                    <div className="hidden">
+                                      <label className="text-[10px] font-bold text-stone-400">계좌 비밀번호</label>
+                                      <div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2">
+                                        <input
+                                            type="password"
+                                            inputMode="numeric"
+                                            maxLength={4}
+                                            value={editAccountPassword}
+                                            onChange={e => setEditAccountPassword(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                            placeholder="숫자 4자리"
+                                            className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800 placeholder-stone-400"
+                                        />
+                                      </div>
+                                    </div>
                                     <div className="flex justify-between text-[11px] font-bold border-t border-stone-200 pt-1.5">
                                       <span className="text-stone-400">주문금액</span>
                                       <span className="font-mono font-black text-stone-800">{totalAmount.toLocaleString()}원</span>
@@ -1373,7 +1898,7 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
                                     )}
                                     <div className="flex gap-2 pt-1">
                                       <button
-                                          onClick={() => handleUpdateOrder(o.orderId)}
+                                          onClick={() => openPasswordModal('update', o.orderId)}
                                           className="flex-1 py-2 bg-stone-800 border border-stone-800 rounded-md text-[11px] font-black text-white hover:bg-stone-700 transition-all"
                                       >
                                         확인
@@ -1519,6 +2044,21 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
                 )}
 
                 {/* 비율 버튼 */}
+                <div className="hidden">
+                  <label className="text-[10px] font-bold text-stone-400">계좌 비밀번호</label>
+                  <div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5">
+                    <input
+                        type="password"
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder="숫자 4자리"
+                        value={accountPassword}
+                        onChange={e => setAccountPassword(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800 placeholder-stone-400"
+                    />
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-4 gap-2">
                   {['10%', '25%', '50%', '최대'].map(p => (
                       <button key={p}
@@ -1588,6 +2128,52 @@ function LoginGateOrderPanel({ currentPrice, isLoggedIn, onLoginRequired, tokenI
               </div>
           )}
         </div>
+
+        {passwordModal && (
+            <OrderPinPadModal
+                title={
+                  passwordModal.action === 'create'
+                      ? `${isBuy ? '매수' : '매도'} 주문 확인`
+                      : passwordModal.action === 'update'
+                          ? '주문 수정 확인'
+                          : '주문 취소 확인'
+                }
+                description={
+                  passwordModal.action === 'create'
+                      ? `${isBuy ? '매수' : '매도'} 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.`
+                      : passwordModal.action === 'update'
+                          ? '수정할 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.'
+                          : '취소할 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.'
+                }
+                password={passwordModal.action === 'create' ? accountPassword : editAccountPassword}
+                errorMessage={
+                  passwordModal.action === 'create'
+                      ? (orderMsg?.type === 'error' ? orderMsg.text : null)
+                      : (updateMsg?.orderId === passwordModal.orderId && updateMsg.type === 'error' ? updateMsg.text : null)
+                }
+                submitting={submitting}
+                onChange={value => {
+                  if (passwordModal.action === 'create') setAccountPassword(value);
+                  else setEditAccountPassword(value);
+                }}
+                onClose={closePasswordModal}
+                onConfirm={handlePasswordConfirm}
+            />
+        )}
+
+        {(() => {
+          const spec = getConfirmModalSpec();
+          if (!spec) return null;
+          return (
+              <OrderExecutionConfirmModal
+                  title={spec.title}
+                  items={spec.items}
+                  submitting={submitting}
+                  onClose={() => setConfirmModal(null)}
+                  onConfirm={handleConfirmExecution}
+              />
+          );
+        })()}
       </div>
   );
 }

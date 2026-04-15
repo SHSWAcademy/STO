@@ -176,7 +176,9 @@ public class TokenServiceImpl implements TokenService{
             Long basePrice = basePriceMap.get(tokenId);
             long[] agg = tradeAggMap.getOrDefault(tokenId, new long[]{0L, 0L});
 
-            double fluctuationRate = (basePrice != null && basePrice > 0) ? (currentPrice - basePrice) / basePrice * 100 : 0.0;
+            double fluctuationRate = (basePrice != null && basePrice > 0)
+                    ? ((double) (currentPrice - basePrice) / basePrice) * 100
+                    : 0.0;
 
             return TokenMainResponseDto.builder()
                     .tokenId(tokenId)

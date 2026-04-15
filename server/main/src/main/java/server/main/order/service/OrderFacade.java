@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import server.main.global.error.BusinessException;
 import server.main.global.util.MatchClient;
 import server.main.order.dto.CancelOrderContext;
+import server.main.order.dto.CancelOrderRequestDto;
 import server.main.order.dto.MatchOrderRequestDto;
 import server.main.order.dto.MatchResultDto;
 import server.main.order.dto.OrderRequestDto;
@@ -61,9 +62,9 @@ public class OrderFacade {
         orderService.processMatchResult(orderId, matchDto.getTokenId(), matchResult);
     }
 
-    public void cancelOrder(Long orderId) {
+    public void cancelOrder(Long orderId, CancelOrderRequestDto dto) {
         // phase 1
-        CancelOrderContext ctx = orderService.validateAndCancelOrder(orderId);
+        CancelOrderContext ctx = orderService.validateAndCancelOrder(orderId, dto);
 
         // match 호출
         try {

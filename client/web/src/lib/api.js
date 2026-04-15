@@ -15,13 +15,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 응답 인터셉터 — 401 처리
+// 응답 인터셉터 - 401 처리
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const token = localStorage.getItem("token");
+    const errorCode = error.response?.data?.errorCode;
+    const shouldLogout =
+      error.response?.status === 401 &&
+      token &&
+      ["UNAUTHORIZED", "INVALID_TOKEN", "TOKEN_EXPIRED"].includes(errorCode);
 
-    if (error.response?.status === 401 && token) {
+    if (shouldLogout) {
       localStorage.removeItem("token");
       window.location.href = "/";
     }
