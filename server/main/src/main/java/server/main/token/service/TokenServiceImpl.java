@@ -29,6 +29,7 @@ import server.main.token.repository.TokenRepository;
 import server.main.trade.repository.TradeRepository;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -169,7 +170,7 @@ public class TokenServiceImpl implements TokenService{
         Map<Long, Long> basePriceMap = getBasePriceMap(tokenIds, periodType);
 
         // 4. 스파크라인 조회 - 토큰 id 별 최근 7일 (월, 년) 종가 : Map<tokenId, List<closePrice>> (스파크 라인에 필요)
-        Map<Long, List<Long>> sparklineMap = getSparklineMap(tokenIds, periodType);
+        Map<Long, List<SparkPointDto>> sparklineMap = getSparklineMap(tokenIds, periodType);
 
         // 5. 토큰 id 별 이때 동안의 전체 거래 대금, 전체 거래량 조회
         Map<Long, long[]> tradeAggMap = tradeRepository.findAggregatesByTokenIds(tokenIds)
@@ -205,7 +206,7 @@ public class TokenServiceImpl implements TokenService{
     }
 
     // 토큰 id, 해당 캔들의 최근 7일 (월, 년) 종가 리스트 - 스파크 라인 전용
-    private Map<Long, List<Long>> getSparklineMap(List<Long> tokenIds, PeriodType periodType) {
+    private Map<Long, List<SparkPointDto>> getSparklineMap(List<Long> tokenIds, PeriodType periodType) {
         LocalDateTime since = switch (periodType) {
             case DAY   -> LocalDateTime.now().minusDays(7);   // 최근 7일치 조회를 위한 시작일
             case MONTH -> LocalDateTime.now().minusMonths(7); // 최근 7달치 조회를 위한 시작 달
@@ -222,9 +223,18 @@ public class TokenServiceImpl implements TokenService{
         };
 
         // 캔들 리스트 -> Map<Long, List<Long>> 리턴 (토큰 자산 id, 캔들 종가 리스트)
+        DateTimeFormatter formatter = switch (periodType) {
+            case DAY   -> DateTimeFormatter.ofPattern("MM.dd");
+            case MONTH -> DateTimeFormatter.ofPattern("yy.MM");
+            case YEAR  -> DateTimeFormatter.ofPattern("yyyy");
+        };
+
         return candles.stream().collect(Collectors.groupingBy(
                 c -> c.getToken().getTokenId(),
-                Collectors.mapping(c -> c.getClosePrice(), Collectors.toList())
+                Collectors.mapping(
+                        c -> new SparkPointDto(c.getClosePrice(), c.getCandleTime().format(formatter)),
+                        Collectors.toList()
+                )
         ));
     }
 

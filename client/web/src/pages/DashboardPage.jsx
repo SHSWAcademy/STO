@@ -36,10 +36,13 @@ function updateSparkLine(prevSparkLine, candle) {
 
   const nextLine = Array.isArray(prevSparkLine) ? [...prevSparkLine] : [];
   if (nextLine.length === 0) {
-    return [candle.closePrice];
+    return [{ value: candle.closePrice, date: '' }];
   }
 
-  nextLine[nextLine.length - 1] = candle.closePrice;
+  nextLine[nextLine.length - 1] = {
+    ...nextLine[nextLine.length - 1],
+    value: candle.closePrice,
+  };
   return nextLine.slice(-7);
 }
 
@@ -130,7 +133,7 @@ export function DashboardPage() {
     [tokens, previewTokenId],
   );
 
-  const sparklineData = previewToken?.sparkLine?.map((value) => ({ value })) ?? [];
+  const sparklineData = previewToken?.sparkLine?.map((p) => ({ value: p.value, date: p.date })) ?? [];
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
@@ -303,6 +306,7 @@ export function DashboardPage() {
                           }}
                           itemStyle={{ color: "#292524" }}
                           formatter={(value) => [`${value.toLocaleString()}원`, "종가"]}
+                          labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ''}
                         />
                         <Line
                           type="monotone"
