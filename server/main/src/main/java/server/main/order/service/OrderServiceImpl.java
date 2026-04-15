@@ -262,6 +262,9 @@ public class OrderServiceImpl implements OrderService {
 
             tradeRepository.save(trade);
 
+            // 체결가로 토큰 현재가 갱신
+            findToken.updateCurrentPrice(execution.getTradePrice());
+
             // admin 대시보드 이벤트 (거래 체결 시 대시보드 실시간 업데이트)
             eventPublisher.publishEvent(new AdminDashboardEvent());
             // admin 대시보드 실시간 업데이트 용 (체결 거래내역 실시간 업데이트) > 범근

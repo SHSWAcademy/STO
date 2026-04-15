@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  ResponsiveContainer, ComposedChart, BarChart, Bar,
+  ResponsiveContainer, ComposedChart, BarChart, Bar, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts';
 import {
@@ -544,6 +544,16 @@ export function MockupPage() {
   const [executions, setExecutions] = useState([]);
   const [trades, setTrades]         = useState([]);
 
+  // ── 오늘 최고/최저가 — REST 초기값 + DAY 캔들 WebSocket 실시간 갱신 ──
+  const [todayHigh, setTodayHigh] = useState(null);
+  const [todayLow,  setTodayLow]  = useState(null);
+
+  // tokenInfo 로드 완료 시 초기값 세팅 (오늘 체결이 없으면 null 유지)
+  useEffect(() => {
+    if (tokenInfo?.todayHighPrice) setTodayHigh(tokenInfo.todayHighPrice);
+    if (tokenInfo?.todayLowPrice)  setTodayLow(tokenInfo.todayLowPrice);
+  }, [tokenInfo]);
+
   // ── 체결 목록 초기 REST 로드 ─────────────────────────────────
   useEffect(() => {
     api.get(`/api/token/${TOKEN_ID}/trades`)
@@ -700,6 +710,10 @@ export function MockupPage() {
         return [...prev, newCandle];
       });
     },
+    onDayCandle: (data) => {
+      if (data.highPrice != null) setTodayHigh(h => h == null ? data.highPrice : Math.max(h, data.highPrice));
+      if (data.lowPrice  != null) setTodayLow( l => l == null ? data.lowPrice  : Math.min(l, data.lowPrice));
+    },
     onPendingOrders: (data) => {
       setWsPendingData(data);
     },
@@ -841,7 +855,15 @@ export function MockupPage() {
                                          tick={{ fontSize: 9, fill: '#a8a29e' }} minTickGap={40}
                                          interval="preserveStartEnd" />
                                   <YAxis hide domain={[0, 'auto']} />
-                                  <Bar dataKey="vol" fill="#d6d3d1" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                                  <Bar dataKey="vol" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                                    {chartData.map((d, i) => (
+                                      <Cell key={i} fill={
+                                        d.close == null || d.open == null ? '#d6d3d1'
+                                        : d.close >= d.open ? 'rgba(239,68,68,0.45)'
+                                        : 'rgba(59,130,246,0.45)'
+                                      } />
+                                    ))}
+                                  </Bar>
                                 </BarChart>
                               </ResponsiveContainer>
                             </div>
@@ -898,7 +920,7 @@ export function MockupPage() {
                     const buyVol  = executions.filter(e => e.isBuy).reduce((s, e) => s + e.qty, 0);
                     const sellVol = executions.filter(e => !e.isBuy).reduce((s, e) => s + e.qty, 0);
                     const strengthNum = sellVol > 0 ? Math.round((buyVol / sellVol) * 100) : buyVol > 0 ? 200 : null;
-                    const strengthVal = strengthNum != null ? `${strengthNum}%` : '-';
+                    const strengthVal = strengthNum != null ? `${strengthNum}%` : '대기중';
                     const strengthColor = strengthNum == null ? 'text-stone-400' : strengthNum >= 100 ? 'text-brand-red' : 'text-brand-blue';
 
                     // 매도 우측 통계 항목
@@ -906,14 +928,17 @@ export function MockupPage() {
                       // TODO: 백엔드 로직 미구현 — 전일 종가 기준 ±30% 하드코딩
                       { label: '상한가', value: basePrice > 0 ? Math.round(basePrice * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)', unimplemented: true },
                       { label: '하한가', value: basePrice > 0 ? Math.round(basePrice * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)', unimplemented: true },
-                      { label: '시작',   value: chartData.find(c => c.open != null)?.open.toLocaleString() ?? '-', color: '#292524' },
-                      { label: '1일최고', value: dailyHigh > 0 ? dailyHigh.toLocaleString() : '-', color: 'var(--color-brand-red)' },
-                      { label: '1일최저', value: dailyLow  > 0 ? dailyLow.toLocaleString()  : '-', color: 'var(--color-brand-blue)' },
-                      { label: '거래량',  value: (() => { const v = trades[0]?.vol ?? 0; return v > 0 ? (v >= 10000 ? `${(v/10000).toFixed(1)}만` : v.toLocaleString()) : '-'; })(), color: '#292524' },
+                      { label: '시작',   value: tokenInfo?.todayOpenPrice != null ? tokenInfo.todayOpenPrice.toLocaleString() : '체결 기록 없음', color: tokenInfo?.todayOpenPrice != null ? '#292524' : 'var(--color-stone-400)' },
+                      { label: '1일최고', value: todayHigh != null ? todayHigh.toLocaleString() : '체결 기록 없음', color: todayHigh != null ? 'var(--color-brand-red)' : 'var(--color-stone-400)' },
+                      { label: '1일최저', value: todayLow  != null ? todayLow.toLocaleString()  : '체결 기록 없음', color: todayLow  != null ? 'var(--color-brand-blue)' : 'var(--color-stone-400)' },
                     ];
 
                     // 높은 가격 → 낮은 가격 순 (현재가 바 바로 위가 가장 낮은 매도호가)
+                    // statItems 개수만큼 행이 보장되어야 모든 통계가 표시됨 — ask가 부족하면 null 패딩
                     const reversedAsks = [...asks].reverse();
+                    const paddedAsks = reversedAsks.length >= statItems.length
+                      ? reversedAsks
+                      : [...Array(statItems.length - reversedAsks.length).fill(null), ...reversedAsks];
 
                     return (
                       <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
@@ -926,21 +951,23 @@ export function MockupPage() {
 
                         {/* ── 매도 영역 (상단 절반) — justify-end로 현재가 바에 붙게 ── */}
                         <div className="flex-1 min-h-0 overflow-y-auto flex flex-col justify-end">
-                          {reversedAsks.map((row, i) => {
-                            const cp = basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0;
-                            const dp = maxAskAmount > 0 ? (row.amount / maxAskAmount) * 100 : 0;
+                          {paddedAsks.map((row, i) => {
+                            const cp = row && basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0;
+                            const dp = row && maxAskAmount > 0 ? (row.amount / maxAskAmount) * 100 : 0;
                             const stat = statItems[i];
                             return (
                               <div key={`ask-${i}`} className="grid grid-cols-[80px_1fr_80px] h-9 border-b border-stone-100 hover:bg-blue-50/20 cursor-pointer">
                                 {/* 좌: 매도수량 */}
                                 <div className="relative flex items-center justify-end pr-2 overflow-hidden">
-                                  <div className="absolute right-0 top-0 bottom-0 bg-brand-blue/10" style={{ width: `${dp}%` }} />
-                                  <span className="relative z-10 text-[11px] font-mono font-bold text-brand-blue">{row.amount.toLocaleString()}</span>
+                                  {row && <div className="absolute right-0 top-0 bottom-0 bg-brand-blue/10" style={{ width: `${dp}%` }} />}
+                                  {row && <span className="relative z-10 text-[11px] font-mono font-bold text-brand-blue">{row.amount.toLocaleString()}</span>}
                                 </div>
                                 {/* 중: 가격 + % */}
                                 <div className="flex flex-col items-center justify-center">
-                                  <span className="text-[12px] font-mono font-black text-brand-blue">{row.price.toLocaleString()}</span>
-                                  <span className="text-[9px] font-bold text-brand-blue/60">{cp >= 0 ? '+' : ''}{cp.toFixed(2)}%</span>
+                                  {row && <>
+                                    <span className="text-[12px] font-mono font-black text-brand-blue">{row.price.toLocaleString()}</span>
+                                    <span className="text-[9px] font-bold text-brand-blue/60">{cp >= 0 ? '+' : ''}{cp.toFixed(2)}%</span>
+                                  </>}
                                 </div>
                                 {/* 우: 통계 */}
                                 <div className="flex items-center pl-1 pr-2">
@@ -985,7 +1012,7 @@ export function MockupPage() {
                           <div className="grid grid-cols-[80px_1fr_80px] h-9 border-b border-stone-100 bg-stone-50/60">
                             <div className="flex items-center px-2">
                               <div>
-                                <p className="text-[9px] font-bold text-stone-400 leading-none">체결강도</p>
+                                <p className="text-[9px] font-bold text-stone-400 leading-none">실시간 체결강도</p>
                                 <p className={`text-[11px] font-black leading-none mt-0.5 ${strengthColor}`}>{strengthVal}</p>
                               </div>
                             </div>
@@ -1182,7 +1209,15 @@ export function MockupPage() {
                               <XAxis dataKey="time" axisLine={false} tickLine={false}
                                      tick={{ fontSize: 9, fill: '#a8a29e' }} minTickGap={30} />
                               <YAxis hide domain={[0, 'auto']} />
-                              <Bar dataKey="vol" fill="#d6d3d1" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+                              <Bar dataKey="vol" radius={[2, 2, 0, 0]} isAnimationActive={false}>
+                                {chartData.map((d, i) => (
+                                  <Cell key={i} fill={
+                                    d.close == null || d.open == null ? '#d6d3d1'
+                                    : d.close >= d.open ? 'rgba(239,68,68,0.45)'
+                                    : 'rgba(59,130,246,0.45)'
+                                  } />
+                                ))}
+                              </Bar>
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
