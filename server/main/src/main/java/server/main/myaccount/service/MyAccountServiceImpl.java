@@ -29,6 +29,8 @@ import server.main.order.repository.OrderRepository;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -188,5 +190,42 @@ public class MyAccountServiceImpl implements MyAccountService{
                             event.getSettlementMonth()
                     );
                 });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountSummaryResponse getAccountSummary() {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        // 이번 달 시작/끝 계산
+        LocalDate today = LocalDate.now();
+        LocalDateTime start = today.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime end = today.withDayOfMonth(1).plusMonths(1).atStartOfDay();
+
+        // sumByMemberIdAndYearMonth는 (memberId, year, month) 를 받음
+        Long thisMonthDividend = allocationPayoutRepository.sumByMemberIdAndYearMonth(
+                memberId, today.getYear(), today.getMonthValue()
+        );
+
+        // sumByMemberIdAndTxTypeAndPeriod는 (memberId, txType, start, end) 를 받음
+        Long thisMonthSellProfit = memberBankRepository.sumByMemberIdAndTxTypeAndPeriod(
+                memberId, TxType.TRADE_SETTLEMENT, start, end
+        );
+
+        return new AccountSummaryResponse(
+                thisMonthDividend,
+                thisMonthSellProfit,
+                thisMonthDividend + thisMonthSellProfit
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Long getDividendTotal(int year) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        return allocationPayoutRepository.sumByMemberIdAndYear(memberId, year);
     }
 }

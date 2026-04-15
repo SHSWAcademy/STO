@@ -12,11 +12,7 @@ import {
   Landmark,
   ChevronDown,
 } from "lucide-react";
-import {
-  MOCK_USER,
-  ACCOUNT_DIVIDENDS,
-  PROFIT_ANALYSIS_DATA,
-} from "../data/mock.js";
+import { MOCK_USER, PROFIT_ANALYSIS_DATA } from "../data/mock.js";
 
 import {
   fetchBalance,
@@ -26,6 +22,8 @@ import {
   fetchBankingHistory,
   fetchOrderHistory,
   cancelOrder,
+  fetchDividendHistory,
+  fetchDividendTotal,
 } from "../lib/api.js";
 
 import { cn } from "../lib/utils.js";
@@ -782,15 +780,62 @@ function OrdersTab({
 
 // ── 배당금 탭 ─────────────────────────────────────────────────
 function DividendsTab() {
-  const totalDividends = ACCOUNT_DIVIDENDS.reduce((acc, d) => acc + d.net, 0);
+  const [dividends, setDividends] = useState([]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [totalDividends, setTotalDividends] = useState(0);
+
+  async function loadDividends(p, y) {
+    try {
+      const res = await fetchDividendHistory(p, y);
+      setDividends(res.data.content);
+      setTotalPages(res.data.totalPages);
+      setPage(p);
+    } catch (e) {
+      alert(e.response?.data?.message || "배당금 내역을 불러오지 못했습니다.");
+    }
+  }
+
+  async function loadTotal(y) {
+    try {
+      const res = await fetchDividendTotal(y);
+      setTotalDividends(res.data);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  useEffect(() => {
+    loadDividends(0, year);
+    loadTotal(year); // ← 추가
+  }, [year]);
 
   return (
     <div className="space-y-8 pb-20">
+      {/* 연도 선택 */}
       <div className="flex items-center gap-3">
         <div className="w-4 h-4 rounded-full bg-stone-800 shadow-sm" />
-        <h2 className="text-lg font-bold text-stone-800">2026년</h2>
+        <button
+          onClick={() => {
+            setYear((y) => y - 1);
+          }}
+          className="text-stone-400 hover:text-stone-800 font-black px-1"
+        >
+          ‹
+        </button>
+        <h2 className="text-lg font-bold text-stone-800">{year}년</h2>
+        <button
+          onClick={() => {
+            setYear((y) => y + 1);
+          }}
+          className="text-stone-400 hover:text-stone-800 font-black px-1"
+        >
+          ›
+        </button>
       </div>
 
+      {/* 받은 배당금 합계 */}
       <div className="bg-stone-100 rounded-2xl p-8 flex justify-between items-center border border-stone-200">
         <span className="text-stone-500 font-medium">받은 배당금</span>
         <span className="text-stone-800 font-black text-2xl">
@@ -802,9 +847,10 @@ function DividendsTab() {
       <div className="bg-stone-100 rounded-2xl p-8 h-64 flex flex-col justify-end border border-stone-200">
         <div className="flex justify-between items-end h-full px-4 mb-4">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => {
-            const monthTotal = ACCOUNT_DIVIDENDS.filter(
-              (d) => new Date(d.date).getMonth() + 1 === m,
-            ).reduce((acc, d) => acc + d.net, 0);
+            // settlementMonth 기준으로 집계 (mock의 new Date(d.date).getMonth()+1 대신)
+            const monthTotal = dividends
+              .filter((d) => d.settlementMonth === m)
+              .reduce((acc, d) => acc + d.memberIncome, 0);
             const height =
               monthTotal > 0 ? Math.min(100, (monthTotal / 50000) * 100) : 5;
             return (
@@ -825,49 +871,159 @@ function DividendsTab() {
         </div>
       </div>
 
+      {/* 상세 내역 */}
       <div className="space-y-4">
         <h3 className="text-sm font-black text-stone-800 uppercase tracking-widest ml-1">
           상세 내역
         </h3>
         <div className="bg-white border border-stone-200 rounded-[32px] overflow-hidden shadow-sm">
           <div className="divide-y divide-stone-100">
-            {ACCOUNT_DIVIDENDS.map((item) => (
-              <div
-                key={item.id}
-                className="p-6 flex items-center justify-between hover:bg-stone-50 transition-colors"
-              >
-                <div className="flex items-center gap-6">
-                  <span className="text-[10px] font-black text-stone-400 font-mono w-16">
-                    {item.date}
-                  </span>
-                  <div className="w-10 h-10 rounded-lg bg-stone-100 border border-stone-200 flex items-center justify-center text-[10px] font-black text-stone-400 shrink-0">
-                    {item.symbol.slice(0, 2)}
+            {dividends.length === 0 ? (
+              <EmptyState message="배당금 내역이 없습니다." className="m-6" />
+            ) : (
+              dividends.map((item) => (
+                <div
+                  key={item.allocationPayoutId}
+                  className="p-6 flex items-center justify-between hover:bg-stone-50 transition-colors"
+                >
+                  <div className="flex items-center gap-6">
+                    {/* mock: item.date → 백엔드: item.settlementYear, item.settlementMonth */}
+                    <span className="text-[10px] font-black text-stone-400 font-mono w-16">
+                      {item.settlementYear}-
+                      {String(item.settlementMonth).padStart(2, "0")}
+                    </span>
+                    {/* mock: item.symbol → 백엔드: item.tokenSymbol */}
+                    <div
+                      className="w-10 h-10 rounded-lg bg-stone-100 border border-stone-200 flex items-center
+  justify-center text-[10px] font-black text-stone-400 shrink-0"
+                    >
+                      {item.tokenSymbol.slice(0, 2)}
+                    </div>
+                    <div>
+                      {/* mock: item.name → 백엔드: item.tokenName */}
+                      <p className="text-sm font-bold text-stone-800">
+                        {item.tokenName}
+                      </p>
+                      {/* mock: item.qty, item.perToken → 백엔드: item.holdingQuantity, item.perTokenAmount */}
+                      <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-0.5">
+                        {item.holdingQuantity}주 | 주당{" "}
+                        {item.perTokenAmount.toLocaleString()}원
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-stone-800">
-                      {item.name}
+                  <div className="text-right">
+                    {/* mock: item.net → 백엔드: item.memberIncome */}
+                    <p className="text-sm font-black text-stone-600">
+                      +{item.memberIncome.toLocaleString()}원
                     </p>
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-0.5">
-                      {item.qty}주 | 주당 {item.perToken.toLocaleString()}원
+                    {/* mock: item.gross (세전) → 동일하게 memberIncome 사용 (세금 처리 없음) */}
+                    <p className="text-[10px] text-stone-400 font-bold">
+                      세전 {item.memberIncome.toLocaleString()}원
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-black text-stone-600">
-                    +{item.net.toLocaleString()}원
-                  </p>
-                  <p className="text-[10px] text-stone-400 font-bold">
-                    세전 {item.gross.toLocaleString()}원
-                  </p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
+
+      {/* 페이지네이션 — OrdersTab과 동일한 Pagination 컴포넌트 사용 */}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={(p) => loadDividends(p, year)}
+      />
     </div>
   );
 }
+// function DividendsTab() {
+//   const totalDividends = ACCOUNT_DIVIDENDS.reduce((acc, d) => acc + d.net, 0);
+
+//   return (
+//     <div className="space-y-8 pb-20">
+//       <div className="flex items-center gap-3">
+//         <div className="w-4 h-4 rounded-full bg-stone-800 shadow-sm" />
+//         <h2 className="text-lg font-bold text-stone-800">2026년</h2>
+//       </div>
+
+//       <div className="bg-stone-100 rounded-2xl p-8 flex justify-between items-center border border-stone-200">
+//         <span className="text-stone-500 font-medium">받은 배당금</span>
+//         <span className="text-stone-800 font-black text-2xl">
+//           {totalDividends.toLocaleString()}원
+//         </span>
+//       </div>
+
+//       {/* 월별 바 차트 */}
+//       <div className="bg-stone-100 rounded-2xl p-8 h-64 flex flex-col justify-end border border-stone-200">
+//         <div className="flex justify-between items-end h-full px-4 mb-4">
+//           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => {
+//             const monthTotal = ACCOUNT_DIVIDENDS.filter(
+//               (d) => new Date(d.date).getMonth() + 1 === m,
+//             ).reduce((acc, d) => acc + d.net, 0);
+//             const height =
+//               monthTotal > 0 ? Math.min(100, (monthTotal / 50000) * 100) : 5;
+//             return (
+//               <div key={m} className="flex flex-col items-center gap-2 flex-1">
+//                 <div
+//                   className={cn(
+//                     "w-4 rounded-full transition-all duration-500",
+//                     monthTotal > 0 ? "bg-stone-800" : "bg-stone-300",
+//                   )}
+//                   style={{ height: `${height}%` }}
+//                 />
+//                 <span className="text-[10px] text-stone-400 font-bold">
+//                   {m}월
+//                 </span>
+//               </div>
+//             );
+//           })}
+//         </div>
+//       </div>
+
+//       <div className="space-y-4">
+//         <h3 className="text-sm font-black text-stone-800 uppercase tracking-widest ml-1">
+//           상세 내역
+//         </h3>
+//         <div className="bg-white border border-stone-200 rounded-[32px] overflow-hidden shadow-sm">
+//           <div className="divide-y divide-stone-100">
+//             {ACCOUNT_DIVIDENDS.map((item) => (
+//               <div
+//                 key={item.id}
+//                 className="p-6 flex items-center justify-between hover:bg-stone-50 transition-colors"
+//               >
+//                 <div className="flex items-center gap-6">
+//                   <span className="text-[10px] font-black text-stone-400 font-mono w-16">
+//                     {item.date}
+//                   </span>
+//                   <div className="w-10 h-10 rounded-lg bg-stone-100 border border-stone-200 flex items-center justify-center text-[10px] font-black text-stone-400 shrink-0">
+//                     {item.symbol.slice(0, 2)}
+//                   </div>
+//                   <div>
+//                     <p className="text-sm font-bold text-stone-800">
+//                       {item.name}
+//                     </p>
+//                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-0.5">
+//                       {item.qty}주 | 주당 {item.perToken.toLocaleString()}원
+//                     </p>
+//                   </div>
+//                 </div>
+//                 <div className="text-right">
+//                   <p className="text-sm font-black text-stone-600">
+//                     +{item.net.toLocaleString()}원
+//                   </p>
+//                   <p className="text-[10px] text-stone-400 font-bold">
+//                     세전 {item.gross.toLocaleString()}원
+//                   </p>
+//                 </div>
+//               </div>
+//             ))}
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
 
 // ── 수익분석 탭 ───────────────────────────────────────────────
 function AnalysisTab() {

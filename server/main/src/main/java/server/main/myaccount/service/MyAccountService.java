@@ -29,5 +29,9 @@ public interface MyAccountService {
 
     Page<DividendHistoryResponse> getDividendHistory(int year, Pageable pageable);
 
+    Long getDividendTotal(int year);
+
+    AccountSummaryResponse getAccountSummary();
+
 
 }

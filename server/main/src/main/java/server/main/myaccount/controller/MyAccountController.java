@@ -38,6 +38,11 @@ public class MyAccountController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/summary")
+    public ResponseEntity<AccountSummaryResponse> getAccountSummary() {
+        return ResponseEntity.ok(myAccountService.getAccountSummary());
+    }
+
     @GetMapping("/balance")
     public ResponseEntity<AccountBalanceResponse> getBalance() {
         return ResponseEntity.ok(myAccountService.getBalance());
@@ -73,4 +78,14 @@ public class MyAccountController {
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(myAccountService.getDividendHistory(year, pageable));
     }
+
+    @GetMapping("/dividends/total")
+    public ResponseEntity<Long> getDividendTotal(
+            @RequestParam(defaultValue = "2026") int year) {
+        return ResponseEntity.ok(myAccountService.getDividendTotal(year));
+    }
+
+
+
+
 }
