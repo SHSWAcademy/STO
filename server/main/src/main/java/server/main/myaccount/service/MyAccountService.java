@@ -27,4 +27,7 @@ public interface MyAccountService {
 
     Page<OrderHistoryResponse> getOrderHistory(String orderTab, Pageable pageable);
 
+    Page<DividendHistoryResponse> getDividendHistory(int year, Pageable pageable);
+
+
 }

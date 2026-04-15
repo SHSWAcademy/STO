@@ -7,6 +7,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.main.allocation.entity.AllocationEvent;
+import server.main.allocation.repository.AllocationEventRepository;
+import server.main.allocation.repository.AllocationPayoutRepository;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.security.CustomUserPrincipal;
@@ -23,6 +26,8 @@ import server.main.myaccount.dto.*;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.repository.OrderRepository;
+import server.main.token.entity.Token;
+import server.main.token.repository.TokenRepository;
 
 import java.util.List;
 
@@ -36,6 +41,9 @@ public class MyAccountServiceImpl implements MyAccountService{
     private final MemberTokenHoldingRepository memberTokenHoldingRepository;
     private final PasswordEncoder passwordEncoder;
     private final OrderRepository orderRepository;
+    private final AllocationPayoutRepository allocationPayoutRepository;
+    private final AllocationEventRepository allocationEventRepository;
+    private final TokenRepository tokenRepository;
 
     @Override
     public void deposit(DepositRequest depositRequest) {
@@ -157,5 +165,28 @@ public class MyAccountServiceImpl implements MyAccountService{
             orders = orderRepository.findAllByMemberId(memberId,pageable);
         }
         return orders.map(OrderHistoryResponse::from);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<DividendHistoryResponse> getDividendHistory(int year, Pageable pageable) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        return allocationPayoutRepository
+                .findByMemberIdAndYear(memberId, year, pageable)
+                .map(payout -> {
+                    AllocationEvent event = allocationEventRepository
+                            .findById(payout.getAllocationEventId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUNT_ERROR));
+                    Token token = tokenRepository
+                            .findById(payout.getTokenId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUNT_ERROR));
+                    return DividendHistoryResponse.from(
+                            payout, token,
+                            event.getSettlementYear(),
+                            event.getSettlementMonth()
+                    );
+                });
     }
 }

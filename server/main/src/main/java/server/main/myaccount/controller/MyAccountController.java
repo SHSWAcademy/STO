@@ -66,4 +66,11 @@ public class MyAccountController {
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(myAccountService.getOrderHistory(orderTab, pageable));
     }
+
+    @GetMapping("/dividends")
+    public ResponseEntity<Page<DividendHistoryResponse>> getDividendHistory(
+            @RequestParam(defaultValue = "2026") int year,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(myAccountService.getDividendHistory(year, pageable));
+    }
 }
