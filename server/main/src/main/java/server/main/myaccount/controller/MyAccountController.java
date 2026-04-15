@@ -17,6 +17,7 @@ import server.main.member.entity.TxType;
 import server.main.myaccount.dto.*;
 import server.main.myaccount.service.MyAccountService;
 
+import java.time.Year;
 import java.util.List;
 
 @RestController
@@ -36,6 +37,11 @@ public class MyAccountController {
     public ResponseEntity<Void> withdraw(@RequestBody @Valid WithdrawRequest withdrawRequest) {
         myAccountService.withdraw(withdrawRequest);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/summary")
+    public ResponseEntity<AccountSummaryResponse> getAccountSummary() {
+        return ResponseEntity.ok(myAccountService.getAccountSummary());
     }
 
     @GetMapping("/balance")
@@ -66,4 +72,24 @@ public class MyAccountController {
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(myAccountService.getOrderHistory(orderTab, pageable));
     }
+
+    @GetMapping("/dividends")
+    public ResponseEntity<Page<DividendHistoryResponse>> getDividendHistory(
+            @RequestParam(required = false) Integer year,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        int resolvedYear = (year != null) ? year : Year.now().getValue();
+        return ResponseEntity.ok(myAccountService.getDividendHistory(resolvedYear, pageable));
+    }
+
+    @GetMapping("/dividends/total")
+    public ResponseEntity<Long> getDividendTotal(
+            @RequestParam(required = false) Integer year) {
+        int resolvedYear = (year != null) ? year : Year.now().getValue();
+        return ResponseEntity.ok(myAccountService.getDividendTotal(resolvedYear));
+    }
+
+
+
+
+
 }

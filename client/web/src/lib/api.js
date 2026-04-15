@@ -68,4 +68,17 @@ export const cancelOrder = (orderId, accountPassword) =>
   api.delete(`/api/token/order/cancel/${orderId}`, {
     data: { accountPassword },
   });
+
+export const fetchDividendHistory = (
+  page = 0,
+  year = new Date().getFullYear(),
+) =>
+  api.get("/api/myaccount/dividends", {
+    params: { page, size: 10, year },
+  });
+
+export const fetchDividendTotal = (year = new Date().getFullYear()) =>
+  api.get("/api/myaccount/dividends/total", {
+    params: { year },
+  });
 export default api;

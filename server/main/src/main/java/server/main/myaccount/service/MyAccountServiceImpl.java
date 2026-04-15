@@ -7,6 +7,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.main.allocation.repository.AllocationPayoutRepository;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.security.CustomUserPrincipal;
@@ -24,6 +25,8 @@ import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.repository.OrderRepository;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -36,6 +39,7 @@ public class MyAccountServiceImpl implements MyAccountService{
     private final MemberTokenHoldingRepository memberTokenHoldingRepository;
     private final PasswordEncoder passwordEncoder;
     private final OrderRepository orderRepository;
+    private final AllocationPayoutRepository allocationPayoutRepository;
 
     @Override
     public void deposit(DepositRequest depositRequest) {
@@ -157,5 +161,53 @@ public class MyAccountServiceImpl implements MyAccountService{
             orders = orderRepository.findAllByMemberId(memberId,pageable);
         }
         return orders.map(OrderHistoryResponse::from);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<DividendHistoryResponse> getDividendHistory(int year, Pageable pageable) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        return allocationPayoutRepository
+                .findDividendHistoryByMemberIdAndYear(memberId, year, pageable);
+
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountSummaryResponse getAccountSummary() {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        // 이번 달 시작/끝 계산
+        LocalDate today = LocalDate.now();
+        LocalDateTime start = today.withDayOfMonth(1).atStartOfDay();
+        LocalDateTime end = today.withDayOfMonth(1).plusMonths(1).atStartOfDay();
+
+        // sumByMemberIdAndYearMonth는 (memberId, year, month) 를 받음
+        Long thisMonthDividend = allocationPayoutRepository.sumByMemberIdAndYearMonth(
+                memberId, today.getYear(), today.getMonthValue()
+        );
+
+        // sumByMemberIdAndTxTypeAndPeriod는 (memberId, txType, start, end) 를 받음
+        Long thisMonthSellProfit = memberBankRepository.sumByMemberIdAndTxTypeAndPeriod(
+                memberId, TxType.TRADE_SETTLEMENT_SELL, start, end
+        );
+
+        return new AccountSummaryResponse(
+                thisMonthDividend,
+                thisMonthSellProfit,
+                thisMonthDividend + thisMonthSellProfit
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Long getDividendTotal(int year) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        return allocationPayoutRepository.sumByMemberIdAndYear(memberId, year);
     }
 }
