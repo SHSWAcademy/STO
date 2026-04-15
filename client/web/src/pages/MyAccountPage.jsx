@@ -24,6 +24,8 @@ import {
   cancelOrder,
   fetchDividendHistory,
   fetchDividendTotal,
+  fetchAccountSummary,
+  fetchSellHistory,
 } from "../lib/api.js";
 
 import { cn } from "../lib/utils.js";
@@ -930,7 +932,6 @@ function DividendsTab() {
         </div>
       </div>
 
-      {/* 페이지네이션 — OrdersTab과 동일한 Pagination 컴포넌트 사용 */}
       <Pagination
         page={page}
         totalPages={totalPages}
@@ -942,30 +943,82 @@ function DividendsTab() {
 
 // ── 수익분석 탭 ───────────────────────────────────────────────
 function AnalysisTab() {
-  const totalProfit = PROFIT_ANALYSIS_DATA.reduce(
-    (acc, d) => acc + d.profit,
-    0,
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [sellHistory, setSellHistory] = useState([]);
+  const [dividendHistory, setDividendHistory] = useState([]);
+  const [summary, setSummary] = useState({
+    thisMonthTotal: 0,
+    thisMonthSellProfit: 0,
+    thisMonthDividend: 0,
+  });
+
+  async function loadDetail(y, m) {
+    const [sellRes, divRes] = await Promise.all([
+      fetchSellHistory(y, m),
+      fetchDividendHistory(0, y),
+    ]);
+    setSellHistory(sellRes.data.content);
+    setDividendHistory(
+      divRes.data.content.filter((d) => d.settlementMonth === m),
+    );
+  }
+  const combinedList = [
+    ...sellHistory.map((item) => ({ ...item, listType: "sell" })),
+    ...dividendHistory.map((item) => ({ ...item, listType: "dividend" })),
+  ].sort(
+    (a, b) =>
+      new Date(b.executedAt ?? b.createdAt) -
+      new Date(a.executedAt ?? a.createdAt),
   );
-  const sellProfit = PROFIT_ANALYSIS_DATA.filter(
-    (d) => d.type === "sell",
-  ).reduce((acc, d) => acc + d.profit, 0);
-  const divProfit = PROFIT_ANALYSIS_DATA.filter(
-    (d) => d.type === "dividend",
-  ).reduce((acc, d) => acc + d.profit, 0);
-  const intProfit = PROFIT_ANALYSIS_DATA.filter(
-    (d) => d.type === "interest",
-  ).reduce((acc, d) => acc + d.profit, 0);
+
+  const PAGE_SIZE = 10;
+  const totalPageCount = Math.ceil(combinedList.length / PAGE_SIZE);
+  const paginatedList = combinedList.slice(
+    page * PAGE_SIZE,
+    (page + 1) * PAGE_SIZE,
+  );
+  useEffect(() => {
+    setPage(0);
+    loadDetail(year, month);
+  }, [year, month]);
+
+  useEffect(() => {
+    fetchAccountSummary(year, month).then((res) => setSummary(res.data));
+  }, [year, month]);
+
+  useEffect(() => {
+    loadDetail(year, month);
+  }, [year, month]);
 
   return (
     <div className="space-y-8 pb-20">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-4 px-4 py-2 bg-stone-100 border border-stone-200 rounded-xl">
-          <button className="text-stone-400 hover:text-stone-800">
-            <ChevronDown size={18} className="rotate-90" />
+          <button
+            onClick={() => {
+              if (month === 1) {
+                setMonth(12);
+                setYear((y) => y - 1);
+              } else setMonth((m) => m - 1);
+            }}
+          >
+            ‹
           </button>
-          <span className="text-sm font-bold text-stone-800">2026년 3월</span>
-          <button className="text-stone-400 hover:text-stone-800">
-            <ChevronDown size={18} className="-rotate-90" />
+          <span>
+            {year}년 {month}월
+          </span>
+          <button
+            onClick={() => {
+              if (month === 12) {
+                setMonth(1);
+                setYear((y) => y + 1);
+              } else setMonth((m) => m + 1);
+            }}
+          >
+            ›
           </button>
         </div>
       </div>
@@ -976,32 +1029,30 @@ function AnalysisTab() {
           <h2
             className={cn(
               "text-4xl font-black tracking-tight",
-              totalProfit >= 0 ? "text-stone-800" : "text-brand-blue",
+              summary.thisMonthTotal >= 0
+                ? "text-stone-800"
+                : "text-brand-blue",
             )}
           >
-            {totalProfit.toLocaleString()}원
+            {summary.thisMonthTotal.toLocaleString()}원
           </h2>
           <div className="flex gap-4 text-sm font-bold">
             <span className="text-stone-400">
               판매수익{" "}
               <span
                 className={cn(
-                  sellProfit >= 0 ? "text-stone-800" : "text-brand-blue",
+                  summary.thisMonthSellProfit >= 0
+                    ? "text-stone-800"
+                    : "text-brand-blue",
                 )}
               >
-                {sellProfit.toLocaleString()}원
+                {summary.thisMonthSellProfit.toLocaleString()}원
               </span>
             </span>
             <span className="text-stone-400">
               배당금{" "}
               <span className="text-stone-800">
-                {divProfit.toLocaleString()}원
-              </span>
-            </span>
-            <span className="text-stone-400">
-              계좌이자{" "}
-              <span className="text-stone-800">
-                {intProfit.toLocaleString()}원
+                {summary.thisMonthDividend.toLocaleString()}원
               </span>
             </span>
           </div>
@@ -1010,48 +1061,35 @@ function AnalysisTab() {
 
       <div className="bg-white border border-stone-200 rounded-[32px] overflow-hidden shadow-sm">
         <div className="divide-y divide-stone-100">
-          {PROFIT_ANALYSIS_DATA.map((item, i) => (
-            <div
-              key={i}
-              className="p-6 flex items-center justify-between hover:bg-stone-50 transition-colors"
-            >
+          {paginatedList.map((item, i) => (
+            <div key={i} className="p-6 flex items-center justify-between ...">
               <div className="flex items-center gap-6">
                 <span className="text-[10px] font-black text-stone-400 font-mono w-16">
-                  {item.date}
+                  {new Date(
+                    item.executedAt ?? item.createdAt,
+                  ).toLocaleDateString("ko-KR")}
                 </span>
-                <div className="w-10 h-10 rounded-lg bg-stone-100 border border-stone-200 flex items-center justify-center text-[10px] font-black text-stone-400 shrink-0">
-                  {item.type === "interest" ? (
-                    <Coins size={16} className="text-stone-400" />
-                  ) : (
-                    item.name.slice(0, 2)
-                  )}
-                </div>
                 <div>
                   <p className="text-sm font-bold text-stone-800">
-                    {item.name}
+                    {item.tokenName}
                   </p>
                   <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-0.5">
-                    {item.type === "sell"
-                      ? "매매 차익"
-                      : item.type === "dividend"
-                        ? "배당 수익"
-                        : "이자 수익"}
+                    {item.listType === "sell" ? "매매 차익" : "배당 수익"}
                   </p>
                 </div>
               </div>
-              <p
-                className={cn(
-                  "text-sm font-black",
-                  item.profit >= 0 ? "text-brand-red" : "text-brand-blue",
-                )}
-              >
-                {item.profit >= 0 ? "+" : ""}
-                {item.profit.toLocaleString()}원
+              <p className={cn("text-sm font-black", "text-brand-red")}>
+                +{(item.bankingAmount ?? item.memberIncome).toLocaleString()}원
               </p>
             </div>
           ))}
         </div>
       </div>
+      <Pagination
+        page={page}
+        totalPages={totalPageCount}
+        onPageChange={(p) => setPage(p)}
+      />
     </div>
   );
 }

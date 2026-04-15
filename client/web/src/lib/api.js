@@ -81,4 +81,10 @@ export const fetchDividendTotal = (year = new Date().getFullYear()) =>
   api.get("/api/myaccount/dividends/total", {
     params: { year },
   });
+
+export const fetchAccountSummary = (year, month) =>
+  api.get("/api/myaccount/summary", { params: { year, month } });
+
+export const fetchSellHistory = (year, month) =>
+  api.get("/api/myaccount/sell-history", { params: { year, month } });
 export default api;

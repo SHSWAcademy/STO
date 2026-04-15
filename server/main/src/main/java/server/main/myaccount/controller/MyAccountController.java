@@ -17,6 +17,7 @@ import server.main.member.entity.TxType;
 import server.main.myaccount.dto.*;
 import server.main.myaccount.service.MyAccountService;
 
+import java.time.LocalDate;
 import java.time.Year;
 import java.util.List;
 
@@ -90,6 +91,17 @@ public class MyAccountController {
         int resolvedYear = (year != null) ? year : Year.now().getValue();
         return ResponseEntity.ok(myAccountService.getDividendTotal(resolvedYear));
     }
+
+    @GetMapping("/sell-history")
+    public ResponseEntity<Page<SellHistoryResponse>> getSellHistory(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @PageableDefault(size = 50) Pageable pageable) {
+        int resolvedYear = (year != null) ? year : LocalDate.now().getYear();
+        int resolvedMonth = (month != null) ? month : LocalDate.now().getMonthValue();
+        return ResponseEntity.ok(myAccountService.getSellHistory(resolvedYear, resolvedMonth, pageable));
+    }
+
 
 
 

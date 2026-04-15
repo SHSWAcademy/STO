@@ -24,6 +24,7 @@ import server.main.myaccount.dto.*;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.repository.OrderRepository;
+import server.main.trade.repository.TradeRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -40,6 +41,7 @@ public class MyAccountServiceImpl implements MyAccountService{
     private final PasswordEncoder passwordEncoder;
     private final OrderRepository orderRepository;
     private final AllocationPayoutRepository allocationPayoutRepository;
+    private final TradeRepository tradeRepository;
 
     @Override
     public void deposit(DepositRequest depositRequest) {
@@ -188,7 +190,7 @@ public class MyAccountServiceImpl implements MyAccountService{
 
         // sumByMemberIdAndYearMonth는 (memberId, year, month) 를 받음
         Long thisMonthDividend = allocationPayoutRepository.sumByMemberIdAndYearMonth(
-                memberId, today.getYear(), today.getMonthValue()
+                memberId, resolvedYear, resolvedMonth
         );
 
         // sumByMemberIdAndTxTypeAndPeriod는 (memberId, txType, start, end) 를 받음
@@ -210,5 +212,17 @@ public class MyAccountServiceImpl implements MyAccountService{
                 .getContext().getAuthentication().getPrincipal()).getId();
 
         return allocationPayoutRepository.sumByMemberIdAndYear(memberId, year);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<SellHistoryResponse> getSellHistory(int year, int month, Pageable pageable) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        LocalDateTime start = LocalDate.of(year, month, 1).atStartOfDay();
+        LocalDateTime end = start.plusMonths(1);
+
+        return tradeRepository.findSellHistoryByMemberId(memberId, start, end, pageable);
     }
 }

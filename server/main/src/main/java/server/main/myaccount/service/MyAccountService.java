@@ -33,5 +33,7 @@ public interface MyAccountService {
 
     AccountSummaryResponse getAccountSummary(Integer year, Integer month);
 
+    Page<SellHistoryResponse> getSellHistory(int year, int month, Pageable pageable);
+
 
 }
