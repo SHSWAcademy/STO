@@ -28,4 +28,9 @@ public class TokenChartDetailResponseDto {
     // asset 자산에서 가져올 데이터
     private String assetName;
     private String imgUrl;
+
+    // candleDay 에서 가져올 데이터
+    private Long todayOpenPrice;        // 오늘 시가
+    private Long todayHighPrice;        // 오늘 최고가
+    private Long todayLowPrice;         // 오늘 최저가
 }

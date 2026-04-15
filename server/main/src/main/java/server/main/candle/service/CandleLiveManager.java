@@ -126,6 +126,11 @@ public class CandleLiveManager {
         return map.get(tokenId);
     }
 
+    // 오늘 일봉 메모리 조회 (DB에 아직 저장 안 된 당일 봉)
+    public LiveCandleDto getLiveDay(Long tokenId) {
+        return liveDay.get(tokenId);
+    }
+
     // 셧다운 전 메모리에 남아있는 모든 봉을 DB에 저장
     @PreDestroy
     public void flushAllOnShutdown() {

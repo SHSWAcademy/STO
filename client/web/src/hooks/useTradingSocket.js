@@ -15,18 +15,21 @@ export function useTradingSocket({
                                    onOrderBook,
                                    onTrades,
                                    onCandle,
+                                   onDayCandle,
                                    onPendingOrders,
                                  }) {
-  const clientRef        = useRef(null);
-  const onOrderBookRef   = useRef(onOrderBook);
-  const onTradesRef      = useRef(onTrades);
-  const onCandleRef      = useRef(onCandle);
+  const clientRef          = useRef(null);
+  const onOrderBookRef     = useRef(onOrderBook);
+  const onTradesRef        = useRef(onTrades);
+  const onCandleRef        = useRef(onCandle);
+  const onDayCandleRef     = useRef(onDayCandle);
   const onPendingOrdersRef = useRef(onPendingOrders);
 
   // 매 렌더마다 ref를 최신 콜백으로 갱신 — 재연결 없이 항상 최신 함수 호출
-  onOrderBookRef.current   = onOrderBook;
-  onTradesRef.current      = onTrades;
-  onCandleRef.current      = onCandle;
+  onOrderBookRef.current     = onOrderBook;
+  onTradesRef.current        = onTrades;
+  onCandleRef.current        = onCandle;
+  onDayCandleRef.current     = onDayCandle;
   onPendingOrdersRef.current = onPendingOrders;
 
   useEffect(() => {
@@ -51,6 +54,12 @@ export function useTradingSocket({
         if (onCandleRef.current) {
           client.subscribe(`/topic/candle/live/${tokenId}/${candleType}`, (msg) => {
             try { onCandleRef.current(JSON.parse(msg.body)); } catch (e) {}
+          }, authHeader);
+        }
+        // DAY 캔들은 차트 주기와 무관하게 항상 구독 — 오늘 최고/최저가 실시간 갱신용
+        if (onDayCandleRef.current) {
+          client.subscribe(`/topic/candle/live/${tokenId}/DAY`, (msg) => {
+            try { onDayCandleRef.current(JSON.parse(msg.body)); } catch (e) {}
           }, authHeader);
         }
         if (onPendingOrdersRef.current && memberId) {

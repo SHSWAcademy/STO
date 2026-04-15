@@ -6,9 +6,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
+import server.main.candle.dto.LiveCandleDto;
 import server.main.candle.entity.Candle;
 import server.main.candle.entity.CandleDay;
 import server.main.candle.repository.CandleDayRepository;
+import server.main.candle.service.CandleLiveManager;
 import server.main.candle.repository.CandleMonthRepository;
 import server.main.candle.repository.CandleYearRepository;
 import server.main.token.dto.SelectType;
@@ -41,6 +43,7 @@ import static server.main.global.error.ErrorCode.ENTITY_NOT_FOUNT_ERROR;
 public class TokenServiceImpl implements TokenService{
 
     private final DisclosureRepository disclosureRepository;
+    private final CandleLiveManager candleLiveManager;
     private final CandleDayRepository candleDayRepository;
     private final CandleMonthRepository candleMonthRepository;
     private final CandleYearRepository candleYearRepository;
@@ -67,6 +70,14 @@ public class TokenServiceImpl implements TokenService{
                 .orElse(null);
 
         dto.setYesterdayClosePrice(yesterdayClosePrice);
+
+        // 호가창에 보여줄 데이터 : 오늘 시가, 최고가, 최저가 — DB가 아닌 메모리(liveDay)에서 조회
+        LiveCandleDto liveDay = candleLiveManager.getLiveDay(tokenId);
+        if (liveDay != null) {
+            dto.setTodayOpenPrice(liveDay.getOpenPrice());
+            dto.setTodayHighPrice(liveDay.getHighPrice());
+            dto.setTodayLowPrice(liveDay.getLowPrice());
+        }
 
         return dto;
     }
