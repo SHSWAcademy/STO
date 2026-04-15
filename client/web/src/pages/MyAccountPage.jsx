@@ -51,8 +51,8 @@ const SIDEBAR_ITEMS = [
 const FILTER_TX_TYPES = {
   전체: [],
   입출금: ["DEPOSIT", "WITHDRAWAL"],
-  매수: ["ORDER_LOCK"],
-  매도: ["TRADE_SETTLEMENT"],
+  매수: ["TRADE_SETTLEMENT_BUY"],
+  매도: ["TRADE_SETTLEMENT_SELL"],
   배당금: ["DIVIDEND_DEPOSIT"],
 };
 
@@ -512,8 +512,10 @@ function HistoryTab({
         return "주문 잠금";
       case "ORDER_UNLOCK":
         return "주문 해제";
-      case "TRADE_SETTLEMENT":
-        return "체결 정산";
+      case "TRADE_SETTLEMENT_BUY":
+        return "매수 체결";
+      case "TRADE_SETTLEMENT_SELL":
+        return "매도 체결";
       case "DIVIDEND_DEPOSIT":
         return "배당금 입금";
       default:
@@ -580,7 +582,7 @@ function HistoryTab({
                   className={cn(
                     "text-sm font-black",
                     item.txType === "DEPOSIT" ||
-                      item.txType === "TRADE_SETTLEMENT" ||
+                      item.txType === "TRADE_SETTLEMENT_SELL" ||
                       item.txType === "DIVIDEND_DEPOSIT" ||
                       item.txType === "ORDER_UNLOCK"
                       ? "text-brand-red"
@@ -588,7 +590,7 @@ function HistoryTab({
                   )}
                 >
                   {item.txType === "DEPOSIT" ||
-                  item.txType === "TRADE_SETTLEMENT" ||
+                  item.txType === "TRADE_SETTLEMENT_SELL" ||
                   item.txType === "DIVIDEND_DEPOSIT" ||
                   item.txType === "ORDER_UNLOCK"
                     ? "+"

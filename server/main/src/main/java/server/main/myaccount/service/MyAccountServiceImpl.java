@@ -44,8 +44,6 @@ public class MyAccountServiceImpl implements MyAccountService{
     private final PasswordEncoder passwordEncoder;
     private final OrderRepository orderRepository;
     private final AllocationPayoutRepository allocationPayoutRepository;
-    private final AllocationEventRepository allocationEventRepository;
-    private final TokenRepository tokenRepository;
 
     @Override
     public void deposit(DepositRequest depositRequest) {
@@ -176,20 +174,8 @@ public class MyAccountServiceImpl implements MyAccountService{
                 .getContext().getAuthentication().getPrincipal()).getId();
 
         return allocationPayoutRepository
-                .findByMemberIdAndYear(memberId, year, pageable)
-                .map(payout -> {
-                    AllocationEvent event = allocationEventRepository
-                            .findById(payout.getAllocationEventId())
-                            .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUNT_ERROR));
-                    Token token = tokenRepository
-                            .findById(payout.getTokenId())
-                            .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUNT_ERROR));
-                    return DividendHistoryResponse.from(
-                            payout, token,
-                            event.getSettlementYear(),
-                            event.getSettlementMonth()
-                    );
-                });
+                .findDividendHistoryByMemberIdAndYear(memberId, year, pageable);
+
     }
 
     @Override
@@ -210,7 +196,7 @@ public class MyAccountServiceImpl implements MyAccountService{
 
         // sumByMemberIdAndTxTypeAndPeriod는 (memberId, txType, start, end) 를 받음
         Long thisMonthSellProfit = memberBankRepository.sumByMemberIdAndTxTypeAndPeriod(
-                memberId, TxType.TRADE_SETTLEMENT, start, end
+                memberId, TxType.TRADE_SETTLEMENT_SELL, start, end
         );
 
         return new AccountSummaryResponse(

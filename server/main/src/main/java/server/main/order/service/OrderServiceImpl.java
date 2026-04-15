@@ -316,7 +316,7 @@ public class OrderServiceImpl implements OrderService {
             // 매수자 거래 이력
             bankingRepository.save(MemberBank.builder()
                     .account(buyerAccount)
-                    .txType(TxType.TRADE_SETTLEMENT)
+                    .txType(TxType.TRADE_SETTLEMENT_BUY)
                     .txStatus(TxStatus.SUCCESS)
                     .bankingAmount(tradeAmount + feeAmount)
                     .balanceSnapshot(buyerAccount.getAvailableBalance())
@@ -325,7 +325,7 @@ public class OrderServiceImpl implements OrderService {
             // 매도자 거래 이력
             bankingRepository.save(MemberBank.builder()
                     .account(sellerAccount)
-                    .txType(TxType.TRADE_SETTLEMENT)
+                    .txType(TxType.TRADE_SETTLEMENT_SELL)
                     .txStatus(TxStatus.SUCCESS)
                     .bankingAmount(tradeAmount - feeAmount)
                     .balanceSnapshot(sellerAccount.getAvailableBalance())
