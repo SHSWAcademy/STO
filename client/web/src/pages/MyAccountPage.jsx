@@ -958,13 +958,12 @@ function AnalysisTab() {
   async function loadDetail(y, m) {
     const [sellRes, divRes] = await Promise.all([
       fetchSellHistory(y, m),
-      fetchDividendHistory(0, y),
+      fetchDividendHistory(0, y, m),
     ]);
     setSellHistory(sellRes.data.content);
-    setDividendHistory(
-      divRes.data.content.filter((d) => d.settlementMonth === m),
-    );
+    setDividendHistory(divRes.data.content);
   }
+
   const combinedList = [
     ...sellHistory.map((item) => ({ ...item, listType: "sell" })),
     ...dividendHistory.map((item) => ({ ...item, listType: "dividend" })),
@@ -983,14 +982,7 @@ function AnalysisTab() {
   useEffect(() => {
     setPage(0);
     loadDetail(year, month);
-  }, [year, month]);
-
-  useEffect(() => {
     fetchAccountSummary(year, month).then((res) => setSummary(res.data));
-  }, [year, month]);
-
-  useEffect(() => {
-    loadDetail(year, month);
   }, [year, month]);
 
   return (
@@ -1062,7 +1054,14 @@ function AnalysisTab() {
       <div className="bg-white border border-stone-200 rounded-[32px] overflow-hidden shadow-sm">
         <div className="divide-y divide-stone-100">
           {paginatedList.map((item, i) => (
-            <div key={i} className="p-6 flex items-center justify-between ...">
+            <div
+              key={
+                item.listType === "sell"
+                  ? `sell-${item.tradeId}`
+                  : `dividend-${item.allocationPayoutId}`
+              }
+              className="p-6 flex items-center justify-between"
+            >
               <div className="flex items-center gap-6">
                 <span className="text-[10px] font-black text-stone-400 font-mono w-16">
                   {new Date(

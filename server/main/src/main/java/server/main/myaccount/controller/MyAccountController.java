@@ -43,9 +43,13 @@ public class MyAccountController {
     @GetMapping("/summary")
     public ResponseEntity<AccountSummaryResponse> getAccountSummary(
             @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Integer month)
-    {
-        return ResponseEntity.ok(myAccountService.getAccountSummary(year, month));
+            @RequestParam(required = false) Integer month) {
+        int resolvedYear = (year != null) ? year : LocalDate.now().getYear();
+        int resolvedMonth = (month != null) ? month : LocalDate.now().getMonthValue();
+        if (resolvedMonth < 1 || resolvedMonth > 12) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(myAccountService.getAccountSummary(resolvedYear, resolvedMonth));
     }
 
     @GetMapping("/balance")
@@ -80,9 +84,13 @@ public class MyAccountController {
     @GetMapping("/dividends")
     public ResponseEntity<Page<DividendHistoryResponse>> getDividendHistory(
             @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         int resolvedYear = (year != null) ? year : Year.now().getValue();
-        return ResponseEntity.ok(myAccountService.getDividendHistory(resolvedYear, pageable));
+        if (month != null && (month < 1 || month > 12)) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(myAccountService.getDividendHistory(resolvedYear, month, pageable));
     }
 
     @GetMapping("/dividends/total")
@@ -99,6 +107,10 @@ public class MyAccountController {
             @PageableDefault(size = 50) Pageable pageable) {
         int resolvedYear = (year != null) ? year : LocalDate.now().getYear();
         int resolvedMonth = (month != null) ? month : LocalDate.now().getMonthValue();
+
+        if (resolvedMonth < 1 || resolvedMonth > 12) {
+            return ResponseEntity.badRequest().build();
+        }
         return ResponseEntity.ok(myAccountService.getSellHistory(resolvedYear, resolvedMonth, pageable));
     }
 

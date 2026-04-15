@@ -167,10 +167,13 @@ public class MyAccountServiceImpl implements MyAccountService{
 
     @Override
     @Transactional(readOnly = true)
-    public Page<DividendHistoryResponse> getDividendHistory(int year, Pageable pageable) {
+    public Page<DividendHistoryResponse> getDividendHistory(int year, Integer month, Pageable pageable) {
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal()).getId();
 
+        if (month != null) {
+            return allocationPayoutRepository.findDividendHistoryByMemberIdAndYearAndMonth(memberId, year, month, pageable);
+        }
         return allocationPayoutRepository
                 .findDividendHistoryByMemberIdAndYear(memberId, year, pageable);
 
@@ -178,19 +181,17 @@ public class MyAccountServiceImpl implements MyAccountService{
 
     @Override
     @Transactional(readOnly = true)
-    public AccountSummaryResponse getAccountSummary(Integer year, Integer month) {
+    public AccountSummaryResponse getAccountSummary(int year, int month) {
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal()).getId();
 
         LocalDate today = LocalDate.now();
-        int resolvedYear = (year != null) ? year : today.getYear();
-        int resolvedMonth = (month != null) ? month : today.getMonthValue();
-        LocalDateTime start = LocalDate.of(resolvedYear, resolvedMonth, 1).atStartOfDay();
+        LocalDateTime start = LocalDate.of(year, month, 1).atStartOfDay();
         LocalDateTime end = start.plusMonths(1);
 
         // sumByMemberIdAndYearMonth는 (memberId, year, month) 를 받음
         Long thisMonthDividend = allocationPayoutRepository.sumByMemberIdAndYearMonth(
-                memberId, resolvedYear, resolvedMonth
+                memberId, year, month
         );
 
         // sumByMemberIdAndTxTypeAndPeriod는 (memberId, txType, start, end) 를 받음

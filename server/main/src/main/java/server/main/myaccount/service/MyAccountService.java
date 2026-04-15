@@ -27,11 +27,11 @@ public interface MyAccountService {
 
     Page<OrderHistoryResponse> getOrderHistory(String orderTab, Pageable pageable);
 
-    Page<DividendHistoryResponse> getDividendHistory(int year, Pageable pageable);
+    Page<DividendHistoryResponse> getDividendHistory(int year, Integer month, Pageable pageable);
 
     Long getDividendTotal(int year);
 
-    AccountSummaryResponse getAccountSummary(Integer year, Integer month);
+    AccountSummaryResponse getAccountSummary(int year, int month);
 
     Page<SellHistoryResponse> getSellHistory(int year, int month, Pageable pageable);
 

@@ -72,9 +72,10 @@ export const cancelOrder = (orderId, accountPassword) =>
 export const fetchDividendHistory = (
   page = 0,
   year = new Date().getFullYear(),
+  month = null,
 ) =>
   api.get("/api/myaccount/dividends", {
-    params: { page, size: 10, year },
+    params: { page, size: 10, year, ...(month && { month }) },
   });
 
 export const fetchDividendTotal = (year = new Date().getFullYear()) =>
