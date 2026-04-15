@@ -24,6 +24,7 @@ public interface MemberBankRepository extends JpaRepository<MemberBank, Long> {
       FROM MemberBank b
       WHERE b.account.member.memberId = :memberId
         AND b.txType = :txType
+        AND b.txStatus = 'SUCCESS'
         AND b.createdAt >= :start
         AND b.createdAt < :end
   """)

@@ -25,7 +25,9 @@ public interface AllocationPayoutRepository extends JpaRepository<AllocationPayo
       FROM AllocationPayout p
       JOIN AllocationEvent e ON p.allocationEventId = e.allocationEventId
       JOIN Token t ON t.tokenId = p.tokenId
-      WHERE p.memberId = :memberId AND e.settlementYear = :year
+      WHERE p.memberId = :memberId
+         AND e.settlementYear = :year
+         AND p.allocationPayoutStatus = 'SUCCESS'
       ORDER BY p.createdAt DESC
   """)
     Page<DividendHistoryResponse> findDividendHistoryByMemberIdAndYear(
@@ -43,6 +45,7 @@ public interface AllocationPayoutRepository extends JpaRepository<AllocationPayo
       WHERE p.memberId = :memberId
         AND e.settlementYear = :year
         AND e.settlementMonth = :month
+        AND p.allocationPayoutStatus = 'SUCCESS'
   """)
     Long sumByMemberIdAndYearMonth(
             @Param("memberId") Long memberId,
@@ -57,6 +60,7 @@ public interface AllocationPayoutRepository extends JpaRepository<AllocationPayo
       JOIN AllocationEvent e ON p.allocationEventId = e.allocationEventId
       WHERE p.memberId = :memberId
         AND e.settlementYear = :year
+         AND p.allocationPayoutStatus = 'SUCCESS'
   """)
     Long sumByMemberIdAndYear(
             @Param("memberId") Long memberId,
