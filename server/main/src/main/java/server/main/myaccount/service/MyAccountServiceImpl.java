@@ -106,9 +106,7 @@ public class MyAccountServiceImpl implements MyAccountService{
     }
 
     @Override
-    @Transactional(readOnly = true)
     public void verifyAccountPassword(VerifyAccountPasswordRequest request) {
-    public Page<BankingHistoryResponse> getBankingHistory(List<TxType> txTypes, Pageable pageable) {
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal()).getId();
 
@@ -118,11 +116,21 @@ public class MyAccountServiceImpl implements MyAccountService{
         if (!passwordEncoder.matches(request.getAccountPassword(), account.getAccountPassword())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<BankingHistoryResponse> getBankingHistory(List<TxType> txTypes, Pageable pageable) {
+        Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+                .getContext().getAuthentication().getPrincipal()).getId();
+
+        Account account = accountRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+
         if (txTypes == null || txTypes.isEmpty()) {
             return memberBankRepository.findByAccount(account, pageable)
                     .map(BankingHistoryResponse::from);
         }
-
         return memberBankRepository.findByAccountAndTxTypeIn(account, txTypes, pageable)
                 .map(BankingHistoryResponse::from);
     }

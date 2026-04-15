@@ -15,7 +15,7 @@ const TOKEN_ID_MAP = {
 import { AssetHeader } from '../components/trading/AssetHeader.jsx';
 import { ChartPanel }  from '../components/trading/ChartPanel.jsx';
 import { HogaPanel }   from '../components/trading/HogaPanel.jsx';
-import { OrderPanel }  from '../components/trading/OrderPanel.jsx';
+import { SecureOrderPanel }  from '../components/trading/SecureOrderPanel.jsx';
 
 // TradingPage — 원본 TradingPage.tsx 구조 복원
 //
@@ -74,7 +74,7 @@ export function TradingPage() {
         )}
 
         {/* 주문창: 항상 오른쪽에 고정 */}
-        <OrderPanel asset={asset} currentPrice={currentPrice} tokenId={tokenId} token={token} />
+        <SecureOrderPanel currentPrice={currentPrice} tokenId={tokenId} token={token} />
       </div>
     </div>
   );

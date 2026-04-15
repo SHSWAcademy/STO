@@ -22,6 +22,7 @@ public interface MyAccountService {
     List<PortfolioResponse> getPortfolio();
 
     void verifyAccountPassword(VerifyAccountPasswordRequest request);
+
     Page<BankingHistoryResponse> getBankingHistory(List<TxType> txTypes, Pageable pageable);
 
 }
