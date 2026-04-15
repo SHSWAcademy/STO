@@ -31,7 +31,7 @@ public interface MyAccountService {
 
     Long getDividendTotal(int year);
 
-    AccountSummaryResponse getAccountSummary();
+    AccountSummaryResponse getAccountSummary(Integer year, Integer month);
 
 
 }

@@ -176,14 +176,15 @@ public class MyAccountServiceImpl implements MyAccountService{
 
     @Override
     @Transactional(readOnly = true)
-    public AccountSummaryResponse getAccountSummary() {
+    public AccountSummaryResponse getAccountSummary(Integer year, Integer month) {
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal()).getId();
 
-        // 이번 달 시작/끝 계산
         LocalDate today = LocalDate.now();
-        LocalDateTime start = today.withDayOfMonth(1).atStartOfDay();
-        LocalDateTime end = today.withDayOfMonth(1).plusMonths(1).atStartOfDay();
+        int resolvedYear = (year != null) ? year : today.getYear();
+        int resolvedMonth = (month != null) ? month : today.getMonthValue();
+        LocalDateTime start = LocalDate.of(resolvedYear, resolvedMonth, 1).atStartOfDay();
+        LocalDateTime end = start.plusMonths(1);
 
         // sumByMemberIdAndYearMonth는 (memberId, year, month) 를 받음
         Long thisMonthDividend = allocationPayoutRepository.sumByMemberIdAndYearMonth(

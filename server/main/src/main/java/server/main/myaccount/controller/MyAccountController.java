@@ -40,8 +40,11 @@ public class MyAccountController {
     }
 
     @GetMapping("/summary")
-    public ResponseEntity<AccountSummaryResponse> getAccountSummary() {
-        return ResponseEntity.ok(myAccountService.getAccountSummary());
+    public ResponseEntity<AccountSummaryResponse> getAccountSummary(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month)
+    {
+        return ResponseEntity.ok(myAccountService.getAccountSummary(year, month));
     }
 
     @GetMapping("/balance")
