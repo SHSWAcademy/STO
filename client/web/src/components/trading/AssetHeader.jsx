@@ -6,7 +6,7 @@ import { cn } from '../../lib/utils.js';
 // props.asset: 현재 종목 객체
 // props.currentPrice: 현재가
 // props.activeTab / props.onTabChange: 탭 전환
-// props.inWatchlist / props.onToggleWatchlist: 관심 토글
+// props.isLiked / props.onToggleLike: 관심 토글
 
 const TABS = [
   { id: 'chart',    label: '차트·호가' },
@@ -15,7 +15,7 @@ const TABS = [
   { id: 'news',     label: '공시' },
 ];
 
-export function AssetHeader({ asset, currentPrice, basePrice, activeTab, onTabChange, inWatchlist, onToggleWatchlist, hideStats = false }) {
+export function AssetHeader({ asset, currentPrice, basePrice, activeTab, onTabChange, isLiked, onToggleLike, hideStats = false }) {
   const isUp         = asset.change >= 0;
   const changeAmount = basePrice > 0 ? Math.abs(currentPrice - basePrice) : 0;
   const yesterday    = new Date(Date.now() - 86400000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
@@ -80,15 +80,15 @@ export function AssetHeader({ asset, currentPrice, basePrice, activeTab, onTabCh
             )}
 
             <button
-                onClick={() => onToggleWatchlist?.(asset.id)}
+                onClick={() => onToggleLike?.(asset.id)}
                 className={cn(
                     'p-2 rounded-lg transition-colors',
-                    inWatchlist
+                    isLiked
                         ? 'bg-brand-red-light text-brand-red'
                         : 'bg-stone-200 hover:bg-stone-200 text-stone-500'
                 )}
             >
-              <Heart size={18} fill={inWatchlist ? 'currentColor' : 'none'} />
+              <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
             </button>
           </div>
         </div>

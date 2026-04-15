@@ -17,7 +17,7 @@ function getMiniChart(symbol) {
   return MINI_CHART_DATA[symbol] || [];
 }
 
-export function WatchlistPage() {
+export function LikesPage() {
   const navigate = useNavigate();
   const { user, likedTokenIds, toggleLike } = useApp();
   const [viewMode, setViewMode] = useState('list');
@@ -47,7 +47,7 @@ export function WatchlistPage() {
       const data = await res.json();
       setLikedItems(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('[WatchlistPage] likes load failed:', err);
+      console.error('[LikesPage] likes load failed:', err);
       setLikedItems([]);
     } finally {
       setLoading(false);
@@ -64,7 +64,7 @@ export function WatchlistPage() {
     try {
       await toggleLike(tokenId);
     } catch (err) {
-      console.error('[WatchlistPage] like toggle failed:', err);
+      console.error('[LikesPage] like toggle failed:', err);
     }
   }
 
@@ -286,3 +286,4 @@ export function WatchlistPage() {
     </div>
   );
 }
+

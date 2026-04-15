@@ -5,10 +5,10 @@ import { AuthPage }             from './pages/AuthPage.jsx';
 import { TradingPage }          from './pages/TradingPage.jsx';
 import { DashboardPage }        from './pages/DashboardPage.jsx';
 import { MyAccountPage }        from './pages/MyAccountPage.jsx';
-import { WatchlistPage }        from './pages/WatchlistPage.jsx';
+import { LikesPage }            from './pages/LikesPage.jsx';
 import { DisclosurePage }       from './pages/DisclosurePage.jsx';
 import { NoticePage }           from './pages/NoticePage.jsx';
-import { MockupPage }           from './pages/MockupPage.jsx';
+import { TokenDetailPage }      from './pages/TokenDetailPage.jsx';
 
 // Admin
 import { AdminLayout }          from './pages/admin/AdminLayout.jsx';
@@ -44,13 +44,13 @@ function MainLayout() {
   );
 }
 
-// MockupPage 전용 독립 레이아웃 (비로그인 접근 가능)
-function MockupLayout() {
+// TokenDetailPage 전용 독립 레이아웃 (비로그인 접근 가능)
+function TokenDetailLayout() {
   return (
     <div className="h-screen overflow-hidden bg-stone-100 text-stone-800 flex flex-col">
       <AppHeader />
       <main className="flex-1 min-h-0 overflow-hidden">
-        <MockupPage />
+        <TokenDetailPage />
       </main>
     </div>
   );
@@ -84,7 +84,7 @@ function AppContent() {
       </Route>
 
       {/* 비로그인 접근 가능 — 독립 최상위 라우트 */}
-      <Route path="/token/:tokenId" element={<MockupLayout />} />
+      <Route path="/token/:tokenId" element={<TokenDetailLayout />} />
       <Route path="/login" element={<AuthPage />} />
 
       {/* 로그인 필요 라우트 */}
@@ -92,7 +92,8 @@ function AppContent() {
         <Route path="/"           element={<PageWrapper><DashboardPage /></PageWrapper>} />
         <Route path="/trading"    element={<TradingPage />} />
         <Route path="/portfolio"  element={<Auth><PageWrapper><MyAccountPage /></PageWrapper></Auth>} />
-        <Route path="/watchlist"  element={<Auth><PageWrapper><WatchlistPage /></PageWrapper></Auth>} />
+        <Route path="/likes"      element={<Auth><PageWrapper><LikesPage /></PageWrapper></Auth>} />
+        <Route path="/watchlist"  element={<Navigate to="/likes" replace />} />
         <Route path="/disclosure" element={<PageWrapper><DisclosurePage /></PageWrapper>} />
         <Route path="/notice"     element={<PageWrapper><NoticePage /></PageWrapper>} />
         <Route path="*"           element={<Navigate to="/" replace />} />

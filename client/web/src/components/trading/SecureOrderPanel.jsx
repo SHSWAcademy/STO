@@ -78,7 +78,7 @@ function OrderExecutionConfirmModal({ title, items, submitting, onClose, onConfi
   );
 }
 
-export function SecureOrderPanel({ currentPrice, tokenId, token, wsPendingData, onLoginRequired }) {
+export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, wsPendingData, onLoginRequired }) {
   const [orderSide, setOrderSide] = useState('buy');
   const [inputMode, setInputMode] = useState('qty');
   const [price, setPrice] = useState(currentPrice > 0 ? String(currentPrice) : '');
@@ -97,10 +97,18 @@ export function SecureOrderPanel({ currentPrice, tokenId, token, wsPendingData, 
   const [capacity, setCapacity] = useState({ availableBalance: 0, availableQuantity: 0 });
   const [passwordModal, setPasswordModal] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
+  const isBuy = orderSide === 'buy';
+  const isPendingTab = orderSide === 'pending';
+  const isLoggedIn = !!token;
 
   useEffect(() => {
     if (currentPrice > 0) setPrice(prev => (prev === '' ? String(currentPrice) : prev));
   }, [currentPrice]);
+
+  useEffect(() => {
+    if (!selectedPrice || isPendingTab) return;
+    setPrice(String(selectedPrice));
+  }, [selectedPrice, isPendingTab]);
 
   useEffect(() => {
     if (!wsPendingData) return;
@@ -122,9 +130,6 @@ export function SecureOrderPanel({ currentPrice, tokenId, token, wsPendingData, 
     )));
   }, [wsPendingData, editingOrderId]);
 
-  const isBuy = orderSide === 'buy';
-  const isPendingTab = orderSide === 'pending';
-  const isLoggedIn = !!token;
   const numPrice = Number(price) || 0;
   const numQty = inputMode === 'qty' ? (Number(qty) || 0) : (numPrice > 0 ? Math.floor((Number(amount) || 0) / numPrice) : 0);
   const numAmount = inputMode === 'amount' ? (Number(amount) || 0) : numPrice * numQty;

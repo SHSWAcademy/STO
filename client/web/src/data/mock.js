@@ -171,7 +171,7 @@ export const FILLED_ORDERS = [
   { id: 'FILL003', time: '09:10:05', type: '지정가 매수', price: 6700,  qty: 200, amount: 1340000, fee: 670, symbol: 'JEJU1',    name: '제주 호텔 1호' },
 ];
 
-// ─── WatchlistPage 미니 차트 (정적, Math.random 제거) ────────
+// ─── LikesPage 미니 차트 (정적, Math.random 제거) ────────
 export const MINI_CHART_DATA = {
   SEOULST:  [{ v: 12200 }, { v: 12150 }, { v: 12300 }, { v: 12250 }, { v: 12400 }, { v: 12350 }, { v: 12450 }, { v: 12380 }, { v: 12500 }, { v: 12450 }],
   SONGDORE: [{ v: 8600  }, { v: 8500  }, { v: 8450  }, { v: 8520  }, { v: 8480  }, { v: 8400  }, { v: 8350  }, { v: 8380  }, { v: 8320  }, { v: 8320  }],

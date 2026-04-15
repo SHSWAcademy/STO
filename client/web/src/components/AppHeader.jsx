@@ -9,13 +9,13 @@ import { StoneLogo } from './ui/StoneLogo.jsx';
 import { Modal } from './ui/Modal.jsx';
 import api from '../lib/api.js';
 
-const PROTECTED_PATHS = new Set(['/portfolio', '/watchlist']);
+const PROTECTED_PATHS = new Set(['/portfolio', '/likes', '/watchlist']);
 const NOTICE_BANNER_DISMISS_KEY = 'dismissedNoticeBannerId';
 
 const NAV_ITEMS = [
   { label: '홈', path: '/', end: true },
   { label: '내 계좌', path: '/portfolio' },
-  { label: '관심', path: '/watchlist' },
+  { label: '관심', path: '/likes' },
   { label: '공시', path: '/disclosure' },
   { label: '공지', path: '/notice' },
 ];
