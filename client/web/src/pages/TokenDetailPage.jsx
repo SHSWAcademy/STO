@@ -671,6 +671,7 @@ export function TokenDetailPage() {
     price:  currentPrice,
     issued: tokenInfo?.totalSupply || 0,
     desc:   tokenInfo?.assetName   || '',
+    imgUrl: tokenInfo?.imgUrl || null,
     pdfUrl: null,
   };
 
