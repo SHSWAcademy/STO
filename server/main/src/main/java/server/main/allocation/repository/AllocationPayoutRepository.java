@@ -6,31 +6,30 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import server.main.allocation.entity.AllocationPayout;
-import server.main.myaccount.dto.DividendHistoryResponse;
+import server.main.myAccount.dto.DividendHistoryResponse;
 
 public interface AllocationPayoutRepository extends JpaRepository<AllocationPayout, Long> {
     // 회원 + 연도 필터 (AllocationEvent JOIN)
     @Query("""
-        SELECT new server.main.myaccount.dto.DividendHistoryResponse(
-            p.allocationPayoutId,
-            t.tokenName,
-            t.tokenSymbol,
-            p.holdingQuantity,
-            p.memberIncome / p.holdingQuantity,
-            p.memberIncome,
-            e.settlementYear,
-            e.settlementMonth,
-            p.createdAt
-        )
-        FROM AllocationPayout p
-        JOIN AllocationEvent e ON p.allocationEventId = e.allocationEventId
-        JOIN Token t ON t.tokenId = p.tokenId
-        WHERE p.memberId = :memberId
-           AND e.settlementYear = :year
-           AND p.allocationPayoutStatus = 'SUCCESS'
-           AND p.holdingQuantity > 0
-        ORDER BY p.createdAt DESC
-    """)
+      SELECT new server.main.myAccount.dto.DividendHistoryResponse(
+          p.allocationPayoutId,
+          t.tokenName,
+          t.tokenSymbol,
+          p.holdingQuantity,
+          p.memberIncome / p.holdingQuantity,
+          p.memberIncome,
+          e.settlementYear,
+          e.settlementMonth,
+          p.createdAt
+      )
+      FROM AllocationPayout p
+      JOIN AllocationEvent e ON p.allocationEventId = e.allocationEventId
+      JOIN Token t ON t.tokenId = p.tokenId
+      WHERE p.memberId = :memberId
+         AND e.settlementYear = :year
+         AND p.allocationPayoutStatus = 'SUCCESS'
+      ORDER BY p.createdAt DESC
+  """)
     Page<DividendHistoryResponse> findDividendHistoryByMemberIdAndYear(
             @Param("memberId") Long memberId,
             @Param("year") int year,
@@ -40,7 +39,7 @@ public interface AllocationPayoutRepository extends JpaRepository<AllocationPayo
 
 
     @Query("""
-      SELECT new server.main.myaccount.dto.DividendHistoryResponse(
+      SELECT new server.main.myAccount.dto.DividendHistoryResponse(
           p.allocationPayoutId,
           t.tokenName,
           t.tokenSymbol,

@@ -34,7 +34,7 @@ public class FileServiceImpl implements FileService{
         new java.io.File(fileStore.getUploadDir(), storedName).delete();
     }
 
-    // 공시ID로 건물 소개 파일 조회
+    // 공시 ID로 건물 소개 파일 조회
     @Override
     public File getAssetFile(Long disclosureId) {
         return fileRepository.findByDisclosureId(disclosureId);

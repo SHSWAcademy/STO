@@ -151,6 +151,13 @@ export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, 
     if (orderSide === 'pending') fetchPendingOrders();
   }, [orderSide, fetchPendingOrders]);
 
+  // pending 탭 활성 중 주기적 재조회 — WebSocket 갱신 누락 보완
+  useEffect(() => {
+    if (!isPendingTab || !isLoggedIn || !tokenId) return;
+    const intervalId = setInterval(fetchPendingOrders, 5000);
+    return () => clearInterval(intervalId);
+  }, [isPendingTab, isLoggedIn, tokenId, fetchPendingOrders]);
+
   const fetchCapacity = useCallback(async () => {
     if (!isLoggedIn || !tokenId) return;
     try {

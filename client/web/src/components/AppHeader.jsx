@@ -77,7 +77,7 @@ export function AppHeader() {
     if (!user) return;
     try {
       const res = await api.get('/api/alarm');
-      setAlarms(res.data);
+      setAlarms(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
       console.warn('[Alarm] 목록 로드 실패', e);
     }
@@ -119,16 +119,18 @@ export function AppHeader() {
     memberId: user?.memberId,
     token: user?.accessToken,
     onSnapshot: (snapshot) => {
+      const safeSnapshot = Array.isArray(snapshot) ? snapshot : [];
       setAlarms((prev) => {
-        const existingIds = new Set(prev.map((alarm) => alarm.alarmId));
-        const newItems = snapshot.filter((alarm) => !existingIds.has(alarm.alarmId));
-        return [...newItems, ...prev].sort(
+        const safePrev = Array.isArray(prev) ? prev : [];
+        const existingIds = new Set(safePrev.map((alarm) => alarm.alarmId));
+        const newItems = safeSnapshot.filter((alarm) => !existingIds.has(alarm.alarmId));
+        return [...newItems, ...safePrev].sort(
             (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
         );
       });
     },
     onNewAlarm: (alarm) => {
-      setAlarms((prev) => [alarm, ...prev].slice(0, 50));
+      setAlarms((prev) => [alarm, ...(Array.isArray(prev) ? prev : [])].slice(0, 50));
     },
   });
 
