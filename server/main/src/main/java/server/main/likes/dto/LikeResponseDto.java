@@ -15,4 +15,5 @@ public class LikeResponseDto {
     private String assetName;
     private String tokenSymbol;
     private Long currentPrice;
+    private String imgUrl;
 }

@@ -38,6 +38,7 @@ public class LikeServiceImpl implements LikeService {
                             .assetId(like.getAsset().getAssetId())
                             .assetName(like.getAsset().getAssetName())
                             .tokenSymbol(token != null ? token.getTokenSymbol() : null)
+                            .imgUrl(token.getAsset().getImgUrl())
                             .currentPrice(token != null && token.getCurrentPrice() != null
                                     ? Math.round(token.getCurrentPrice())
                                     : 0L)
