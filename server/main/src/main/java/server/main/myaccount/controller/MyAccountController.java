@@ -8,6 +8,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.main.global.error.BusinessException;
+import server.main.global.error.ErrorCode;
 import server.main.myaccount.dto.AccountBalanceResponse;
 import server.main.myaccount.dto.DepositRequest;
 import server.main.myaccount.dto.PortfolioResponse;
@@ -48,10 +50,10 @@ public class MyAccountController {
         int resolvedMonth = (month != null) ? month : LocalDate.now().getMonthValue();
 
         if (resolvedYear < 2000 || resolvedYear > 2100) {
-            return ResponseEntity.badRequest().build();
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
         if (resolvedMonth < 1 || resolvedMonth > 12) {
-            return ResponseEntity.badRequest().build();
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
         return ResponseEntity.ok(myAccountService.getAccountSummary(resolvedYear, resolvedMonth));
     }
@@ -91,8 +93,11 @@ public class MyAccountController {
             @RequestParam(required = false) Integer month,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         int resolvedYear = (year != null) ? year : Year.now().getValue();
+        if (resolvedYear < 2000 || resolvedYear > 2100) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
         if (month != null && (month < 1 || month > 12)) {
-            return ResponseEntity.badRequest().build();
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
         return ResponseEntity.ok(myAccountService.getDividendHistory(resolvedYear, month, pageable));
     }
@@ -113,10 +118,10 @@ public class MyAccountController {
         int resolvedMonth = (month != null) ? month : LocalDate.now().getMonthValue();
 
         if (resolvedYear < 2000 || resolvedYear > 2100) {
-            return ResponseEntity.badRequest().build();
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
         if (resolvedMonth < 1 || resolvedMonth > 12) {
-            return ResponseEntity.badRequest().build();
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
         return ResponseEntity.ok(myAccountService.getSellHistory(resolvedYear, resolvedMonth, pageable));
     }

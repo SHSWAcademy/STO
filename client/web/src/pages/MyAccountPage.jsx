@@ -1080,7 +1080,7 @@ function AnalysisTab() {
                     {item.tokenName}
                   </p>
                   <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-0.5">
-                    {item.listType === "sell" ? "매매 차익" : "배당 수익"}
+                    {item.listType === "sell" ? "매도 수익금" : "배당 수익"}
                   </p>
                 </div>
               </div>

@@ -26,7 +26,9 @@ public class DividendHistoryResponse {
                 token.getTokenName(),
                 token.getTokenSymbol(),
                 payout.getHoldingQuantity(),
-                payout.getMemberIncome() / payout.getHoldingQuantity(), // 주당 배당금 계산
+                payout.getHoldingQuantity() != null && payout.getHoldingQuantity() > 0
+                        ? payout.getMemberIncome() / payout.getHoldingQuantity()
+                        : 0L, // 주당 배당금 계산
                 payout.getMemberIncome(),
                 settlementYear,
                 settlementMonth,

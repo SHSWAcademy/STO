@@ -11,6 +11,35 @@ import server.main.myaccount.dto.DividendHistoryResponse;
 public interface AllocationPayoutRepository extends JpaRepository<AllocationPayout, Long> {
     // 회원 + 연도 필터 (AllocationEvent JOIN)
     @Query("""
+        SELECT new server.main.myaccount.dto.DividendHistoryResponse(
+            p.allocationPayoutId,
+            t.tokenName,
+            t.tokenSymbol,
+            p.holdingQuantity,
+            p.memberIncome / p.holdingQuantity,
+            p.memberIncome,
+            e.settlementYear,
+            e.settlementMonth,
+            p.createdAt
+        )
+        FROM AllocationPayout p
+        JOIN AllocationEvent e ON p.allocationEventId = e.allocationEventId
+        JOIN Token t ON t.tokenId = p.tokenId
+        WHERE p.memberId = :memberId
+           AND e.settlementYear = :year
+           AND p.allocationPayoutStatus = 'SUCCESS'
+           AND p.holdingQuantity > 0
+        ORDER BY p.createdAt DESC
+    """)
+    Page<DividendHistoryResponse> findDividendHistoryByMemberIdAndYear(
+            @Param("memberId") Long memberId,
+            @Param("year") int year,
+            Pageable pageable
+    );
+
+
+
+    @Query("""
       SELECT new server.main.myaccount.dto.DividendHistoryResponse(
           p.allocationPayoutId,
           t.tokenName,
@@ -27,42 +56,18 @@ public interface AllocationPayoutRepository extends JpaRepository<AllocationPayo
       JOIN Token t ON t.tokenId = p.tokenId
       WHERE p.memberId = :memberId
          AND e.settlementYear = :year
+         AND e.settlementMonth = :month
          AND p.allocationPayoutStatus = 'SUCCESS'
+         AND p.holdingQuantity > 0
       ORDER BY p.createdAt DESC
-  """)
-    Page<DividendHistoryResponse> findDividendHistoryByMemberIdAndYear(
-            @Param("memberId") Long memberId,
-            @Param("year") int year,
-            Pageable pageable
-    );
-
-    @Query("""
-    SELECT new server.main.myaccount.dto.DividendHistoryResponse(
-        p.allocationPayoutId,
-        t.tokenName,
-        t.tokenSymbol,
-        p.holdingQuantity,
-        p.memberIncome / p.holdingQuantity,
-        p.memberIncome,
-        e.settlementYear,
-        e.settlementMonth,
-        p.createdAt
-    )
-    FROM AllocationPayout p
-    JOIN AllocationEvent e ON p.allocationEventId = e.allocationEventId
-    JOIN Token t ON t.tokenId = p.tokenId
-    WHERE p.memberId = :memberId
-       AND e.settlementYear = :year
-       AND e.settlementMonth = :month 
-       AND p.allocationPayoutStatus = 'SUCCESS'
-    ORDER BY p.createdAt DESC
-  """)
+    """)
     Page<DividendHistoryResponse> findDividendHistoryByMemberIdAndYearAndMonth(
             @Param("memberId") Long memberId,
             @Param("year") int year,
             @Param("month") int month,
             Pageable pageable
     );
+
     // 이번달 배당금 합산 (AllocationEvent JOIN)
     @Query("""
       SELECT COALESCE(SUM(p.memberIncome), 0)
