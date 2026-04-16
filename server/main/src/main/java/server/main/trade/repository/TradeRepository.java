@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import server.main.myaccount.dto.SellHistoryResponse;
 import server.main.trade.entity.Trade;
 
 import java.time.LocalDateTime;
@@ -42,5 +43,28 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     Object[] findTradeStats(
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
+    );
+
+    @Query("""
+      SELECT new server.main.myaccount.dto.SellHistoryResponse(
+          t.tradeId,
+          t.token.tokenName,
+          t.token.tokenSymbol,
+          t.tradeQuantity,
+          t.totalTradePrice,
+          t.feeAmount,
+          t.executedAt
+      )
+      FROM Trade t
+      WHERE t.seller.memberId = :memberId
+        AND t.executedAt >= :start
+        AND t.executedAt < :end
+      ORDER BY t.executedAt DESC
+  """)
+    Page<SellHistoryResponse> findSellHistoryByMemberId(
+            @Param("memberId") Long memberId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            Pageable pageable
     );
 }

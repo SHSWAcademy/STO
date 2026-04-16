@@ -8,6 +8,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import server.main.global.error.BusinessException;
+import server.main.global.error.ErrorCode;
 import server.main.myaccount.dto.AccountBalanceResponse;
 import server.main.myaccount.dto.DepositRequest;
 import server.main.myaccount.dto.PortfolioResponse;
@@ -17,6 +19,7 @@ import server.main.member.entity.TxType;
 import server.main.myaccount.dto.*;
 import server.main.myaccount.service.MyAccountService;
 
+import java.time.LocalDate;
 import java.time.Year;
 import java.util.List;
 
@@ -40,8 +43,19 @@ public class MyAccountController {
     }
 
     @GetMapping("/summary")
-    public ResponseEntity<AccountSummaryResponse> getAccountSummary() {
-        return ResponseEntity.ok(myAccountService.getAccountSummary());
+    public ResponseEntity<AccountSummaryResponse> getAccountSummary(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+        int resolvedYear = (year != null) ? year : LocalDate.now().getYear();
+        int resolvedMonth = (month != null) ? month : LocalDate.now().getMonthValue();
+
+        if (resolvedYear < 2000 || resolvedYear > 2100) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        if (resolvedMonth < 1 || resolvedMonth > 12) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        return ResponseEntity.ok(myAccountService.getAccountSummary(resolvedYear, resolvedMonth));
     }
 
     @GetMapping("/balance")
@@ -76,9 +90,16 @@ public class MyAccountController {
     @GetMapping("/dividends")
     public ResponseEntity<Page<DividendHistoryResponse>> getDividendHistory(
             @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         int resolvedYear = (year != null) ? year : Year.now().getValue();
-        return ResponseEntity.ok(myAccountService.getDividendHistory(resolvedYear, pageable));
+        if (resolvedYear < 2000 || resolvedYear > 2100) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        if (month != null && (month < 1 || month > 12)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        return ResponseEntity.ok(myAccountService.getDividendHistory(resolvedYear, month, pageable));
     }
 
     @GetMapping("/dividends/total")
@@ -87,6 +108,24 @@ public class MyAccountController {
         int resolvedYear = (year != null) ? year : Year.now().getValue();
         return ResponseEntity.ok(myAccountService.getDividendTotal(resolvedYear));
     }
+
+    @GetMapping("/sell-history")
+    public ResponseEntity<Page<SellHistoryResponse>> getSellHistory(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @PageableDefault(size = 50) Pageable pageable) {
+        int resolvedYear = (year != null) ? year : LocalDate.now().getYear();
+        int resolvedMonth = (month != null) ? month : LocalDate.now().getMonthValue();
+
+        if (resolvedYear < 2000 || resolvedYear > 2100) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        if (resolvedMonth < 1 || resolvedMonth > 12) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        return ResponseEntity.ok(myAccountService.getSellHistory(resolvedYear, resolvedMonth, pageable));
+    }
+
 
 
 

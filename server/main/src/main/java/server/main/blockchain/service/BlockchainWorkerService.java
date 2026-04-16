@@ -101,6 +101,7 @@ public class BlockchainWorkerService {
                 blockchainOutboxQ.incrementRetry();
                 if (blockchainOutboxQ.isMaxRetryExceeded()) {
                     blockchainOutboxQ.markAbandoned(e.getMessage());
+                    blockchainOutboxQ.getTrade().updateSettlementStatus(SettlementStatus.FAILED);
                 } else {
                     blockchainOutboxQ.markFailed(e.getMessage());
                 }
