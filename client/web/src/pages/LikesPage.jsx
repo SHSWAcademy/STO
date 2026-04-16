@@ -164,7 +164,12 @@ export function LikesPage() {
                     </td>
                     <td className="px-4 py-6">
                       <div className="flex items-center gap-4">
-                        <AssetAvatar symbol={item.tokenSymbol ?? '?'} size="md" />
+                        <AssetAvatar
+                          symbol={item.tokenSymbol ?? '?'}
+                          src={item.imgUrl}
+                          alt={item.assetName}
+                          size="md"
+                        />
                         <div>
                           <p className="text-sm font-black text-stone-800 transition-colors group-hover:text-stone-600">
                             {item.assetName ?? '-'}
@@ -229,7 +234,12 @@ export function LikesPage() {
                 </div>
 
                 <div className="mb-6 flex items-center gap-4">
-                  <AssetAvatar symbol={item.tokenSymbol ?? '?'} size="lg" />
+                  <AssetAvatar
+                    symbol={item.tokenSymbol ?? '?'}
+                    src={item.imgUrl}
+                    alt={item.assetName}
+                    size="lg"
+                  />
                   <div>
                     <h3 className="text-sm font-black text-stone-800 transition-colors group-hover:text-stone-600">
                       {item.assetName ?? '-'}

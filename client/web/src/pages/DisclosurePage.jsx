@@ -6,6 +6,7 @@ import { SearchInput } from '../components/ui/SearchInput.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import api from '../lib/api.js';
+import { FILE_URLS } from '../lib/config.js';
 
 const DISCLOSURE_TABS = ['전체', '배당', '일반'];
 const DISCLOSURE_LABEL = {
@@ -17,6 +18,15 @@ const DISCLOSURE_LABEL = {
 function formatDate(value) {
   if (!value) return '-';
   return new Date(value).toLocaleDateString('ko-KR');
+}
+
+function resolveImageSrc(src) {
+  if (!src) return null;
+  if (/^(https?:)?\/\//.test(src) || src.startsWith('data:') || src.startsWith('blob:')) {
+    return src;
+  }
+  if (src.startsWith('/')) return src;
+  return `${FILE_URLS.imageBase}/${src}`;
 }
 
 export function DisclosurePage() {
@@ -76,7 +86,7 @@ export function DisclosurePage() {
 
     setOpeningId(item.disclosureId);
     try {
-      const response = await api.get(`/api/pdf/view/${item.storedName}`, {
+      const response = await api.get(`${FILE_URLS.pdfViewBase}/${encodeURIComponent(item.storedName)}`, {
         responseType: 'blob',
       });
       const blobUrl = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
@@ -120,6 +130,7 @@ export function DisclosurePage() {
         ) : filteredItems.length > 0 ? (
           filteredItems.map((item) => {
             const categoryLabel = DISCLOSURE_LABEL[item.disclosureCategory] ?? '일반';
+            const imageSrc = resolveImageSrc(item.imgUrl);
             return (
               <div
                 key={item.disclosureId}
@@ -127,8 +138,16 @@ export function DisclosurePage() {
               >
                 <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
                   <div className="flex items-start gap-6">
-                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-stone-200 bg-stone-100">
-                      <FileText size={28} className="text-stone-400" />
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-stone-200 bg-stone-100">
+                      {imageSrc ? (
+                        <img
+                          src={imageSrc}
+                          alt={item.assetName || item.disclosureTitle || 'asset'}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <FileText size={28} className="text-stone-400" />
+                      )}
                     </div>
                     <div>
                       <div className="mb-2 flex flex-wrap items-center gap-3">
