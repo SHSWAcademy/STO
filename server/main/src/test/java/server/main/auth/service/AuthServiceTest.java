@@ -3,7 +3,6 @@ package server.main.auth.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 
 import java.lang.reflect.Field;
 import java.util.Optional;
@@ -24,7 +23,7 @@ import server.main.auth.dto.MemberSignupResponse;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.security.JwtTokenProvider;
-import server.main.member.entity.Account;
+import server.main.myAccount.entity.Account;
 import server.main.member.entity.Member;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;

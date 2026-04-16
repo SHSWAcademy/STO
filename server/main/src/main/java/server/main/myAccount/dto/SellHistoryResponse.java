@@ -1,4 +1,4 @@
-package server.main.myaccount.dto;
+package server.main.myAccount.dto;
 
 import lombok.Getter;
 

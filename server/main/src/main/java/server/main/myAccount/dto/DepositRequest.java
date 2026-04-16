@@ -1,4 +1,4 @@
-package server.main.myaccount.dto;
+package server.main.myAccount.dto;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -9,7 +9,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class WithdrawRequest {
+public class DepositRequest {
 
     @NotNull
     @Positive

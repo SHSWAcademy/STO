@@ -1,4 +1,4 @@
-package server.main.myaccount.dto;
+package server.main.myAccount.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

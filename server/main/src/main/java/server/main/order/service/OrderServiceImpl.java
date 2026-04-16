@@ -44,7 +44,7 @@ import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.TickSizePolicy;
 import server.main.log.orderLog.service.OrderLogService;
-import server.main.member.entity.Account;
+import server.main.myAccount.entity.Account;
 import server.main.member.entity.MemberBank;
 import server.main.member.entity.Member;
 import server.main.member.entity.MemberTokenHolding;
