@@ -65,8 +65,9 @@ public class TokenServiceImpl implements TokenService{
 
         TokenChartDetailResponseDto dto = tokenMapper.toDtoDetail(findToken);
 
-        // 전날 종가 — DB에 저장된 가장 최근 일봉의 종가 (오늘 일봉은 자정 전까지 DB에 없으므로 항상 어제 봉이 나옴)
-        Long yesterdayClosePrice = candleDayRepository.findLatest(tokenId)
+        // 전날 종가 — 오늘 자정 이전 캔들만 조회 (서버 재시작 시 당일 캔들이 DB에 저장되는 것 방어)
+        LocalDateTime startOfToday = java.time.LocalDate.now().atStartOfDay();
+        Long yesterdayClosePrice = candleDayRepository.findLatestBefore(tokenId, startOfToday)
                 .map(CandleDay::getClosePrice)
                 .orElse(null);
 

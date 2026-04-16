@@ -77,7 +77,7 @@ export function AppHeader() {
     if (!user) return;
     try {
       const res = await api.get('/api/alarm');
-      setAlarms(res.data);
+      setAlarms(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
       console.warn('[Alarm] 목록 로드 실패', e);
     }
@@ -119,16 +119,18 @@ export function AppHeader() {
     memberId: user?.memberId,
     token: user?.accessToken,
     onSnapshot: (snapshot) => {
+      const safeSnapshot = Array.isArray(snapshot) ? snapshot : [];
       setAlarms((prev) => {
-        const existingIds = new Set(prev.map((alarm) => alarm.alarmId));
-        const newItems = snapshot.filter((alarm) => !existingIds.has(alarm.alarmId));
-        return [...newItems, ...prev].sort(
+        const safePrev = Array.isArray(prev) ? prev : [];
+        const existingIds = new Set(safePrev.map((alarm) => alarm.alarmId));
+        const newItems = safeSnapshot.filter((alarm) => !existingIds.has(alarm.alarmId));
+        return [...newItems, ...safePrev].sort(
             (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
         );
       });
     },
     onNewAlarm: (alarm) => {
-      setAlarms((prev) => [alarm, ...prev].slice(0, 50));
+      setAlarms((prev) => [alarm, ...(Array.isArray(prev) ? prev : [])].slice(0, 50));
     },
   });
 
@@ -350,7 +352,7 @@ export function AppHeader() {
               <div className="flex items-center justify-center gap-3 border-t border-stone-200 bg-stone-900 px-12 py-3 text-white">
                 <p className="text-sm font-medium leading-relaxed">
                   <span className="mr-2 rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[11px] font-black uppercase tracking-[0.18em] text-white/75">Notice</span>
-                  {noticeBanner.noticeTitle}
+                  {noticeBanner.noticeTitle?.replace(/\d{5,}/g, n => Number(n).toLocaleString())}
                 </p>
                 <div className="flex items-center justify-center gap-2">
                   <button onClick={handleNoticeBannerView} className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-stone-900 hover:bg-stone-100">공지 보기</button>

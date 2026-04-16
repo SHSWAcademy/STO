@@ -1,4 +1,4 @@
-package server.main.member.entity;
+package server.main.myAccount.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.util.BaseEntity;
+import server.main.member.entity.Member;
 
 @Entity
 @Getter

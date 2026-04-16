@@ -1,4 +1,4 @@
-package server.main.myaccount.service;
+package server.main.myAccount.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -15,12 +15,13 @@ import server.main.member.entity.*;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberBankRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
-import server.main.myaccount.dto.AccountBalanceResponse;
-import server.main.myaccount.dto.DepositRequest;
-import server.main.myaccount.dto.PortfolioResponse;
-import server.main.myaccount.dto.VerifyAccountPasswordRequest;
-import server.main.myaccount.dto.WithdrawRequest;
-import server.main.myaccount.dto.*;
+import server.main.myAccount.dto.AccountBalanceResponse;
+import server.main.myAccount.dto.DepositRequest;
+import server.main.myAccount.dto.PortfolioResponse;
+import server.main.myAccount.dto.VerifyAccountPasswordRequest;
+import server.main.myAccount.dto.WithdrawRequest;
+import server.main.myAccount.dto.*;
+import server.main.myAccount.entity.Account;
 import server.main.order.entity.Order;
 import server.main.order.entity.OrderStatus;
 import server.main.order.repository.OrderRepository;

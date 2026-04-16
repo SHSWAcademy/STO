@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import server.main.global.util.BaseEntity;
+import server.main.myAccount.entity.Account;
 
 @Entity
 @Getter

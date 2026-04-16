@@ -10,21 +10,21 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
-import server.main.myaccount.dto.AccountBalanceResponse;
-import server.main.myaccount.dto.DepositRequest;
-import server.main.myaccount.dto.PortfolioResponse;
-import server.main.myaccount.dto.VerifyAccountPasswordRequest;
-import server.main.myaccount.dto.WithdrawRequest;
+import server.main.myAccount.dto.AccountBalanceResponse;
+import server.main.myAccount.dto.DepositRequest;
+import server.main.myAccount.dto.PortfolioResponse;
+import server.main.myAccount.dto.VerifyAccountPasswordRequest;
+import server.main.myAccount.dto.WithdrawRequest;
 import server.main.member.entity.TxType;
-import server.main.myaccount.dto.*;
-import server.main.myaccount.service.MyAccountService;
+import server.main.myAccount.dto.*;
+import server.main.myAccount.service.MyAccountService;
 
 import java.time.LocalDate;
 import java.time.Year;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/myaccount")
+@RequestMapping("/api/myAccount")
 @RequiredArgsConstructor
 public class MyAccountController {
 

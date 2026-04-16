@@ -45,7 +45,7 @@ public class AdminController {
     }
 
     // 자산 수정
-    // 수정 대상 : 자산명, 자산주소, 자산PDF, 자산 이미지, 토큰 심볼, 토큰 상태
+    // 수정 대상 : 자산명, 자산주소, 자산 PDF, 자산 이미지, 토큰 심볼, 토큰 상태
     @PatchMapping("/asset/{assetId}")
     public ResponseEntity<Void> assetUpdate(
             @PathVariable Long assetId,
