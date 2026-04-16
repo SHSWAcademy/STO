@@ -185,7 +185,6 @@ public class MyAccountServiceImpl implements MyAccountService{
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder
                 .getContext().getAuthentication().getPrincipal()).getId();
 
-        LocalDate today = LocalDate.now();
         LocalDateTime start = LocalDate.of(year, month, 1).atStartOfDay();
         LocalDateTime end = start.plusMonths(1);
 

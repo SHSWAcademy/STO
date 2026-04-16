@@ -944,7 +944,6 @@ function DividendsTab() {
 // ── 수익분석 탭 ───────────────────────────────────────────────
 function AnalysisTab() {
   const [page, setPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [sellHistory, setSellHistory] = useState([]);
@@ -956,12 +955,16 @@ function AnalysisTab() {
   });
 
   async function loadDetail(y, m) {
-    const [sellRes, divRes] = await Promise.all([
-      fetchSellHistory(y, m),
-      fetchDividendHistory(0, y, m),
-    ]);
-    setSellHistory(sellRes.data.content);
-    setDividendHistory(divRes.data.content);
+    try {
+      const [sellRes, divRes] = await Promise.all([
+        fetchSellHistory(y, m),
+        fetchDividendHistory(0, y, m, 1000),
+      ]);
+      setSellHistory(sellRes.data.content);
+      setDividendHistory(divRes.data.content);
+    } catch (e) {
+      alert(e.response?.data?.message || "수익 내역을 불러오지 못했습니다.");
+    }
   }
 
   const combinedList = [
@@ -982,7 +985,11 @@ function AnalysisTab() {
   useEffect(() => {
     setPage(0);
     loadDetail(year, month);
-    fetchAccountSummary(year, month).then((res) => setSummary(res.data));
+    fetchAccountSummary(year, month)
+      .then((res) => setSummary(res.data))
+      .catch((e) =>
+        alert(e.response?.data?.message || "요약 정보를 불러오지 못했습니다."),
+      );
   }, [year, month]);
 
   return (

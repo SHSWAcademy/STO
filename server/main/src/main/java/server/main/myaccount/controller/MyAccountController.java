@@ -46,6 +46,10 @@ public class MyAccountController {
             @RequestParam(required = false) Integer month) {
         int resolvedYear = (year != null) ? year : LocalDate.now().getYear();
         int resolvedMonth = (month != null) ? month : LocalDate.now().getMonthValue();
+
+        if (resolvedYear < 2000 || resolvedYear > 2100) {
+            return ResponseEntity.badRequest().build();
+        }
         if (resolvedMonth < 1 || resolvedMonth > 12) {
             return ResponseEntity.badRequest().build();
         }
@@ -108,6 +112,9 @@ public class MyAccountController {
         int resolvedYear = (year != null) ? year : LocalDate.now().getYear();
         int resolvedMonth = (month != null) ? month : LocalDate.now().getMonthValue();
 
+        if (resolvedYear < 2000 || resolvedYear > 2100) {
+            return ResponseEntity.badRequest().build();
+        }
         if (resolvedMonth < 1 || resolvedMonth > 12) {
             return ResponseEntity.badRequest().build();
         }

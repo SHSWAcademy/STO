@@ -73,9 +73,10 @@ export const fetchDividendHistory = (
   page = 0,
   year = new Date().getFullYear(),
   month = null,
+  size = 10,
 ) =>
   api.get("/api/myaccount/dividends", {
-    params: { page, size: 10, year, ...(month && { month }) },
+    params: { page, size, year, ...(month && { month }) },
   });
 
 export const fetchDividendTotal = (year = new Date().getFullYear()) =>
@@ -86,6 +87,8 @@ export const fetchDividendTotal = (year = new Date().getFullYear()) =>
 export const fetchAccountSummary = (year, month) =>
   api.get("/api/myaccount/summary", { params: { year, month } });
 
-export const fetchSellHistory = (year, month) =>
-  api.get("/api/myaccount/sell-history", { params: { year, month } });
+export const fetchSellHistory = (year, month, page = 0, size = 1000) =>
+  api.get("/api/myaccount/sell-history", {
+    params: { year, month, page, size },
+  });
 export default api;
