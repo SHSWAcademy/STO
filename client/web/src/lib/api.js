@@ -33,14 +33,14 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
-export const fetchBalance = () => api.get("/api/myaccount/balance");
-export const fetchPortfolio = () => api.get("/api/myaccount/portfolio");
+export const fetchBalance = () => api.get("/api/myAccount/balance");
+export const fetchPortfolio = () => api.get("/api/myAccount/portfolio");
 export const deposit = (amount) =>
-  api.post("/api/myaccount/deposit", { amount });
+  api.post("/api/myAccount/deposit", { amount });
 export const withdraw = (amount) =>
-  api.post("/api/myaccount/withdraw", { amount });
+  api.post("/api/myAccount/withdraw", { amount });
 export const fetchBankingHistory = (page = 0, txTypes = []) =>
-  api.get("/api/myaccount/history", {
+  api.get("/api/myAccount/history", {
     params: {
       page,
       size: 10,
@@ -60,7 +60,7 @@ export const fetchBankingHistory = (page = 0, txTypes = []) =>
   });
 
 export const fetchOrderHistory = (page = 0, orderTab = "all") =>
-  api.get("/api/myaccount/orders", {
+  api.get("/api/myAccount/orders", {
     params: { page, size: 10, orderTab },
   });
 
@@ -75,20 +75,20 @@ export const fetchDividendHistory = (
   month = null,
   size = 10,
 ) =>
-  api.get("/api/myaccount/dividends", {
+  api.get("/api/myAccount/dividends", {
     params: { page, size, year, ...(month && { month }) },
   });
 
 export const fetchDividendTotal = (year = new Date().getFullYear()) =>
-  api.get("/api/myaccount/dividends/total", {
+  api.get("/api/myAccount/dividends/total", {
     params: { year },
   });
 
 export const fetchAccountSummary = (year, month) =>
-  api.get("/api/myaccount/summary", { params: { year, month } });
+  api.get("/api/myAccount/summary", { params: { year, month } });
 
 export const fetchSellHistory = (year, month, page = 0, size = 1000) =>
-  api.get("/api/myaccount/sell-history", {
+  api.get("/api/myAccount/sell-history", {
     params: { year, month, page, size },
   });
 export default api;
