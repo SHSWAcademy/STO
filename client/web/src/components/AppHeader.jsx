@@ -352,7 +352,7 @@ export function AppHeader() {
               <div className="flex items-center justify-center gap-3 border-t border-stone-200 bg-stone-900 px-12 py-3 text-white">
                 <p className="text-sm font-medium leading-relaxed">
                   <span className="mr-2 rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[11px] font-black uppercase tracking-[0.18em] text-white/75">Notice</span>
-                  {noticeBanner.noticeTitle}
+                  {noticeBanner.noticeTitle?.replace(/\d{5,}/g, n => Number(n).toLocaleString())}
                 </p>
                 <div className="flex items-center justify-center gap-2">
                   <button onClick={handleNoticeBannerView} className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-stone-900 hover:bg-stone-100">공지 보기</button>

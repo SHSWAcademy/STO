@@ -67,8 +67,18 @@ export function AuthPage() {
       return;
     }
 
+    if (signupPassword.length < 8) {
+      setSignupError('비밀번호는 8자 이상이어야 합니다.');
+      return;
+    }
+
     if (!signupPasswordConfirm.trim()) {
       setSignupError('비밀번호 확인을 입력해 주세요.');
+      return;
+    }
+
+    if (signupPassword !== signupPasswordConfirm) {
+      setSignupError('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
       return;
     }
 
@@ -77,8 +87,8 @@ export function AuthPage() {
       return;
     }
 
-    if (signupPassword !== signupPasswordConfirm) {
-      setSignupError('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
+    if (!/^\d{4}$/.test(accountPassword)) {
+      setSignupError('계좌 비밀번호는 숫자 4자리여야 합니다.');
       return;
     }
 
@@ -98,13 +108,19 @@ export function AuthPage() {
       });
 
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+        let errMsg = '회원가입에 실패했습니다. 다시 시도해 주세요.';
+        try {
+          const body = await res.json();
+          errMsg = body.errorMessage || body.message || errMsg;
+        } catch {}
+        setSignupError(errMsg);
+        return;
       }
 
       setShowComplete(true);
     } catch (err) {
       console.error('[Signup] failed:', err);
-      setSignupError('회원가입에 실패했습니다. 입력값과 서버 상태를 확인해 주세요.');
+      setSignupError('회원가입 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       setIsSigningUp(false);
     }

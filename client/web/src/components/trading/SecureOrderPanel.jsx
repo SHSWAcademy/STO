@@ -51,7 +51,7 @@ function OrderPinPadModal({ title, description, password, errorMessage, submitti
   );
 }
 
-function OrderExecutionConfirmModal({ title, items, submitting, onClose, onConfirm }) {
+function OrderExecutionConfirmModal({ title, items, errorMessage, submitting, onClose, onConfirm }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55" onClick={onClose}>
       <div className="w-[360px] rounded-2xl border border-stone-200 bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
@@ -67,7 +67,8 @@ function OrderExecutionConfirmModal({ title, items, submitting, onClose, onConfi
             </div>
           ))}
         </div>
-        <div className="mt-6 flex gap-2">
+        {errorMessage && <p className="mt-3 text-center text-[11px] font-bold text-red-500">{errorMessage}</p>}
+        <div className="mt-4 flex gap-2">
           <button onClick={onClose} disabled={submitting} className="flex-1 rounded-xl border border-stone-200 bg-white py-3 text-sm font-black text-stone-500 hover:bg-stone-100 disabled:opacity-50">취소</button>
           <button onClick={onConfirm} disabled={submitting} className="flex-1 rounded-xl bg-stone-800 py-3 text-sm font-black text-white hover:bg-stone-700 disabled:opacity-50">
             {submitting ? '처리 중..' : '최종 확인'}
@@ -252,6 +253,14 @@ export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, 
       setOrderMsg({ type: 'error', text: '가격과 수량을 올바르게 입력해 주세요.' });
       return;
     }
+    if (numPrice > 999_999_999_999) {
+      setOrderMsg({ type: 'error', text: '주문 가격이 허용 범위(999,999,999,999원)를 초과했습니다.' });
+      return;
+    }
+    if (numQty > 999_999_999) {
+      setOrderMsg({ type: 'error', text: '주문 수량이 허용 범위(999,999,999주)를 초과했습니다.' });
+      return;
+    }
     const tick = getTickSize(numPrice);
     if (numPrice % tick !== 0) {
       setOrderMsg({ type: 'error', text: `호가 단위를 확인해 주세요. 현재 가격의 호가 단위는 ${tick.toLocaleString()}원입니다.` });
@@ -324,6 +333,14 @@ export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, 
     const updateQuantity = Number(editQty);
     if (!Number.isInteger(updatePrice) || !Number.isInteger(updateQuantity) || updatePrice <= 0 || updateQuantity <= 0) {
       setUpdateMsg({ orderId, type: 'error', text: '가격과 수량을 올바르게 입력해 주세요.' });
+      return;
+    }
+    if (updatePrice > 999_999_999_999) {
+      setUpdateMsg({ orderId, type: 'error', text: '주문 가격이 허용 범위(999,999,999,999원)를 초과했습니다.' });
+      return;
+    }
+    if (updateQuantity > 999_999_999) {
+      setUpdateMsg({ orderId, type: 'error', text: '주문 수량이 허용 범위(999,999,999주)를 초과했습니다.' });
       return;
     }
     const tick = getTickSize(updatePrice);
@@ -504,7 +521,7 @@ export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, 
         )}
       </div>
       {passwordModal && <OrderPinPadModal title={passwordModal.action === 'create' ? `${isBuy ? '매수' : '매도'} 주문 확인` : passwordModal.action === 'update' ? '주문 수정 확인' : '주문 취소 확인'} description={passwordModal.action === 'create' ? `${isBuy ? '매수' : '매도'} 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.` : passwordModal.action === 'update' ? '수정할 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.' : '취소할 주문 내역을 확인한 뒤 계좌 비밀번호를 입력해 주세요.'} password={passwordModal.action === 'create' ? accountPassword : editAccountPassword} errorMessage={passwordModal.action === 'create' ? (orderMsg?.type === 'error' ? orderMsg.text : null) : (updateMsg?.orderId === passwordModal.orderId && updateMsg.type === 'error' ? updateMsg.text : null)} submitting={submitting} onChange={value => { if (passwordModal.action === 'create') setAccountPassword(value); else setEditAccountPassword(value); }} onClose={closePasswordModal} onConfirm={handlePasswordConfirm} />}
-      {confirmSpec && <OrderExecutionConfirmModal title={confirmSpec.title} items={confirmSpec.items} submitting={submitting} onClose={() => setConfirmModal(null)} onConfirm={handleConfirmExecution} />}
+      {confirmSpec && <OrderExecutionConfirmModal title={confirmSpec.title} items={confirmSpec.items} errorMessage={confirmModal?.action === 'create' ? (orderMsg?.type === 'error' ? orderMsg.text : null) : (updateMsg?.orderId === confirmModal?.orderId && updateMsg?.type === 'error' ? updateMsg.text : null)} submitting={submitting} onClose={() => { setConfirmModal(null); setOrderMsg(null); }} onConfirm={handleConfirmExecution} />}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import server.main.myaccount.dto.SellHistoryResponse;
+import server.main.myAccount.dto.SellHistoryResponse;
 import server.main.trade.entity.Trade;
 
 import java.time.LocalDateTime;
@@ -46,7 +46,7 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     );
 
     @Query("""
-      SELECT new server.main.myaccount.dto.SellHistoryResponse(
+      SELECT new server.main.myAccount.dto.SellHistoryResponse(
           t.tradeId,
           t.token.tokenName,
           t.token.tokenSymbol,
