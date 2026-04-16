@@ -228,7 +228,7 @@ export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, 
   async function verifyPasswordBeforeConfirm() {
     const password = passwordModal?.action === 'create' ? accountPassword : editAccountPassword;
     try {
-      await api.post('/api/myaccount/verify-password', { accountPassword: password });
+      await api.post('/api/myAccount/verify-password', { accountPassword: password });
       return { ok: true };
     } catch (error) {
       return { ok: false, message: getApiErrorMessage(error, '계좌 비밀번호를 다시 확인해 주세요.') };

@@ -1,5 +1,6 @@
 import { Heart, Pencil, Info } from 'lucide-react';
 import { cn } from '../../lib/utils.js';
+import { AssetAvatar } from '../ui/AssetAvatar.jsx';
 
 // AssetHeader — TradingPage 상단 섹션
 // 원본: px-8 py-6 border-b border-stone-200 bg-stone-surface
@@ -26,14 +27,14 @@ export function AssetHeader({ asset, currentPrice, basePrice, activeTab, onTabCh
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             {/* 종목 이미지 */}
-            <div className="w-10 h-10 rounded-lg overflow-hidden shadow-lg shadow-brand-blue/20">
-              <img
-                  src={`https://picsum.photos/seed/${asset.name}/100/100`}
-                  alt={asset.name}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-              />
-            </div>
+            <AssetAvatar
+                src={asset.imgUrl}
+                symbol={asset.symbol}
+                alt={asset.name}
+                size="md"
+                variant="light"
+                className="shadow-lg shadow-brand-blue/20"
+            />
 
             {/* 이름 + 가격 */}
             <div>
