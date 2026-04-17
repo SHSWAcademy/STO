@@ -26,6 +26,7 @@ export function AssetHeader({
   onToggleLike,
   hideStats = false,
   aiSummary,
+  aiSummaryLoading = false,
 }) {
   const isUp         = asset.change >= 0;
   const changeAmount = basePrice > 0 ? Math.abs(currentPrice - basePrice) : 0;
@@ -122,7 +123,7 @@ export function AssetHeader({
                       <span className="text-[10px] font-bold text-stone-400">한줄 요약</span>
                     </div>
                     <p className="line-clamp-3 text-[12px] font-semibold leading-relaxed text-stone-700">
-                      {summaryText || 'AI 요약을 불러오는 중입니다.'}
+                      {summaryText || (aiSummaryLoading ? 'AI 요약을 불러오는 중입니다.' : 'AI 요약이 아직 없습니다.')}
                     </p>
                   </div>
                 </div>

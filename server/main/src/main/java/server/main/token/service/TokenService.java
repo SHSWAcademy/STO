@@ -17,4 +17,6 @@ public interface TokenService {
     List<TokenMainResponseDto> getTokenAssetsWith10Paging(int page, SelectType selectType, PeriodType periodType);
 
     long getTickSize(Long tokenId);
+
+    String getAiSummary(Long tokenId);
 }

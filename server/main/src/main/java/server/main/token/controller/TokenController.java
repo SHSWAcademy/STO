@@ -61,6 +61,12 @@ public class TokenController {
         return ResponseEntity.ok(dtos);
     }
 
+    // 토큰 (자산) 상세 조회 - AI 거래 추이 요약
+    @GetMapping("/{tokenId}/ai-summary")
+    public ResponseEntity<String> aiSummary(@PathVariable Long tokenId) {
+        return ResponseEntity.ok(tokenService.getAiSummary(tokenId));
+    }
+
     // 호가 단위 조회
     @GetMapping("/{tokenId}/tick-size")
     public ResponseEntity<Long> getTickSize(@PathVariable Long tokenId) {
