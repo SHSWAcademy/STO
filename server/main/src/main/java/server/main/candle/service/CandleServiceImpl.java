@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -23,6 +24,12 @@ public class CandleServiceImpl implements CandleService {
     private final CandleMonthRepository candleMonthRepository;
     private final CandleYearRepository candleYearRepository;
     private final CandleMapper candleMapper;
+
+    private LocalDateTime getDayBucket(LocalDateTime now) {
+        return now.getHour() >= 9
+                ? now.toLocalDate().atTime(9, 0)
+                : now.toLocalDate().minusDays(1).atTime(9, 0);
+    }
 
     @Override
     public List<CandleResponseDto> getCandles(Long tokenId, CandleType type) {
@@ -38,7 +45,7 @@ public class CandleServiceImpl implements CandleService {
                     .stream()
                     .map(candleMapper::toDto)
                     .toList();
-            case DAY -> candleDayRepository.findTop35Before(tokenId, now.truncatedTo(ChronoUnit.DAYS))
+            case DAY -> candleDayRepository.findTop35Before(tokenId, getDayBucket(now))
                     .reversed()
                     .stream()
                     .map(candleMapper::toDto)

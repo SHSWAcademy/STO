@@ -595,6 +595,9 @@ export function TokenDetailPage() {
   const [asks, setAsks]             = useState([]);
   const [bids, setBids]             = useState([]);
   const [executions, setExecutions] = useState([]);
+  const [flashingPrice, setFlashingPrice] = useState(null);
+  const [flashIsBuy, setFlashIsBuy]       = useState(false);
+  const flashTimerRef = useRef(null);
   const [trades, setTrades]         = useState([]);
   const [todayHigh, setTodayHigh]   = useState(null);
   const [todayLow, setTodayLow]     = useState(null);
@@ -756,7 +759,13 @@ export function TokenDetailPage() {
       if (data.bids) setBids(data.bids.map(r => ({ price: r.price, amount: r.quantity })));
     },
     onTrades: (data) => {
-      if (data.tradePrice) setCurrentPrice(data.tradePrice);
+      if (data.tradePrice) {
+        setCurrentPrice(data.tradePrice);
+        setFlashingPrice(data.tradePrice);
+        setFlashIsBuy(data.isBuy);
+        clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = setTimeout(() => setFlashingPrice(null), 500);
+      }
       setExecutions(prev =>
           [{ price: data.tradePrice, qty: data.tradeQuantity, isBuy: data.isBuy }, ...prev].slice(0, 15)
       );
@@ -962,7 +971,7 @@ export function TokenDetailPage() {
                                     onMouseLeave={() => setHoveredAskIndex(null)}
                                     className={cn(
                                       'grid grid-cols-[146px_108px] h-9 border-b border-stone-100 transition-colors text-left',
-                                      hoveredAskIndex === i ? 'bg-blue-100/60' : 'hover:bg-blue-100/60'
+                                      flashingPrice === row.price ? 'hoga-flash-blue' : hoveredAskIndex === i ? 'bg-blue-100/60' : 'hover:bg-blue-100/60'
                                     )}
                                 >
                                   <div className="relative flex items-center justify-end pr-3 pl-3 overflow-hidden border-r border-stone-100">
@@ -1054,7 +1063,7 @@ export function TokenDetailPage() {
                                     onMouseLeave={() => setHoveredBidIndex(null)}
                                     className={cn(
                                       'grid grid-cols-[108px_146px] h-9 border-b border-stone-100 transition-colors text-left',
-                                      hoveredBidIndex === i ? 'bg-red-100/60' : 'hover:bg-red-100/60'
+                                      flashingPrice === row.price ? 'hoga-flash-red' : hoveredBidIndex === i ? 'bg-red-100/60' : 'hover:bg-red-100/60'
                                     )}
                                 >
                                   <div className="flex flex-col items-center justify-center border-r border-stone-100">

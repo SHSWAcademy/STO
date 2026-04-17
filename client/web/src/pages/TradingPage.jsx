@@ -33,6 +33,7 @@ export function TradingPage() {
   const [activeTab, setActiveTab]           = useState('chart');
   const [currentAssetId, setCurrentAssetId] = useState('SEOULST');
   const [orderBook, setOrderBook]           = useState({ asks: [], bids: [] });
+  const [lastTrade, setLastTrade]           = useState(null);
   const { user, likedTokenIds, toggleLike } = useApp();
 
   const asset        = TOKENS.find(t => t.id === currentAssetId) || TOKENS[0];
@@ -45,6 +46,7 @@ export function TradingPage() {
     tokenId,
     token,
     onOrderBook: (data) => setOrderBook({ asks: data.asks ?? [], bids: data.bids ?? [] }),
+    onTrades: (data) => setLastTrade({ price: data.tradePrice, isBuy: data.isBuy, key: Date.now() }),
   });
 
   return (
@@ -70,7 +72,7 @@ export function TradingPage() {
           <>
             {/* 차트·호가 탭: 좌(chart) + 중(hoga) + 우(order) */}
             <ChartPanel currentPrice={currentPrice} />
-            <HogaPanel  currentPrice={currentPrice} asks={orderBook.asks} bids={orderBook.bids} />
+            <HogaPanel  currentPrice={currentPrice} asks={orderBook.asks} bids={orderBook.bids} lastTrade={lastTrade} />
           </>
         ) : (
           /* 기타 탭: 콘텐츠 패널 */

@@ -10,7 +10,8 @@ import { HogaRow } from './HogaRow.jsx';
 // bottom: 판매대기 / 구매대기 합계 바
 
 // asks/bids: 백엔드 OrderBookEventDto.PriceLevel { price, quantity }
-export function HogaPanel({ currentPrice, asks = [], bids = [] }) {
+// lastTrade: { price, isBuy, key } — 체결 시 해당 가격 행 깜빡임 트리거
+export function HogaPanel({ currentPrice, asks = [], bids = [], lastTrade = null }) {
   const BASE_PRICE = currentPrice || 1;
   const MAX_ASK_AMOUNT = asks.length > 0 ? Math.max(...asks.map(r => r.quantity)) : 1;
   const MAX_BID_AMOUNT = bids.length > 0 ? Math.max(...bids.map(r => r.quantity)) : 1;
@@ -64,6 +65,7 @@ export function HogaPanel({ currentPrice, asks = [], bids = [] }) {
                   changePercent={((row.price - BASE_PRICE) / BASE_PRICE) * 100}
                   side="ask"
                   maxAmount={MAX_ASK_AMOUNT}
+                  flashKey={lastTrade?.price === row.price ? lastTrade.key : undefined}
                 />
               ))}
             </div>
@@ -90,6 +92,7 @@ export function HogaPanel({ currentPrice, asks = [], bids = [] }) {
                   changePercent={((row.price - BASE_PRICE) / BASE_PRICE) * 100}
                   side="bid"
                   maxAmount={MAX_BID_AMOUNT}
+                  flashKey={lastTrade?.price === row.price ? lastTrade.key : undefined}
                 />
               ))}
             </div>
