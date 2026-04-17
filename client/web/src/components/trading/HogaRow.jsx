@@ -3,14 +3,28 @@
 // side: 'ask'(매도/파랑) | 'bid'(매수/빨강)
 // maxAmount: 전체 행 중 최대 잔량 → depth bar 비율 계산
 
-export function HogaRow({ price, amount, changePercent, side, maxAmount }) {
+import { useEffect, useRef, useState } from 'react';
+
+export function HogaRow({ price, amount, changePercent, side, maxAmount, flashKey }) {
   const isAsk  = side === 'ask';
   const color  = isAsk ? 'var(--color-brand-blue)' : 'var(--color-brand-red)';
   const bgTint = isAsk ? 'bg-brand-blue/5' : 'bg-brand-red/5';
   const depth  = maxAmount > 0 ? (amount / maxAmount) * 100 : 0;
+  const [flashClass, setFlashClass] = useState('');
+  const prevFlashKey = useRef(flashKey);
+
+  useEffect(() => {
+    if (flashKey !== prevFlashKey.current) {
+      prevFlashKey.current = flashKey;
+      const cls = isAsk ? 'hoga-flash-blue' : 'hoga-flash-red';
+      setFlashClass(cls);
+      const t = setTimeout(() => setFlashClass(''), 500);
+      return () => clearTimeout(t);
+    }
+  }, [flashKey, isAsk]);
 
   return (
-    <div className="grid grid-cols-2 h-8 border-b border-stone-200/50 hover:bg-stone-100 cursor-pointer transition-colors group">
+    <div className={`grid grid-cols-2 h-8 border-b border-stone-200/50 hover:bg-stone-100 cursor-pointer transition-colors group ${flashClass}`}>
       {/* 가격 + 등락률 */}
       <div className={`flex flex-col items-center justify-center border-r border-stone-200/50 ${bgTint}`}>
         <span className="text-[10px] font-mono font-black" style={{ color }}>
