@@ -34,7 +34,7 @@ export function AssetHeader({
   const summaryText  = aiSummary ?? asset.aiSummary ?? '';
 
   return (
-      <div className="px-8 py-6 border-b border-stone-200 bg-[#ffffff]">
+      <div className="px-8 pt-1 pb-6 border-b border-stone-200 bg-[#ffffff]">
         {/* 행 1: 종목 정보 + 가격 + 통계 */}
         <div className="flex items-center justify-between gap-6 mb-4">
           <div className="flex min-w-0 items-center gap-4">
@@ -54,6 +54,21 @@ export function AssetHeader({
                 <h2 className="text-xl font-black tracking-tight text-stone-800 truncate">{asset.name}</h2>
                 <span className="text-stone-500 text-sm font-bold flex-shrink-0">{asset.symbol}</span>
                 <Pencil size={14} className="text-stone-400 cursor-pointer hover:text-stone-800 transition-colors" />
+                {hideStats && (
+                    <button
+                        type="button"
+                        onClick={() => onToggleLike?.(asset.id)}
+                        className={cn(
+                            'ml-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors',
+                            isLiked
+                                ? 'bg-brand-red-light text-brand-red'
+                                : 'bg-stone-200 hover:bg-stone-300 text-stone-500'
+                        )}
+                        aria-label="관심 종목"
+                    >
+                      <Heart size={16} fill={isLiked ? 'currentColor' : 'none'} />
+                    </button>
+                )}
               </div>
               <div className="flex items-center gap-3 mt-1 flex-wrap">
               <span className="text-2xl font-black font-mono tracking-tighter text-stone-800">
@@ -70,7 +85,7 @@ export function AssetHeader({
           </div>
 
           {/* 오른쪽: 통계 + 관심 버튼 */}
-          <div className="flex flex-shrink-0 items-center gap-4">
+          <div className="flex flex-shrink-0 items-start gap-4">
             {!hideStats && (
                 <div className="flex gap-6 text-[11px] font-bold text-stone-400 uppercase tracking-widest">
                   <div>
@@ -94,7 +109,7 @@ export function AssetHeader({
 
             {hideStats && (
                 <div
-                    className="hidden lg:flex mt-3 w-[460px] min-h-[68px] items-start gap-3 rounded-lg border px-4 py-2.5"
+                    className="relative top-3 hidden lg:flex mt-3 w-[520px] min-h-[68px] items-start gap-3 rounded-lg border px-4 py-2.5"
                     style={{
                       borderColor: '#d7e3ff',
                       background: 'linear-gradient(135deg, #f8fbff 0%, #fff8fd 100%)',
@@ -122,24 +137,28 @@ export function AssetHeader({
                       <span className="h-1 w-1 rounded-full" style={{ backgroundColor: '#fbbc04' }} />
                       <span className="text-[10px] font-bold text-stone-400">한줄 요약</span>
                     </div>
-                    <p className="line-clamp-3 text-[12px] font-semibold leading-relaxed text-stone-700">
+                    <p className="whitespace-pre-wrap break-keep text-[12px] font-semibold leading-relaxed text-stone-700">
                       {summaryText || (aiSummaryLoading ? 'AI 요약을 불러오는 중입니다.' : 'AI 요약이 아직 없습니다.')}
                     </p>
                   </div>
                 </div>
             )}
 
-            <button
-                onClick={() => onToggleLike?.(asset.id)}
-                className={cn(
-                    'p-2 rounded-lg transition-colors',
-                    isLiked
-                        ? 'bg-brand-red-light text-brand-red'
-                        : 'bg-stone-200 hover:bg-stone-200 text-stone-500'
-                )}
-            >
-              <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
-            </button>
+            {!hideStats && (
+                <button
+                    type="button"
+                    onClick={() => onToggleLike?.(asset.id)}
+                    className={cn(
+                        'p-2 rounded-lg transition-colors',
+                        isLiked
+                            ? 'bg-brand-red-light text-brand-red'
+                            : 'bg-stone-200 hover:bg-stone-200 text-stone-500'
+                    )}
+                    aria-label="관심 종목"
+                >
+                  <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
+                </button>
+            )}
           </div>
         </div>
 
