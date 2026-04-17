@@ -26,7 +26,10 @@ import server.main.token.dto.*;
 import server.main.token.entity.Token;
 import server.main.token.mapper.TokenMapper;
 import server.main.token.repository.TokenRepository;
+import server.main.global.util.GeminiClient;
+import server.main.trade.entity.Trade;
 import server.main.trade.repository.TradeRepository;
+import java.util.concurrent.CompletableFuture;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -53,6 +56,7 @@ public class TokenServiceImpl implements TokenService{
     private final AllocationEventRepository allocationEventRepository;
     private final TradeRepository tradeRepository;
     private final TokenMapper tokenMapper;
+    private final GeminiClient geminiClient;
 
 
     // 토큰 상세 페이지 - 차트, 호가 데이터
@@ -79,6 +83,25 @@ public class TokenServiceImpl implements TokenService{
             dto.setTodayOpenPrice(liveDay.getOpenPrice());
             dto.setTodayHighPrice(liveDay.getHighPrice());
             dto.setTodayLowPrice(liveDay.getLowPrice());
+        }
+
+        // 일주일치 거래 데이터로 Gemini 프롬프트 구성
+        List<Object[]> weeklyStats = tradeRepository.findWeeklyTradeStats(tokenId, LocalDateTime.now().minusWeeks(1));
+        StringBuilder promptBuilder = new StringBuilder();
+        promptBuilder.append(dto.getTokenName()).append(" 종목의 최근 7일 거래 데이터:\n");
+        for (Object[] row : weeklyStats) {
+            promptBuilder.append("날짜: ").append(row[0])
+                    .append(", 거래량: ").append(row[1])
+                    .append(", 총체결금액: ").append(row[2])
+                    .append(", 평균체결가: ").append(row[3])
+                    .append("\n");
+        }
+        promptBuilder.append("위 데이터를 바탕으로 거래 추이를 한 줄로 요약해줘.(한글기준 1500자 이내)");
+        try {
+            CompletableFuture<String> aiSummaryFuture = geminiClient.summarizeVolumeTrend(promptBuilder.toString());
+            dto.setAiSummary(aiSummaryFuture.get());
+        } catch (Exception e) {
+            log.error("Gemini 호출 실패: {}", e.getMessage());
         }
 
         return dto;

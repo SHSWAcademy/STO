@@ -33,4 +33,6 @@ public class TokenChartDetailResponseDto {
     private Long todayOpenPrice;        // 오늘 시가
     private Long todayHighPrice;        // 오늘 최고가
     private Long todayLowPrice;         // 오늘 최저가
+
+    private String aiSummary;           // Gemini AI 거래 추이 한 줄 요약
 }

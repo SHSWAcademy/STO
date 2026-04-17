@@ -46,6 +46,23 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     );
 
     @Query("""
+        SELECT
+            FUNCTION('DATE', t.executedAt),
+            SUM(t.tradeQuantity),
+            SUM(t.totalTradePrice),
+            AVG(t.tradePrice)
+        FROM Trade t
+        WHERE t.token.tokenId = :tokenId
+          AND t.executedAt >= :from
+        GROUP BY FUNCTION('DATE', t.executedAt), t.settlementStatus
+        ORDER BY FUNCTION('DATE', t.executedAt) ASC
+    """)
+    List<Object[]> findWeeklyTradeStats(
+            @Param("tokenId") Long tokenId,
+            @Param("from") LocalDateTime from
+    );
+
+    @Query("""
       SELECT new server.main.myAccount.dto.SellHistoryResponse(
           t.tradeId,
           t.token.tokenName,
