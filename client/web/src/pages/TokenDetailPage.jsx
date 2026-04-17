@@ -781,6 +781,7 @@ export function TokenDetailPage() {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             isLiked={isLiked}
+            aiSummary={tokenInfo?.aiSummary}
             onToggleLike={async () => {
                 try {
                     await toggleLike(TOKEN_ID);
