@@ -8,7 +8,7 @@ public class GeminiDTO {
 
     // 하드코딩 상수 (시스템 설정용)
     public static final String MODEL_NAME = "gemini-2.5-flash";
-    public static final double DEFAULT_TEMPERATURE = 0.2; // 금융 분석용 낮은 창의성
+    public static final double DEFAULT_TEMPERATURE = 0.7; // 금융 분석용 낮은 창의성
     public static final int DEFAULT_MAX_TOKENS = 1500;    // 요약용 길이 제한
     public static final double DEFAULT_TOP_P = 0.8;
 

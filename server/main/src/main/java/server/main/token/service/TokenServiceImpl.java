@@ -290,19 +290,9 @@ public class TokenServiceImpl implements TokenService{
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         List<Object[]> weeklyStats = tradeRepository.findWeeklyTradeStats(tokenId, LocalDateTime.now().minusWeeks(1));
-        StringBuilder promptBuilder = new StringBuilder();
-        promptBuilder.append(findToken.getAsset().getAssetName()).append(" 종목의 최근 7일 거래 데이터:\n");
-        for (Object[] row : weeklyStats) {
-            promptBuilder.append("날짜: ").append(row[0])
-                    .append(", 거래량: ").append(row[1])
-                    .append(", 총체결금액: ").append(row[2])
-                    .append(", 평균체결가: ").append(row[3])
-                    .append("\n");
-        }
-        promptBuilder.append("위 데이터를 바탕으로 거래 추이를 한 줄로 요약해줘.(한글기준 1500자 이내)");
 
         try {
-            return geminiClient.summarizeVolumeTrend(promptBuilder.toString()).get();
+            return geminiClient.summarizeVolumeTrend(findToken.getAsset().getAssetName(), weeklyStats).get();
         } catch (Exception e) {
             log.error("Gemini 호출 실패: {}", e.getMessage());
             return "요약 데이터를 가져오는 중 오류가 발생했습니다.";
