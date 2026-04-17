@@ -957,8 +957,10 @@ export function TokenDetailPage() {
                           <span aria-hidden="true" />
                         </div>
 
-                        <div className="grid grid-cols-[146px_108px_146px] flex-1 min-h-0">
-                          <div className="col-span-2 min-h-0 flex flex-col justify-end">
+                        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
+
+                        <div className="grid grid-cols-[146px_108px_146px]">
+                          <div className="col-span-2 flex flex-col">
                             {reversedAsks.map((row, i) => {
                               const dp = maxAskAmount > 0 ? (row.amount / maxAskAmount) * 100 : 0;
                               const cp = basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0;
@@ -990,7 +992,7 @@ export function TokenDetailPage() {
                             })}
                           </div>
 
-                          <div className="min-h-0 flex flex-col justify-end border-l border-stone-100">
+                          <div className="flex flex-col justify-end border-l border-stone-100">
                             {statItems.map((stat, i) => (
                               <div key={`ask-stat-${i}`} className="h-9 border-b border-stone-100 px-2 flex items-center">
                                 <div className="flex flex-col w-full gap-0.5">
@@ -1024,8 +1026,8 @@ export function TokenDetailPage() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-[146px_108px_146px] flex-1 min-h-0">
-                          <div className="min-h-0 flex flex-col border-r border-stone-100">
+                        <div className="grid grid-cols-[146px_108px_146px]">
+                          <div className="flex flex-col border-r border-stone-100">
                             <div className="h-9 border-b border-stone-100 bg-stone-50/60 px-3 flex items-center">
                               <div>
                                 <p className="text-[9px] font-bold text-stone-400 leading-none">실시간 체결강도</p>
@@ -1050,7 +1052,7 @@ export function TokenDetailPage() {
                             })}
                           </div>
 
-                          <div className="col-span-2 min-h-0 flex flex-col">
+                          <div className="col-span-2 flex flex-col">
                             {bids.map((row, i) => {
                               const cp = basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0;
                               const dp = maxBidAmount > 0 ? (row.amount / maxBidAmount) * 100 : 0;
@@ -1082,6 +1084,8 @@ export function TokenDetailPage() {
                             })}
                           </div>
                         </div>
+
+                        </div>{/* scrollable wrapper 닫기 */}
                       </div>
                     );
                   })()}
