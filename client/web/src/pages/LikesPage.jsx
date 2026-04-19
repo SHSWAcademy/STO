@@ -129,7 +129,7 @@ export function LikesPage() {
                 <th className="w-12 px-8 py-4"></th>
                 <th className="px-4 py-4">Asset</th>
                 <th className="px-4 py-4 text-right">Price</th>
-                <th className="w-32 px-4 py-4">Trend</th>
+                <th className="w-32 px-4 py-4"></th>
                 <th className="w-12 px-8 py-4"></th>
               </tr>
             </thead>

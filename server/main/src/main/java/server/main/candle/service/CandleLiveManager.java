@@ -47,7 +47,7 @@ public class CandleLiveManager {
 
         updateCandle(liveMinute, tokenId, tradePrice, tradeQuantity, now.truncatedTo(ChronoUnit.MINUTES), CandleType.MINUTE);
         updateCandle(liveHour, tokenId, tradePrice, tradeQuantity, now.truncatedTo(ChronoUnit.HOURS), CandleType.HOUR);
-        updateCandle(liveDay, tokenId, tradePrice, tradeQuantity, now.truncatedTo(ChronoUnit.DAYS), CandleType.DAY);
+        updateCandle(liveDay, tokenId, tradePrice, tradeQuantity, getDayBucket(now), CandleType.DAY);
         updateCandle(liveMonth, tokenId, tradePrice, tradeQuantity, now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS), CandleType.MONTH);
         updateCandle(liveYear, tokenId, tradePrice, tradeQuantity, now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS), CandleType.YEAR);
     }
@@ -173,13 +173,20 @@ public class CandleLiveManager {
         };
     }
 
+    // 오전 9시 기준 일봉 버킷 시작 시각 (9시 이후면 오늘 09:00, 이전이면 어제 09:00)
+    private LocalDateTime getDayBucket(LocalDateTime now) {
+        return now.getHour() >= 9
+                ? now.toLocalDate().atTime(9, 0)
+                : now.toLocalDate().minusDays(1).atTime(9, 0);
+    }
+
     // 현재 시각 기준 봉 시작 시각 계산
     private LocalDateTime getCurrentBucket(CandleType type) {
         LocalDateTime now = LocalDateTime.now();
         return switch (type) {
             case MINUTE -> now.truncatedTo(ChronoUnit.MINUTES);
             case HOUR   -> now.truncatedTo(ChronoUnit.HOURS);
-            case DAY    -> now.truncatedTo(ChronoUnit.DAYS);
+            case DAY    -> getDayBucket(now);
             case MONTH  -> now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS);
             case YEAR   -> now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS);
         };
@@ -208,7 +215,7 @@ public class CandleLiveManager {
 
         flushMap(liveMinute, CandleType.MINUTE, now.truncatedTo(ChronoUnit.MINUTES));
         flushMap(liveHour,   CandleType.HOUR,   now.truncatedTo(ChronoUnit.HOURS));
-        flushMap(liveDay,    CandleType.DAY,    now.truncatedTo(ChronoUnit.DAYS));
+        flushMap(liveDay,    CandleType.DAY,    getDayBucket(now));
         flushMap(liveMonth,  CandleType.MONTH,  now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS));
         flushMap(liveYear,   CandleType.YEAR,   now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS));
     }

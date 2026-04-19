@@ -73,6 +73,20 @@
   }
 }
 
+/* ─── 호가창 체결 깜빡임 ─── */
+@keyframes hoga-flash-blue {
+  0%   { background-color: rgba(74, 114, 160, 0.5); }
+  60%  { background-color: rgba(74, 114, 160, 0.3); }
+  100% { background-color: transparent; }
+}
+@keyframes hoga-flash-red {
+  0%   { background-color: rgba(184, 84, 80, 0.5); }
+  60%  { background-color: rgba(184, 84, 80, 0.3); }
+  100% { background-color: transparent; }
+}
+.hoga-flash-blue { animation: hoga-flash-blue 0.5s ease-out forwards; }
+.hoga-flash-red  { animation: hoga-flash-red  0.5s ease-out forwards; }
+
 /* ─── 스크롤바 ─── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }

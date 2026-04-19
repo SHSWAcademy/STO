@@ -67,8 +67,8 @@ public class TokenServiceImpl implements TokenService{
 
         TokenChartDetailResponseDto dto = tokenMapper.toDtoDetail(findToken);
 
-        // 전날 종가 — 오늘 자정 이전 캔들만 조회 (서버 재시작 시 당일 캔들이 DB에 저장되는 것 방어)
-        LocalDateTime startOfToday = java.time.LocalDate.now().atStartOfDay();
+        // 전날 종가 — 현재 일봉 버킷 시작 이전 캔들만 조회
+        LocalDateTime startOfToday = getDayBucket(LocalDateTime.now());
         Long yesterdayClosePrice = candleDayRepository.findLatestBefore(tokenId, startOfToday)
                 .map(CandleDay::getClosePrice)
                 .orElse(null);
@@ -279,6 +279,13 @@ public class TokenServiceImpl implements TokenService{
                         ));
             }
         };
+    }
+
+
+    private LocalDateTime getDayBucket(LocalDateTime now) {
+        return now.getHour() >= 9
+                ? now.toLocalDate().atTime(9, 0)
+                : now.toLocalDate().minusDays(1).atTime(9, 0);
     }
 
     @Override
