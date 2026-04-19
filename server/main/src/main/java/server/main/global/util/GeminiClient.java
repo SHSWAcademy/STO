@@ -26,71 +26,68 @@ public class GeminiClient {
 
     @Async
     public CompletableFuture<String> summarizeVolumeTrend(String assetName, List<Object[]> weeklyStats) {
-        String url = apiUrl + "/v1beta/models/" + GeminiDTO.MODEL_NAME + ":generateContent?key=" + apiKey;
+        String prompt = buildPrompt(assetName, weeklyStats);
+        String result = callGemini(GeminiDTO.MODEL_NAME, prompt);
+        if (result == null) {
+            log.warn("기본 모델 한도 초과, fallback 모델로 재시도");
+            result = callGemini(GeminiDTO.FALLBACK_MODEL_NAME, prompt);
+        }
+        return CompletableFuture.completedFuture(result);
+    }
+
+    private String callGemini(String modelName, String prompt) {
+        String url = apiUrl + "/v1beta/models/" + modelName + ":generateContent?key=" + apiKey;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        GeminiDTO.Request request = new GeminiDTO.Request(buildPrompt(assetName, weeklyStats));
+        GeminiDTO.Request request = new GeminiDTO.Request(prompt);
         HttpEntity<GeminiDTO.Request> entity = new HttpEntity<>(request, headers);
 
         try {
             ResponseEntity<GeminiDTO.Response> response = restTemplate.postForEntity(url, entity, GeminiDTO.Response.class);
-            log.info("제미나이 호출 결과 성공");
-            return CompletableFuture.completedFuture(response.getBody().getAnswer());
+            log.info("Gemini 호출 성공 (model: {})", modelName);
+            return response.getBody().getAnswer();
 
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             HttpStatus status = (HttpStatus) e.getStatusCode();
             if (status == HttpStatus.TOO_MANY_REQUESTS) {
-                // 사용량 오류
-                log.warn("Gemini API 한도 초과 (429): {}", e.getMessage());
-                return CompletableFuture.completedFuture("현재 분석 요청이 너무 많습니다. 1분 후 다시 시도해 주세요.");
+                log.warn("Gemini 한도 초과 (429) - model: {}", modelName);
+            } else if (status == HttpStatus.UNAUTHORIZED || status == HttpStatus.FORBIDDEN) {
+                log.error("Gemini API 키 인증 실패 (401/403) - model: {}", modelName);
+            } else {
+                log.error("Gemini 클라이언트 오류 ({}) - model: {}", status, modelName);
             }
-            else if (status == HttpStatus.UNAUTHORIZED || status == HttpStatus.FORBIDDEN) {
-                // 키 오류
-                log.error("Gemini API 키 인증 실패 (401/403): API 키를 확인하세요.");
-                return CompletableFuture.completedFuture("서비스 점검 중입니다. 이용에 불편을 드려 죄송합니다.");
-            }
-            else {
-                // 우리서버 오류
-                log.error("Gemini API 클라이언트 오류 ({}): {}", status, e.getMessage());
-                return CompletableFuture.completedFuture("데이터 분석 중 오류가 발생했습니다.");
-            }
+            return null;
         } catch (org.springframework.web.client.HttpServerErrorException e) {
-            // 제미나이 서버 오류
-            log.error("Gemini 서버 오류 ({}): {}", e.getStatusCode(), e.getMessage());
-            return CompletableFuture.completedFuture("AI 서버가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해 주세요.");
+            log.error("Gemini 서버 오류 ({}) - model: {}", e.getStatusCode(), modelName);
+            return null;
         } catch (Exception e) {
-            // 알수없음
-            log.error("알 수 없는 오류 발생: {}", e.getMessage());
-            return CompletableFuture.completedFuture("예측하지 못한 오류가 발생했습니다.");
+            log.error("알 수 없는 오류 - model: {}, error: {}", modelName, e.getMessage());
+            return null;
         }
     }
 
     // 프롬포트
     private String buildPrompt(String assetName, List<Object[]> weeklyStats) {
         StringBuilder sb = new StringBuilder();
+        sb.append("너는 STO(토큰증권) 데이터를 객관적으로 요약하는 데이터 분석가야.\n\n");
 
-        sb.append("너는 STO(토큰증권) 시장 데이터 분석 전문가야. 아래 데이터를 보고 투자자가 참고할 수 있도록 전문적인 인사이트를 제공해줘.\n\n");
-        sb.append("### [").append(assetName).append("] 종목 최근 7일 거래 데이터 ###\n");
+        // 7일 트레이드 데이터
+        sb.append("### [").append(assetName).append("] 최근 7일 통계 ###\n");
         for (Object[] row : weeklyStats) {
-            sb.append("- 날짜: ").append(row[0])
-                    .append(" | 거래량: ").append(row[1])
-                    .append(" | 총금액: ").append(row[2])
-                    .append(" | 평균가: ").append(row[3])
-                    .append("\n");
+            sb.append("- ").append(row[0]).append(": 거래량 ").append(row[1])
+                    .append(", 평균가 ").append(row[3]).append("원\n");
         }
-        sb.append("\n### 분석 지시사항 ###\n");
-        sb.append("- 분석 내용은 반드시 하나의 완성된 문장으로 마침표(.)까지 찍어서 출력해.\n");
-        sb.append("- '추세 분석이 어렵다'는 말은 하지 말고, 현재 수치에서 보이는 특징을 전문적으로 설명해.\n");
-        sb.append("- 문장 중간에 끊기지 않도록 끝까지 서술해.");
-        sb.append("1. 위 데이터를 바탕으로 전체적인 거래 추세(상승/하락/횡보)를 분석할 것.\n");
-        sb.append("2. 거래량 급증이나 가격 변동의 특이사항이 있다면 언급할 것.\n");
-        sb.append("3. 마지막에 투자자가 유의해야 할 점을 포함하여 '한 줄의 완성된 문장'으로 요약할 것.\n");
-        sb.append("4. 답변은 한국어 기준 100자~150자 내외로 전문성 있게 작성할 것.\n");
-        sb.append("5. 데이터가 충분하지 않더라도 현재 수치를 바탕으로 시장의 분위기를 최대한 추론하여 답변할 것.\n");
-        sb.append("6. '분석이 어렵다'는 말은 생략하고, 현재 공개된 정보를 바탕으로 즉각적인 통찰을 제공할 것.\n");
-        sb.append("\n요약 결과:");
+        // 출력 규칙
+        sb.append("\n### [출력 규칙 - 반드시 준수] ###\n");
+        sb.append("1. **절대 '투자 권유'나 '예측'을 하지 마.** (검열 방지)\n");
+        sb.append("2. 데이터에 나타난 현상(거래량 증감, 가격 추이)만 **한 줄의 완성된 문장**으로 요약해.\n");
+        sb.append("3. 문장 끝은 반드시 마침표(.)로 끝나야 하며, 중간에 생략하지 마.\n");
+        sb.append("4. **'급등', '폭등', '강력 추천' 같은 단어는 절대 사용하지 마.** 대신 '상승세', '유입 증가', '변동성 확대' 등의 표현을 써.\n");
+        sb.append("5. 답변 시작에 '분석 결과:' 같은 서두 떼고 바로 본론만 말해.\n\n");
+        sb.append("6. 마지막으로 문장은 무조건 끝까지 중간에 끊기지 말것.\n");
+        sb.append("요약 (마침표까지 완결된 한 문장):");
         return sb.toString();
     }
 }

@@ -31,6 +31,11 @@ public class Token extends BaseEntity {
     private Long currentPrice;            // 토큰 현재 가격
     private LocalDateTime issuedAt;     // 실제 거래 가능한 상태로 게시된 시간
 
+    // 제미나이 요약 저장 컬럼
+    @Column(columnDefinition = "TEXT")
+    private String aiSummary;
+    private LocalDateTime aiSummaryUpdatedAt;  // 마지막 업데이트 시간 (선택)
+
     @Enumerated(value = EnumType.STRING)
     private TokenStatus tokenStatus;    // 거래 가능 상태
 
@@ -58,5 +63,11 @@ public class Token extends BaseEntity {
 
     public void updateContractAddress(String contractAddress) {
         this.contractAddress = contractAddress;
+    }
+
+    // 제미나이 분석내용 업데이트 메서드
+    public void updateAiSummary(String aiSummary) {
+        this.aiSummary = aiSummary;
+        this.aiSummaryUpdatedAt = LocalDateTime.now();
     }
 }
