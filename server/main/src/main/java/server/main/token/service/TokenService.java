@@ -18,5 +18,4 @@ public interface TokenService {
 
     long getTickSize(Long tokenId);
 
-    String getAiSummary(Long tokenId);
 }

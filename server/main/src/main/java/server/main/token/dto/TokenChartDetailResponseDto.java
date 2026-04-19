@@ -33,4 +33,7 @@ public class TokenChartDetailResponseDto {
     private Long todayOpenPrice;        // 오늘 시가
     private Long todayHighPrice;        // 오늘 최고가
     private Long todayLowPrice;         // 오늘 최저가
+
+    private String aiSummary;   // 제미나이 요약
+    private LocalDateTime aiSummaryUpdatedAt;  // 마지막 업데이트 시간 (선택)
 }

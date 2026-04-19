@@ -249,7 +249,7 @@ public class TokenServiceImpl implements TokenService{
         LocalDateTime now = LocalDateTime.now();
         return switch (periodType) {
             case DAY -> {
-                LocalDateTime startOfDay = getDayBucket(now);
+                LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
                 LocalDateTime endOfDay   = startOfDay.plusDays(1);
                 yield candleDayRepository.findTodayByTokenIds(tokenIds, startOfDay, endOfDay)
                         .stream().collect(Collectors.toMap(
@@ -281,23 +281,6 @@ public class TokenServiceImpl implements TokenService{
         };
     }
 
-
-    // 제미나이 API 호출
-    // 프롬포트 데이터 : 7일의 총체결금액, 거개량, 평균 체결가
-    @Override
-    public String getAiSummary(Long tokenId) {
-        Token findToken = tokenRepository.findByIdWithAsset(tokenId)
-                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-
-        List<Object[]> weeklyStats = tradeRepository.findWeeklyTradeStats(tokenId, LocalDateTime.now().minusWeeks(1));
-
-        try {
-            return geminiClient.summarizeVolumeTrend(findToken.getAsset().getAssetName(), weeklyStats).get();
-        } catch (Exception e) {
-            log.error("Gemini 호출 실패: {}", e.getMessage());
-            return "요약 데이터를 가져오는 중 오류가 발생했습니다.";
-        }
-    }
 
     private LocalDateTime getDayBucket(LocalDateTime now) {
         return now.getHour() >= 9

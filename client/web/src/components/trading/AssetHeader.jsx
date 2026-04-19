@@ -16,6 +16,25 @@ const TABS = [
   { id: 'news',     label: '공시' },
 ];
 
+function formatAiSummaryUpdatedAt(value) {
+  if (!value) return '';
+
+  const date = Array.isArray(value)
+      ? new Date(value[0], (value[1] ?? 1) - 1, value[2] ?? 1, value[3] ?? 0, value[4] ?? 0, value[5] ?? 0)
+      : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return '';
+
+  return date.toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
 export function AssetHeader({
   asset,
   currentPrice,
@@ -26,12 +45,14 @@ export function AssetHeader({
   onToggleLike,
   hideStats = false,
   aiSummary,
+  aiSummaryUpdatedAt,
   aiSummaryLoading = false,
 }) {
   const isUp         = asset.change >= 0;
   const changeAmount = basePrice > 0 ? Math.abs(currentPrice - basePrice) : 0;
   const yesterday    = new Date(Date.now() - 86400000).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
   const summaryText  = aiSummary ?? asset.aiSummary ?? '';
+  const summaryUpdatedAtText = formatAiSummaryUpdatedAt(aiSummaryUpdatedAt ?? asset.aiSummaryUpdatedAt);
 
   return (
       <div className="px-8 pt-1 pb-6 border-b border-stone-200 bg-[#ffffff]">
@@ -140,6 +161,11 @@ export function AssetHeader({
                     <p className="whitespace-pre-wrap break-keep text-[12px] font-semibold leading-relaxed text-stone-700">
                       {summaryText || (aiSummaryLoading ? 'AI 요약을 불러오는 중입니다.' : 'AI 요약이 아직 없습니다.')}
                     </p>
+                    {summaryUpdatedAtText && (
+                        <p className="mt-1 text-[10px] font-medium text-stone-400">
+                          업데이트 시간 {summaryUpdatedAtText}
+                        </p>
+                    )}
                   </div>
                 </div>
             )}
