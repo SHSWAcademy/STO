@@ -51,7 +51,6 @@ const PERIOD_TO_TYPE = {
 };
 const CHART_PERIODS = ['분', '시간', '일', '월', '년'];
 const CHART_SYNC_ID = 'token-detail-candle-volume';
-const AI_SUMMARY_ENDPOINT = (tokenId) => `/api/token/${tokenId}/ai-summary`;
 
 // ── 유틸 ────────────────────────────────────────────────────────
 function formatCandleTime(candleTime, period) {
@@ -517,8 +516,6 @@ export function TokenDetailPage() {
 
   // ── 토큰 상세 정보 (백엔드) ──────────────────────────────────
   const [tokenInfo, setTokenInfo] = useState(null);
-  const [aiSummary, setAiSummary] = useState('');
-  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
   const [selectedOrderPrice, setSelectedOrderPrice] = useState(null);
   const [hoveredAskIndex, setHoveredAskIndex] = useState(null);
   const [hoveredBidIndex, setHoveredBidIndex] = useState(null);
@@ -527,32 +524,6 @@ export function TokenDetailPage() {
     api.get(`/api/token/${TOKEN_ID}/chart`)
         .then(r => setTokenInfo(r.data))
         .catch(e => console.warn('[TokenDetailPage] 토큰 상세 조회 실패:', e));
-  }, [TOKEN_ID, user?.accessToken]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setAiSummary('');
-    setAiSummaryLoading(true);
-
-    api.get(AI_SUMMARY_ENDPOINT(TOKEN_ID), { signal: controller.signal })
-        .then((r) => {
-          const data = r.data;
-          const summary =
-              typeof data === 'string'
-                  ? data
-                  : data?.aiSummary ?? data?.summary ?? data?.content ?? '';
-          setAiSummary(summary);
-        })
-        .catch((e) => {
-          if (e.name === 'CanceledError' || e.code === 'ERR_CANCELED') return;
-          console.warn('[TokenDetailPage] AI 요약 조회 실패:', e);
-          setAiSummary('');
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setAiSummaryLoading(false);
-        });
-
-    return () => controller.abort();
   }, [TOKEN_ID, user?.accessToken]);
 
   // ── 차트 상태 ────────────────────────────────────────────────
@@ -810,8 +781,9 @@ export function TokenDetailPage() {
             activeTab={activeTab}
             onTabChange={setActiveTab}
             isLiked={isLiked}
-            aiSummary={aiSummary || tokenInfo?.aiSummary}
-            aiSummaryLoading={aiSummaryLoading}
+            aiSummary={tokenInfo?.aiSummary}
+            aiSummaryUpdatedAt={tokenInfo?.aiSummaryUpdatedAt}
+            aiSummaryLoading={!tokenInfo}
             onToggleLike={async () => {
                 try {
                     await toggleLike(TOKEN_ID);
