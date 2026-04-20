@@ -54,7 +54,7 @@ public class RedisSubscriber implements MessageListener {
 
                 // 주문 체결 로그 DB에 저장
                 Token token = tokenRepository.findByIdWithAsset(tokenId).orElseThrow();
-                String detail = String.format("토큰 이름=%s 가격=%.0f 금액=%.0f",
+                String detail = String.format("토큰 이름=%s 가격=%,d원 금액=%,d원",
                         token.getAsset().getAssetName(), tradePrice, (tradePrice * tradeQuantity));
                 tradeLogService.save(String.valueOf(tokenId), detail, true);
                 // 현재 클래스에서 트랜잭션을 쓰지 않기 떄문에 requires new 옵션 필요 없음

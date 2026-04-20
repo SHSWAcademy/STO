@@ -95,7 +95,10 @@ function getBucketStart(date, period) {
   } else if (period === '시간') {
     d.setMinutes(0, 0, 0);
   } else if (period === '일') {
-    d.setHours(0, 0, 0, 0);
+    if (d.getHours() < 9) {
+      d.setDate(d.getDate() - 1);
+    }
+    d.setHours(9, 0, 0, 0);
   } else if (period === '월') {
     d.setDate(1);
     d.setHours(0, 0, 0, 0);
@@ -572,11 +575,30 @@ export function TokenDetailPage() {
   const [trades, setTrades]         = useState([]);
   const [todayHigh, setTodayHigh]   = useState(null);
   const [todayLow, setTodayLow]     = useState(null);
+  const hogaScrollRef  = useRef(null);
+  const priceBarRef    = useRef(null);
+  const hogaCenteredRef = useRef(false);
 
   useEffect(() => {
     setTodayHigh(tokenInfo?.todayHighPrice ?? null);
     setTodayLow(tokenInfo?.todayLowPrice ?? null);
   }, [tokenInfo]);
+
+  // 호가창 초기 진입 시 현재가 바를 가운데로 스크롤
+  useEffect(() => {
+    if (hogaCenteredRef.current) return;
+    if (asks.length === 0 && bids.length === 0) return;
+    const container = hogaScrollRef.current;
+    const priceBar  = priceBarRef.current;
+    if (!container || !priceBar) return;
+    requestAnimationFrame(() => {
+      const containerRect = container.getBoundingClientRect();
+      const priceBarRect  = priceBar.getBoundingClientRect();
+      const priceBarTopInContent = priceBarRect.top - containerRect.top + container.scrollTop;
+      container.scrollTop = priceBarTopInContent - container.clientHeight / 2 + priceBar.offsetHeight / 2;
+      hogaCenteredRef.current = true;
+    });
+  }, [asks, bids]);
 
   // ── 체결 목록 초기 REST 로드 ─────────────────────────────────
   useEffect(() => {
@@ -615,8 +637,13 @@ export function TokenDetailPage() {
   const validLows  = useMemo(() => chartData.map(c => c.low).filter(v  => v != null), [chartData]);
   const chartHigh  = validHighs.length > 0 ? Math.max(...validHighs) : 0;
   const chartLow   = validLows.length  > 0 ? Math.min(...validLows)  : 0;
-  const dailyHigh  = todayHigh ?? chartHigh;
-  const dailyLow   = todayLow  ?? chartLow;
+
+  // 오늘 고가/저가: 라이브 캔들(WS) > trades 배열(오늘 9시 이후 전체) 순으로 우선
+  const tradePrices = useMemo(() => trades.map(t => t.price).filter(v => v != null && v > 0), [trades]);
+  const tradeHigh   = tradePrices.length > 0 ? Math.max(...tradePrices) : null;
+  const tradeLow    = tradePrices.length > 0 ? Math.min(...tradePrices) : null;
+  const dailyHigh   = todayHigh != null ? Math.max(todayHigh, tradeHigh ?? 0) : tradeHigh;
+  const dailyLow    = todayLow  != null ? Math.min(todayLow,  tradeLow  ?? Infinity) : tradeLow;
 
   // Y축 도메인 ? null 슬롯 제외한 실제 가격 기준
   // 호가 단위 정책 (TickSizePolicy.java 동일 기준)
@@ -738,7 +765,7 @@ export function TokenDetailPage() {
         flashTimerRef.current = setTimeout(() => setFlashingPrice(null), 500);
       }
       setExecutions(prev =>
-          [{ price: data.tradePrice, qty: data.tradeQuantity, isBuy: data.isBuy }, ...prev].slice(0, 15)
+          [{ qty: data.tradeQuantity, isBuy: data.isBuy }, ...prev]
       );
       setTrades(prev => {
         const cumulativeVol = (prev[0]?.vol ?? 0) + (data.tradeQuantity ?? 0);
@@ -860,7 +887,7 @@ export function TokenDetailPage() {
                   {/* 시세 섹션 */}
                   <div className="flex-1 min-h-0 bg-white rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm">
                     <div className="p-4 border-b border-stone-200 flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-stone-800">시세</h3>
+                      <h3 className="text-sm font-bold text-stone-800">당일 체결 목록</h3>
                       <span className="text-xs font-bold text-stone-400">실시간</span>
                       <X size={14} className="text-stone-400" />
                     </div>
@@ -871,7 +898,7 @@ export function TokenDetailPage() {
                           <th className="text-left p-4 font-bold">체결가</th>
                           <th className="text-right p-4 font-bold">체결량(주)</th>
                           <th className="text-right p-4 font-bold">등락률</th>
-                          <th className="text-right p-4 font-bold">거래량(주)</th>
+                          <th className="text-right p-4 font-bold">당일 총 거래량(주)</th>
                           <th className="text-right p-4 font-bold">시간</th>
                         </tr>
                         </thead>
@@ -904,16 +931,18 @@ export function TokenDetailPage() {
                     // 체결강도 계산
                     const buyVol  = executions.filter(e => e.isBuy).reduce((s, e) => s + e.qty, 0);
                     const sellVol = executions.filter(e => !e.isBuy).reduce((s, e) => s + e.qty, 0);
-                    const strengthNum = sellVol > 0 ? Math.round((buyVol / sellVol) * 100) : buyVol > 0 ? 200 : null;
-                    const strengthVal = strengthNum != null ? `${strengthNum}%` : '-';
-                    const strengthColor = strengthNum == null ? 'text-stone-400' : strengthNum >= 100 ? 'text-brand-red' : 'text-brand-blue';
+                    const isMax = sellVol === 0 && buyVol > 0;
+                    const strengthNum = sellVol > 0 ? Math.round((buyVol / sellVol) * 100) : null;
+                    const strengthVal = isMax ? 'MAX' : strengthNum != null ? `${strengthNum}%` : '-';
+                    const strengthColor = (!isMax && strengthNum == null) ? 'text-stone-400' : (isMax || strengthNum >= 100) ? 'text-brand-red' : 'text-brand-blue';
 
                     // 매도 우측 통계 항목
+                    const yClose = tokenInfo?.yesterdayClosePrice;
                     const statItems = [
-                      // TODO: 백엔드 로직 미구현 ? 전일 종가 기준 ±30% 하드코딩
-                      { label: '상한가', value: basePrice > 0 ? Math.round(basePrice * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)', unimplemented: true },
-                      { label: '하한가', value: basePrice > 0 ? Math.round(basePrice * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)', unimplemented: true },
-                      { label: '시작',   value: tokenInfo?.todayOpenPrice != null ? tokenInfo.todayOpenPrice.toLocaleString() : '체결 기록 없음', color: tokenInfo?.todayOpenPrice != null ? '#292524' : 'var(--color-stone-400)' },
+                      { label: '상한가', value: yClose > 0 ? Math.round(yClose * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)', unimplemented: true, subLabel: '(전일 종가 대비 30%)' },
+                      { label: '하한가', value: yClose > 0 ? Math.round(yClose * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)', unimplemented: true, subLabel: '(전일 종가 대비 30%)' },
+                      { label: '당일시가', value: tokenInfo?.todayOpenPrice != null ? tokenInfo.todayOpenPrice.toLocaleString() : '체결 기록 없음', color: tokenInfo?.todayOpenPrice != null ? '#292524' : 'var(--color-stone-400)' },
+                      { label: '전일종가', value: tokenInfo?.yesterdayClosePrice != null ? tokenInfo.yesterdayClosePrice.toLocaleString() : '-', color: '#292524' },
                       { label: '1일최고', value: dailyHigh != null && dailyHigh > 0 ? dailyHigh.toLocaleString() : '체결 기록 없음', color: dailyHigh != null ? 'var(--color-brand-red)' : 'var(--color-stone-400)' },
                       { label: '1일최저', value: dailyLow  != null && dailyLow  > 0 ? dailyLow.toLocaleString()  : '체결 기록 없음', color: dailyLow  != null ? 'var(--color-brand-blue)' : 'var(--color-stone-400)' },
                     ];
@@ -929,7 +958,7 @@ export function TokenDetailPage() {
                           <span aria-hidden="true" />
                         </div>
 
-                        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
+                        <div ref={hogaScrollRef} className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
 
                         <div className="grid grid-cols-[146px_108px_146px]">
                           <div className="col-span-2 flex flex-col">
@@ -966,22 +995,27 @@ export function TokenDetailPage() {
 
                           <div className="flex flex-col justify-end border-l border-stone-100">
                             {statItems.map((stat, i) => (
-                              <div key={`ask-stat-${i}`} className="h-9 border-b border-stone-100 px-2 flex items-center">
-                                <div className="flex flex-col w-full gap-0.5">
-                                  <div className="flex justify-between w-full">
-                                    <span className="text-[9px] font-bold text-stone-400">{stat.label}</span>
-                                    <span className="text-[9px] font-bold" style={{ color: stat.color }}>{stat.value}</span>
+                              <div key={`ask-stat-${i}`} className="min-h-9 border-b border-stone-100 px-2 py-1 flex items-center">
+                                <div className="flex justify-between w-full items-start">
+                                  <div className="flex flex-col gap-0">
+                                    <span className="text-[9px] font-bold text-stone-400 leading-tight">{stat.label}</span>
+                                    {stat.subLabel && (
+                                      <span className="text-[7.5px] text-stone-300 leading-tight">{stat.subLabel}</span>
+                                    )}
                                   </div>
-                                  {stat.unimplemented && (
-                                    <span className="text-[8px] font-bold text-amber-400 text-right">미구현</span>
-                                  )}
+                                  <div className="flex flex-col items-end gap-0">
+                                    <span className="text-[9px] font-bold leading-tight" style={{ color: stat.color }}>{stat.value}</span>
+                                    {stat.unimplemented && (
+                                      <span className="text-[7.5px] font-bold text-amber-400 leading-tight">백엔드 미구현</span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        <div className="h-10 bg-stone-200 flex items-center justify-center relative flex-none border-y border-stone-300">
+                        <div ref={priceBarRef} className="h-10 bg-stone-200 flex items-center justify-center relative flex-none border-y border-stone-300">
                           <div className="absolute left-2 w-5 h-5 bg-brand-blue rounded flex items-center justify-center text-[9px] font-black text-white">현</div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-sm font-black text-stone-800 font-mono tracking-tight">
@@ -1006,22 +1040,9 @@ export function TokenDetailPage() {
                                 <p className={`text-[11px] font-black leading-none mt-0.5 ${strengthColor}`}>{strengthVal}</p>
                               </div>
                             </div>
-                            {bids.map((row, i) => {
-                              const ex = executions[i];
-                              return (
-                                <div
-                                    key={`bid-ex-${i}`}
-                                    className="h-9 border-b border-stone-100 flex items-center px-2 overflow-hidden"
-                                >
-                                  {ex && (
-                                    <div className="flex justify-between w-full">
-                                      <span className="text-[10px] font-mono text-stone-400 truncate">{ex.price.toLocaleString()}</span>
-                                      <span className={`text-[10px] font-bold ml-1 flex-shrink-0 ${ex.isBuy ? 'text-brand-red' : 'text-brand-blue'}`}>{ex.qty}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                            {bids.map((_, i) => (
+                              <div key={`bid-ex-${i}`} className="h-9 border-b border-stone-100" />
+                            ))}
                           </div>
 
                           <div className="col-span-2 flex flex-col">

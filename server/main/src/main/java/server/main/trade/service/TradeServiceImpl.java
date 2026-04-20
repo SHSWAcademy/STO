@@ -11,6 +11,8 @@ import server.main.trade.entity.Trade;
 import server.main.trade.mapper.TradeMapper;
 import server.main.trade.repository.TradeRepository;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -24,15 +26,16 @@ public class TradeServiceImpl implements TradeService {
 
     @Override
     public List<TradeResponseDto> getTrades(Long tokenId) {
-        List<Trade> trades = tradeRepository.findTradeList(tokenId); // 50개 가져옴
+        LocalDateTime since = getDayBucket();
 
-        Long totalVolume = tradeRepository.sumDailyVolume(tokenId); // 오늘 거래된 누적 합 조회
+        List<Trade> trades = tradeRepository.findTradeList(tokenId, since);
+        Long totalVolume = tradeRepository.sumDailyVolume(tokenId, since);
 
         List<TradeResponseDto> dtos =
                 trades.stream().map(tradeMapper::toDto).toList();
 
         // 등락률 계산 : (체결가 - 전날 종가) / 전날 종가 × 100
-        Long yesterdayClose = candleDayRepository.findLatest(tokenId)
+        Long yesterdayClose = candleDayRepository.findLatestBefore(tokenId, since)
                 .map(CandleDay::getClosePrice)
                 .orElse(null);
 
@@ -48,5 +51,12 @@ public class TradeServiceImpl implements TradeService {
         // 총 체결량
         dtos.forEach(dto -> dto.setTotalVolume(totalVolume));
         return dtos;
+    }
+
+    private LocalDateTime getDayBucket() {
+        LocalDateTime now = LocalDateTime.now();
+        return now.getHour() >= 9
+                ? LocalDate.now().atTime(9, 0)
+                : LocalDate.now().minusDays(1).atTime(9, 0);
     }
 }
