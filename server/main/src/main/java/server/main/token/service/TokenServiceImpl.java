@@ -8,6 +8,7 @@ import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
 import server.main.candle.dto.LiveCandleDto;
 import server.main.candle.entity.Candle;
+import server.main.candle.entity.CandleType;
 import server.main.candle.entity.CandleDay;
 import server.main.candle.repository.CandleDayRepository;
 import server.main.candle.service.CandleLiveManager;
@@ -75,8 +76,8 @@ public class TokenServiceImpl implements TokenService{
 
         dto.setYesterdayClosePrice(yesterdayClosePrice);
 
-        // 호가창에 보여줄 데이터 : 오늘 시가, 최고가, 최저가 — DB가 아닌 메모리(liveDay)에서 조회
-        LiveCandleDto liveDay = candleLiveManager.getLiveDay(tokenId);
+        // 호가창에 보여줄 데이터 : 오늘 시가, 최고가, 최저가 — 메모리 우선, 없으면 DB 복구
+        LiveCandleDto liveDay = candleLiveManager.getSnapshot(tokenId, CandleType.DAY);
         if (liveDay != null) {
             dto.setTodayOpenPrice(liveDay.getOpenPrice());
             dto.setTodayHighPrice(liveDay.getHighPrice());

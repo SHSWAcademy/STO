@@ -958,10 +958,11 @@ export function TokenDetailPage() {
                         {/* asks는 아래 정렬(낮은 가격이 현재가 바 바로 위) → 빈 행은 위쪽에 */}
                         {(() => {
                           const totalRows = Math.max(reversedAsks.length, statItems.length);
-                          const topPad = totalRows - reversedAsks.length;
+                          const topPad  = totalRows - reversedAsks.length;
+                          const statPad = totalRows - statItems.length;
                           return Array.from({ length: totalRows }).map((_, i) => {
-                          const row  = i < topPad ? null : reversedAsks[i - topPad];
-                          const stat = statItems[i];
+                          const row  = i < topPad  ? null : reversedAsks[i - topPad];
+                          const stat = i < statPad ? null : statItems[i - statPad];
                           const dp = row && maxAskAmount > 0 ? (row.amount / maxAskAmount) * 100 : 0;
                           const cp = row && basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0;
                           return (
