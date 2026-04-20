@@ -92,6 +92,7 @@ public class Order extends BaseEntity {
 
     public void removeOrder() {
         this.orderStatus = OrderStatus.CANCELLED;
+        this.retryCount = 0;
         this.failedMatchResultJson = null;
     }
 
@@ -105,6 +106,7 @@ public class Order extends BaseEntity {
         this.filledQuantity = filledQuantity;
         this.remainingQuantity = remainingQuantity;
         this.orderStatus = status;
+        this.retryCount = 0;
         this.failedMatchResultJson = null;
     }
 
