@@ -385,7 +385,7 @@ public class OrderServiceImpl implements OrderService {
 
             // 상대방 주문 상태 DB 업데이트
             long newFilledQty = counterOrder.getFilledQuantity() + execution.getTradeQuantity();
-            long newRemainingQty = counterOrder.getRemainingQuantity() - execution.getTradeQuantity();
+            long newRemainingQty = Math.max(0L, counterOrder.getRemainingQuantity() - execution.getTradeQuantity());
             OrderStatus counterStatus = newRemainingQty == 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL;
             counterOrder.applyMatchResult(newFilledQty, newRemainingQty, counterStatus);
 
