@@ -12,11 +12,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface TradeRepository extends JpaRepository<Trade, Long> {
-    @Query("SELECT t FROM Trade t WHERE t.token.tokenId = :tokenId ORDER BY t.createdAt DESC LIMIT 50")
-    List<Trade> findTradeList(Long tokenId);
+    @Query("SELECT t FROM Trade t WHERE t.token.tokenId = :tokenId AND t.executedAt >= :since ORDER BY t.executedAt DESC")
+    List<Trade> findTradeList(@Param("tokenId") Long tokenId, @Param("since") LocalDateTime since);
 
-    @Query("SELECT COALESCE(SUM(t.tradeQuantity), 0) FROM Trade t WHERE t.token.tokenId = :tokenId AND t.createdAt >= CURRENT_DATE AND t.createdAt < CURRENT_DATE + 1 DAY")
-    Long sumDailyVolume(Long tokenId);
+    @Query("SELECT COALESCE(SUM(t.tradeQuantity), 0) FROM Trade t WHERE t.token.tokenId = :tokenId AND t.executedAt >= :since")
+    Long sumDailyVolume(@Param("tokenId") Long tokenId, @Param("since") LocalDateTime since);
 
     @Query("SELECT t.token.tokenId, SUM(t.totalTradePrice), SUM(t.tradeQuantity) FROM Trade t WHERE t.token.tokenId IN :tokenIds GROUP BY t.token.tokenId")
     List<Object[]> findAggregatesByTokenIds(@Param("tokenIds") List<Long> tokenIds);

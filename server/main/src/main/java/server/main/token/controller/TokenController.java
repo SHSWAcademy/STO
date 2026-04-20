@@ -12,6 +12,7 @@ import server.main.token.dto.*;
 import server.main.token.service.TokenService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -29,6 +30,14 @@ public class TokenController {
                                                                 @RequestParam(defaultValue = "DAY") PeriodType periodType) {    // 기간 타입 : 기본값 '1일'
         List<TokenMainResponseDto> dtos = tokenService.getTokenAssetsWith10Paging(page, selectType, periodType);
         return ResponseEntity.ok(dtos);
+    }
+
+    // 스파크라인 전용 조회 (기간 전환 시 토큰 목록 유지하고 스파크라인만 갱신)
+    @GetMapping("/sparkline")
+    public ResponseEntity<Map<Long, List<SparkPointDto>>> getSparklines(
+            @RequestParam List<Long> tokenIds,
+            @RequestParam(defaultValue = "DAY") PeriodType periodType) {
+        return ResponseEntity.ok(tokenService.getSparklines(tokenIds, periodType));
     }
 
     // 토큰 (자산) 상세 조회 - '차트, 호가'

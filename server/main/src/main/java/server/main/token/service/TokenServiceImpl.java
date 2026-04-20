@@ -172,10 +172,7 @@ public class TokenServiceImpl implements TokenService{
         // 3. 토큰 별 1일 (1개월, 1년) 시가 조회, Map<tokenId, openPrice> : key 토큰 id, value 시가 (등락률 계산에 필요)
         Map<Long, Long> basePriceMap = getBasePriceMap(tokenIds, periodType);
 
-        // 4. 스파크라인 조회 - 토큰 id 별 최근 7일 (월, 년) 종가 : Map<tokenId, List<closePrice>> (스파크 라인에 필요)
-        Map<Long, List<SparkPointDto>> sparklineMap = getSparklineMap(tokenIds, periodType);
-
-        // 5. 토큰 id 별 이때 동안의 전체 거래 대금, 전체 거래량 조회
+        // 4. 토큰 id 별 이때 동안의 전체 거래 대금, 전체 거래량 조회
         Map<Long, long[]> tradeAggMap = tradeRepository.findAggregatesByTokenIds(tokenIds)
                 .stream()
                 .collect(Collectors.toMap(
@@ -203,7 +200,7 @@ public class TokenServiceImpl implements TokenService{
                     .fluctuationRate(Math.round(fluctuationRate * 100.0) / 100.0)
                     .totalTradeValue(agg[0])
                     .totalTradeQuantity(agg[1])
-                    .sparkLine(sparklineMap.getOrDefault(tokenId, List.of()))
+                    .sparkLine(List.of())
                     .tokenSymbol(t.getTokenSymbol())
                     .imgUrl(t.getAsset().getImgUrl())
                     .build();
@@ -212,19 +209,26 @@ public class TokenServiceImpl implements TokenService{
 
     // 토큰 id, 해당 캔들의 최근 7일 (월, 년) 종가 리스트 - 스파크 라인 전용
     private Map<Long, List<SparkPointDto>> getSparklineMap(List<Long> tokenIds, PeriodType periodType) {
-        LocalDateTime since = switch (periodType) {
-            case DAY   -> LocalDateTime.now().minusDays(7);   // 최근 7일치 조회를 위한 시작일
-            case MONTH -> LocalDateTime.now().minusMonths(7); // 최근 7달치 조회를 위한 시작 달
-            case YEAR  -> LocalDateTime.now().minusYears(7);  // 최근 7년치 조회를 위한 시작 년도
+        LocalDateTime now = LocalDateTime.now();
+
+        // 당일(당월/당해) 제외: before = 현재 기간의 시작 시각
+        LocalDateTime before = switch (periodType) {
+            case DAY   -> getDayBucket(now);
+            case MONTH -> now.toLocalDate().withDayOfMonth(1).atStartOfDay();
+            case YEAR  -> now.toLocalDate().withDayOfYear(1).atStartOfDay();
         };
 
-        // day 일 경우   : 각 토큰 자산들의 최근 7일치 candles 데이터 리스트로 조회, candleDay 리스트 리턴
-        // month 일 경우 : 각 토큰 자산들의 최근 7개월치 candles 데이터 리스트로 조회, candleMonth 리스트 리턴
-        // year 일 경우  : 각 토큰 자산들의 최근 7년치 candles 데이터 리스트로 조회, candleYear 리스트 리턴
+        // before 기준으로 7개 이전 기간
+        LocalDateTime since = switch (periodType) {
+            case DAY   -> before.minusDays(7);
+            case MONTH -> before.minusMonths(7);
+            case YEAR  -> before.minusYears(7);
+        };
+
         List<? extends Candle> candles = switch (periodType) {
-            case DAY   -> candleDayRepository.findRecentByTokenIds(tokenIds, since);
-            case MONTH -> candleMonthRepository.findRecentByTokenIds(tokenIds, since);
-            case YEAR  -> candleYearRepository.findRecentByTokenIds(tokenIds, since);
+            case DAY   -> candleDayRepository.findRecentByTokenIds(tokenIds, since, before);
+            case MONTH -> candleMonthRepository.findRecentByTokenIds(tokenIds, since, before);
+            case YEAR  -> candleYearRepository.findRecentByTokenIds(tokenIds, since, before);
         };
 
         // 캔들 리스트 -> Map<Long, List<Long>> 리턴 (토큰 자산 id, 캔들 종가 리스트)
@@ -244,41 +248,15 @@ public class TokenServiceImpl implements TokenService{
     }
 
 
-    // 토큰 id 별로 파라미터로 받은 기간의 (일, 월, 년) 시작가 조회 (key : tokenId, value : 시가) - 등락률 계산 전용
+    // 등락률 기준가 — 기간과 무관하게 항상 전일 종가(09:00 버킷 이전 마지막 일봉)
     private Map<Long, Long> getBasePriceMap(List<Long> tokenIds, PeriodType periodType) {
-        LocalDateTime now = LocalDateTime.now();
-        return switch (periodType) {
-            case DAY -> {
-                LocalDateTime startOfDay = now.toLocalDate().atStartOfDay();
-                LocalDateTime endOfDay   = startOfDay.plusDays(1);
-                yield candleDayRepository.findTodayByTokenIds(tokenIds, startOfDay, endOfDay)
-                        .stream().collect(Collectors.toMap(
-                                c -> c.getToken().getTokenId(),
-                                c -> c.getOpenPrice(),
-                                (a, b) -> a
-                        ));
-            }
-            case MONTH -> {
-                LocalDateTime startOfMonth = now.toLocalDate().withDayOfMonth(1).atStartOfDay();
-                LocalDateTime endOfMonth   = startOfMonth.plusMonths(1);
-                yield candleMonthRepository.findThisMonthByTokenIds(tokenIds, startOfMonth, endOfMonth)
-                        .stream().collect(Collectors.toMap(
-                                c -> c.getToken().getTokenId(),
-                                c -> c.getOpenPrice(),
-                                (a, b) -> a
-                        ));
-            }
-            case YEAR -> {
-                LocalDateTime startOfYear = now.toLocalDate().withDayOfYear(1).atStartOfDay();
-                LocalDateTime endOfYear   = startOfYear.plusYears(1);
-                yield candleYearRepository.findThisYearByTokenIds(tokenIds, startOfYear, endOfYear)
-                        .stream().collect(Collectors.toMap(
-                                c -> c.getToken().getTokenId(),
-                                c -> c.getOpenPrice(),
-                                (a, b) -> a
-                        ));
-            }
-        };
+        LocalDateTime startOfToday = getDayBucket(LocalDateTime.now());
+        return candleDayRepository.findLatestBeforeByTokenIds(tokenIds, startOfToday)
+                .stream().collect(Collectors.toMap(
+                        c -> c.getToken().getTokenId(),
+                        c -> c.getClosePrice(),
+                        (a, b) -> a
+                ));
     }
 
 
@@ -286,6 +264,12 @@ public class TokenServiceImpl implements TokenService{
         return now.getHour() >= 9
                 ? now.toLocalDate().atTime(9, 0)
                 : now.toLocalDate().minusDays(1).atTime(9, 0);
+    }
+
+    @Override
+    public Map<Long, List<SparkPointDto>> getSparklines(List<Long> tokenIds, PeriodType periodType) {
+        if (tokenIds == null || tokenIds.isEmpty()) return Map.of();
+        return getSparklineMap(tokenIds, periodType);
     }
 
     @Override
