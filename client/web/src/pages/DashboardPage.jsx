@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
@@ -32,20 +32,6 @@ function recalculateFluctuationRate(currentPrice, basePrice) {
   return Math.round((((currentPrice - basePrice) / basePrice) * 100) * 100) / 100;
 }
 
-function updateSparkLine(prevSparkLine, candle) {
-  if (candle?.closePrice == null) return prevSparkLine ?? [];
-
-  const nextLine = Array.isArray(prevSparkLine) ? [...prevSparkLine] : [];
-  if (nextLine.length === 0) {
-    return [{ value: candle.closePrice, date: '' }];
-  }
-
-  nextLine[nextLine.length - 1] = {
-    ...nextLine[nextLine.length - 1],
-    value: candle.closePrice,
-  };
-  return nextLine.slice(-7);
-}
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -58,25 +44,24 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [hasNext, setHasNext] = useState(false);
   const [previewTokenId, setPreviewTokenId] = useState(null);
+  const [priceFlash, setPriceFlash] = useState({});
+  const flashTimersRef = useRef({});
+  const [sparklines, setSparklines] = useState({});
 
   const periodType = PERIOD_TYPE_MAP[timeRange];
   const tokenIds = useMemo(() => tokens.map((token) => token.tokenId), [tokens]);
 
   useEffect(() => {
     setPage(0);
-  }, [chartFilter, timeRange]);
+  }, [chartFilter]);
 
+  // 토큰 목록: 기간과 무관하게 selectType/page 변경 시만 재조회
   useEffect(() => {
     const selectType = SELECT_TYPE_MAP[chartFilter];
-
     setLoading(true);
-
     const headers = {};
-    if (user?.accessToken) {
-      headers.Authorization = `Bearer ${user.accessToken}`;
-    }
-
-    fetch(`${API}/api/token?page=${page}&selectType=${selectType}&periodType=${periodType}`, { headers })
+    if (user?.accessToken) headers.Authorization = `Bearer ${user.accessToken}`;
+    fetch(`${API}/api/token?page=${page}&selectType=${selectType}`, { headers })
       .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
       .then((data) => {
         const nextTokens = Array.isArray(data) ? data : [];
@@ -90,7 +75,18 @@ export function DashboardPage() {
       })
       .catch((error) => console.warn("[Dashboard] token list fetch failed:", error))
       .finally(() => setLoading(false));
-  }, [page, chartFilter, periodType, user]);
+  }, [page, chartFilter, user]);
+
+  // 스파크라인: 토큰 목록 또는 기간 변경 시 별도 조회
+  useEffect(() => {
+    if (tokenIds.length === 0) return;
+    const headers = {};
+    if (user?.accessToken) headers.Authorization = `Bearer ${user.accessToken}`;
+    fetch(`${API}/api/token/sparkline?periodType=${periodType}&tokenIds=${tokenIds.join(",")}`, { headers })
+      .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
+      .then((data) => setSparklines(data ?? {}))
+      .catch((error) => console.warn("[Dashboard] sparkline fetch failed:", error));
+  }, [tokenIds, periodType, user]);
 
   useDashboardSocket({
     tokenIds,
@@ -114,19 +110,14 @@ export function DashboardPage() {
           };
         }),
       );
-    },
-    onCandle: ({ tokenId, candle }) => {
-      setTokens((prev) =>
-        prev.map((token) => {
-          if (token.tokenId !== tokenId) return token;
 
-          return {
-            ...token,
-            sparkLine: updateSparkLine(token.sparkLine, candle),
-          };
-        }),
-      );
+      clearTimeout(flashTimersRef.current[tokenId]);
+      setPriceFlash((prev) => ({ ...prev, [tokenId]: trade.isBuy ? 'red' : 'blue' }));
+      flashTimersRef.current[tokenId] = setTimeout(() => {
+        setPriceFlash((prev) => ({ ...prev, [tokenId]: null }));
+      }, 500);
     },
+    onCandle: () => {},
   });
 
   const previewToken = useMemo(
@@ -134,7 +125,9 @@ export function DashboardPage() {
     [tokens, previewTokenId],
   );
 
-  const sparklineData = previewToken?.sparkLine?.map((p) => ({ value: p.value, date: p.date })) ?? [];
+  const sparklineData = previewTokenId != null
+    ? (sparklines[previewTokenId] ?? []).map((p) => ({ value: p.value, date: p.date }))
+    : [];
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
@@ -145,7 +138,6 @@ export function DashboardPage() {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-stone-200 pb-4">
               <TabSwitcher items={SORT_ITEMS} active={chartFilter} onChange={setChartFilter} />
-              <TabSwitcher items={RANGE_ITEMS} active={timeRange} onChange={setTimeRange} />
             </div>
 
             <table className="w-full text-sm">
@@ -153,9 +145,12 @@ export function DashboardPage() {
                 <tr className="border-b border-stone-200 text-[11px] font-medium uppercase tracking-wide text-stone-400">
                   <th className="py-4 text-left font-medium">종목</th>
                   <th className="py-4 text-right font-medium">현재가</th>
-                  <th className="py-4 text-right font-medium">등락률</th>
-                  <th className="py-4 text-right font-medium">거래대금</th>
-                  <th className="py-4 text-right font-medium">거래량</th>
+                  <th className="py-4 text-right font-medium">
+                    <span className="block">등락률</span>
+                    <span className="block text-[9px] font-bold normal-case tracking-normal text-stone-700">(전날 종가 대비 현재 가격)</span>
+                  </th>
+                  <th className="py-4 text-right font-medium">총 거래대금</th>
+                  <th className="py-4 text-right font-medium">총 거래량</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-200">
@@ -238,7 +233,11 @@ export function DashboardPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 text-right font-mono font-bold text-stone-800">
+                      <td className={cn(
+                        "py-4 text-right font-mono font-bold text-stone-800",
+                        priceFlash[token.tokenId] === 'red' && 'hoga-flash-red',
+                        priceFlash[token.tokenId] === 'blue' && 'hoga-flash-blue',
+                      )}>
                         {(token.currentPrice ?? 0).toLocaleString()}원
                       </td>
                       <td
@@ -295,8 +294,11 @@ export function DashboardPage() {
                     variant="light"
                     className="shrink-0"
                   />
-                  <div className="min-w-0">
-                    <h3 className="truncate text-xl font-black text-stone-800">{previewToken.assetName}</h3>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="truncate text-xl font-black text-stone-800">{previewToken.assetName}</h3>
+                      <TabSwitcher items={RANGE_ITEMS} active={timeRange} onChange={setTimeRange} />
+                    </div>
                     <p className="mt-1 font-mono text-xs font-bold text-stone-400">
                       {previewToken.tokenSymbol || "-"}
                     </p>
@@ -314,13 +316,23 @@ export function DashboardPage() {
                         {previewToken.fluctuationRate ?? 0}%
                       </span>
                     </p>
+                    <p className="mt-0.5 text-[9px] font-bold text-stone-400">(전날 종가 대비)</p>
                   </div>
                 </div>
 
                 <div className="mb-8 h-64">
-                  <p className="mb-4 text-[10px] font-black uppercase tracking-widest text-stone-400">
-                    {timeRange} 차트
-                  </p>
+                  <div className="mb-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">
+                        {timeRange === '1일' ? '1일 차트 (최근 7일 종가)' : timeRange === '1개월' ? '1개월 차트 (최근 7개월 종가)' : '1년 차트 (최근 7년 종가)'}
+                      </p>
+                      <p className="mt-0.5 text-[9px] font-bold text-stone-700">
+                        {timeRange === '1일'
+                          ? 'x축 : 최근 7일 (당일 제외, 어제까지) · y축 : 종가'
+                          : timeRange === '1개월'
+                          ? 'x축 : 최근 7개월 (당월 제외, 전월까지) · y축 : 종가'
+                          : 'x축 : 최근 7년 (당해 제외, 전년까지) · y축 : 종가'}
+                      </p>
+                  </div>
                   {sparklineData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                       <LineChart data={sparklineData}>
