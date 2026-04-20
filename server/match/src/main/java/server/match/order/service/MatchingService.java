@@ -54,7 +54,20 @@ public class MatchingService {
                 long incomingRemaining = incomingOrder.getRemainingQuantity();
                 long counterRemaining = counterOrder.getRemainingQuantity();
                 if (incomingRemaining <= 0 || counterRemaining <= 0) {
-                    throw new IllegalStateException("Order book contains non-positive remaining quantity");
+                    throw new IllegalStateException(
+                            "Order book contains non-positive remaining quantity: tokenId="
+                                    + incomingOrder.getTokenId()
+                                    + ", incomingOrderId="
+                                    + incomingOrder.getOrderId()
+                                    + ", counterOrderId="
+                                    + counterOrder.getOrderId()
+                                    + ", price="
+                                    + bestPrice
+                                    + ", incomingRemaining="
+                                    + incomingRemaining
+                                    + ", counterRemaining="
+                                    + counterRemaining
+                    );
                 }
 
                 long tradeQuantity = Math.min(incomingRemaining, counterRemaining);
