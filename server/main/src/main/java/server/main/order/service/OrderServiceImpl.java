@@ -380,6 +380,7 @@ public class OrderServiceImpl implements OrderService {
 
             if (sellerHolding == null)
                 throw new BusinessException(ENTITY_NOT_FOUNT_ERROR);
+
             sellerHolding.settleSellTrade(execution.getTradeQuantity());
             blockchainOutboxService.saveTradeOutbox(trade, findToken);
 
