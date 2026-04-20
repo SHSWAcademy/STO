@@ -726,7 +726,9 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findWithLockById(orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-        if (order.getOrderStatus() != OrderStatus.FAILED || order.getRemainingQuantity() <= 0) {
+        boolean compensableStatus = order.getOrderStatus() == OrderStatus.PENDING
+                || order.getOrderStatus() == OrderStatus.FAILED;
+        if (!compensableStatus || order.getRemainingQuantity() <= 0) {
             log.warn(
                     "Skipping automatic compensation because order state changed before cancellation. orderId={}, orderStatus={}, remainingQuantity={}",
                     orderId,
