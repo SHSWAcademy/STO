@@ -991,6 +991,13 @@ export function TokenDetailPage() {
                                 </button>
                               );
                             })}
+                            {/* 매도 호가가 통계 항목(6개)보다 적을 때 빈 행으로 채워 우측 통계열과 높이 맞춤 */}
+                            {Array.from({ length: Math.max(statItems.length - reversedAsks.length, 0) }).map((_, i) => (
+                              <div key={`ask-pad-${i}`} className="grid grid-cols-[146px_108px] h-9 border-b border-stone-100">
+                                <div className="border-r border-stone-100" />
+                                <div />
+                              </div>
+                            ))}
                           </div>
 
                           <div className="flex flex-col justify-end border-l border-stone-100">
