@@ -24,6 +24,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import server.main.admin.entity.Common;
 import server.main.admin.entity.PlatformAccount;
 import server.main.admin.repository.CommonRepository;
@@ -76,6 +78,7 @@ class OrderServiceImplTest {
     @Mock OrderDuplicatedRepository orderDuplicatedRepository;
     @Mock TradeDuplicatedRepository tradeDuplicatedRepository;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock ObjectMapper objectMapper;
     @Mock PasswordEncoder passwordEncoder;
     @Mock CommonRepository commonRepository;
     @Mock PlatformAccountRepository platformAccountRepository;
@@ -91,7 +94,7 @@ class OrderServiceImplTest {
     private final Long TOKEN_ID = 10L;
 
     @BeforeEach
-    void setSecurityContext() {
+    void setSecurityContext() throws Exception {
         CustomUserPrincipal principal = new CustomUserPrincipal(MEMBER_ID, "test-user", "MEMBER", "ROLE_USER");
         Authentication authentication = mock(Authentication.class);
         SecurityContext securityContext = mock(SecurityContext.class);
@@ -105,6 +108,10 @@ class OrderServiceImplTest {
         lenient().when(passwordEncoder.matches(any(CharSequence.class), nullable(String.class))).thenReturn(true);
         lenient().when(platformAccountRepository.findWithLock()).thenReturn(Optional.of(platformAccount));
         lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+        lenient().when(objectMapper.readValue(anyString(), eq(MatchResultDto.class)))
+                .thenAnswer(invocation -> new ObjectMapper().readValue((String) invocation.getArgument(0), MatchResultDto.class));
+        lenient().when(objectMapper.writeValueAsString(any(MatchResultDto.class)))
+                .thenAnswer(invocation -> new ObjectMapper().writeValueAsString(invocation.getArgument(0)));
     }
 
 
@@ -938,6 +945,76 @@ class OrderServiceImplTest {
     }
 
     @Test
+    void processMatchResult_mismatchedOrderId_throwsBusinessException() {
+        Long orderId = 1L;
+
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
+
+        Order findOrder = Order.builder()
+                .orderId(orderId)
+                .orderPrice(12000L)
+                .orderQuantity(5L)
+                .filledQuantity(0L)
+                .remainingQuantity(5L)
+                .orderType(OrderType.BUY)
+                .orderStatus(OrderStatus.PENDING)
+                .token(token)
+                .member(member)
+                .build();
+
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(findOrder));
+        when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+
+        MatchResultDto matchResult = MatchResultDto.builder()
+                .orderId(999L)
+                .tokenId(TOKEN_ID)
+                .filledQuantity(0L)
+                .remainingQuantity(5L)
+                .executions(List.of())
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> orderService.processMatchResult(orderId, TOKEN_ID, matchResult));
+        assertThat(ex.getErrorCode()).isEqualTo(INVALID_INPUT_VALUE);
+    }
+
+    @Test
+    void processMatchResult_mismatchedTokenId_throwsBusinessException() {
+        Long orderId = 1L;
+
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
+
+        Order findOrder = Order.builder()
+                .orderId(orderId)
+                .orderPrice(12000L)
+                .orderQuantity(5L)
+                .filledQuantity(0L)
+                .remainingQuantity(5L)
+                .orderType(OrderType.BUY)
+                .orderStatus(OrderStatus.PENDING)
+                .token(token)
+                .member(member)
+                .build();
+
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(findOrder));
+        when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+
+        MatchResultDto matchResult = MatchResultDto.builder()
+                .orderId(orderId)
+                .tokenId(999L)
+                .filledQuantity(0L)
+                .remainingQuantity(5L)
+                .executions(List.of())
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> orderService.processMatchResult(orderId, TOKEN_ID, matchResult));
+        assertThat(ex.getErrorCode()).isEqualTo(INVALID_INPUT_VALUE);
+    }
+
+    @Test
     void processMatchResult_executionQuantityCanExceedFinalRemaining() {
         Long orderId = 1L;
         Long counterMemberId = 2L;
@@ -1015,9 +1092,10 @@ class OrderServiceImplTest {
         Long orderId = 1L;
         Member member = mock(Member.class);
         Token token = mock(Token.class);
-
+        String storedMatchResult = """
+                {"orderId":1,"tokenId":10,"filledQuantity":0,"remainingQuantity":3,"executions":[]}
+                """;
         when(token.getTokenId()).thenReturn(TOKEN_ID);
-
         Order order = Order.builder()
                 .orderId(orderId)
                 .orderPrice(100L)
@@ -1026,18 +1104,19 @@ class OrderServiceImplTest {
                 .remainingQuantity(3L)
                 .orderType(OrderType.BUY)
                 .orderStatus(OrderStatus.FAILED)
+                .failedMatchResultJson(storedMatchResult)
                 .token(token)
                 .member(member)
                 .build();
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
         when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(order));
-        when(matchClient.updateOrder(any())).thenThrow(new RuntimeException("boom"));
 
         assertThrows(RuntimeException.class, () -> orderService.retryFailedOrder(orderId));
 
         assertThat(order.getRetryCount()).isEqualTo(1);
         assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.FAILED);
+        verify(matchClient, never()).updateOrder(any());
     }
 
     @Test
@@ -1046,9 +1125,10 @@ class OrderServiceImplTest {
         Member member = mock(Member.class);
         Token token = mock(Token.class);
         Account account = mock(Account.class);
-
+        String storedMatchResult = """
+                {"orderId":1,"tokenId":10,"filledQuantity":0,"remainingQuantity":2,"executions":[]}
+                """;
         when(token.getTokenId()).thenReturn(TOKEN_ID);
-
         Order order = Order.builder()
                 .orderId(orderId)
                 .orderPrice(100L)
@@ -1058,13 +1138,13 @@ class OrderServiceImplTest {
                 .orderType(OrderType.BUY)
                 .orderStatus(OrderStatus.FAILED)
                 .retryCount(2)
+                .failedMatchResultJson(storedMatchResult)
                 .token(token)
                 .member(member)
                 .build();
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
         when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(order));
-        when(matchClient.updateOrder(any())).thenThrow(new RuntimeException("boom"));
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
 
         orderService.retryFailedOrder(orderId);
@@ -1079,7 +1159,9 @@ class OrderServiceImplTest {
         Long orderId = 1L;
         Member member = mock(Member.class);
         Token token = mock(Token.class);
-
+        String storedMatchResult = """
+                {"orderId":1,"tokenId":10,"filledQuantity":0,"remainingQuantity":3,"executions":[]}
+                """;
         when(token.getTokenId()).thenReturn(TOKEN_ID);
 
         Order order = Order.builder()
@@ -1091,6 +1173,7 @@ class OrderServiceImplTest {
                 .orderType(OrderType.BUY)
                 .orderStatus(OrderStatus.FAILED)
                 .retryCount(2)
+                .failedMatchResultJson(storedMatchResult)
                 .token(token)
                 .member(member)
                 .build();
@@ -1099,20 +1182,55 @@ class OrderServiceImplTest {
                 .orderId(orderId)
                 .tokenId(TOKEN_ID)
                 .filledQuantity(0L)
-                .remainingQuantity(2L)
+                .remainingQuantity(3L)
                 .executions(List.of())
                 .build();
 
-        OrderServiceImpl spyService = spy(orderService);
-        doNothing().when(spyService).processMatchResult(orderId, TOKEN_ID, matchResult);
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(order));
+        when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(member.getMemberId()).thenReturn(MEMBER_ID);
+
+        orderService.retryFailedOrder(orderId);
+
+        assertThat(order.getRetryCount()).isEqualTo(0);
+        assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.OPEN);
+        assertThat(order.getRemainingQuantity()).isEqualTo(3L);
+        verify(matchClient, never()).updateOrder(any());
+    }
+
+    @Test
+    void retryFailedOrder_whenCancelFailsStillCompensates() {
+        Long orderId = 1L;
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
+        Account account = mock(Account.class);
+        String storedMatchResult = """
+                {"orderId":1,"tokenId":10,"filledQuantity":0,"remainingQuantity":2,"executions":[]}
+                """;
+        when(token.getTokenId()).thenReturn(TOKEN_ID);
+        Order order = Order.builder()
+                .orderId(orderId)
+                .orderPrice(100L)
+                .orderQuantity(3L)
+                .filledQuantity(0L)
+                .remainingQuantity(2L)
+                .orderType(OrderType.BUY)
+                .orderStatus(OrderStatus.FAILED)
+                .retryCount(2)
+                .failedMatchResultJson(storedMatchResult)
+                .token(token)
+                .member(member)
+                .build();
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
         when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(order));
-        when(matchClient.updateOrder(any())).thenReturn(matchResult);
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
+        doThrow(new org.springframework.web.client.RestClientException("down")).when(matchClient).cancelOrder(orderId, TOKEN_ID);
 
-        spyService.retryFailedOrder(orderId);
+        orderService.retryFailedOrder(orderId);
 
-        assertThat(order.getRetryCount()).isEqualTo(0);
-        verify(spyService).processMatchResult(orderId, TOKEN_ID, matchResult);
+        assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(account).cancelOrder(200L);
     }
 }

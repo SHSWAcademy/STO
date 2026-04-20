@@ -42,7 +42,7 @@ public class OrderFacade {
             orderService.processMatchResult(matchDto.getOrderId(), tokenId, matchResult);
         } catch (RuntimeException e) {
             log.error("Match phase 2 failed. orderId={}", matchDto.getOrderId(), e);
-            orderService.markOrderFailed(matchDto.getOrderId());
+            orderService.markOrderFailed(matchDto.getOrderId(), matchResult);
             throw e;
         }
     }
@@ -63,7 +63,7 @@ public class OrderFacade {
             orderService.processMatchResult(orderId, matchDto.getTokenId(), matchResult);
         } catch (RuntimeException e) {
             log.error("Update order phase 2 failed. orderId={}", orderId, e);
-            orderService.markOrderFailed(orderId);
+            orderService.markOrderFailed(orderId, matchResult);
             throw e;
         }
     }

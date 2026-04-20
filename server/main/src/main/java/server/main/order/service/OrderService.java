@@ -12,7 +12,7 @@ public interface OrderService {
     // Phase 2: 체결 결과 반영 + 이벤트 발행 → 커밋
     void processMatchResult(Long orderId, Long tokenId, MatchResultDto matchResult);
 
-    void markOrderFailed(Long orderId);
+    void markOrderFailed(Long orderId, MatchResultDto matchResult);
 
     void retryFailedOrder(Long orderId);
 

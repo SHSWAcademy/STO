@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -59,6 +60,10 @@ public class Order extends BaseEntity {
     @Builder.Default
     private Integer retryCount = 0;
 
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String failedMatchResultJson;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "token_id")
     private Token token;
@@ -87,17 +92,20 @@ public class Order extends BaseEntity {
 
     public void removeOrder() {
         this.orderStatus = OrderStatus.CANCELLED;
+        this.failedMatchResultJson = null;
     }
 
-    public void markFailed() {
+    public void markFailed(String failedMatchResultJson) {
         this.orderStatus = OrderStatus.FAILED;
         this.retryCount = 0;
+        this.failedMatchResultJson = failedMatchResultJson;
     }
 
     public void applyMatchResult(Long filledQuantity, Long remainingQuantity, OrderStatus status) {
         this.filledQuantity = filledQuantity;
         this.remainingQuantity = remainingQuantity;
         this.orderStatus = status;
+        this.failedMatchResultJson = null;
     }
 
     public void increaseRetryCount() {

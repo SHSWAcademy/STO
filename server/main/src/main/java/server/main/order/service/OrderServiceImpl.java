@@ -118,11 +118,18 @@ public class OrderServiceImpl implements OrderService {
     private final PlatformTransactionManager transactionManager;
 
     // Validate a match result before applying it to the main database.
-    private void validateMatchResult(Order findOrder, MatchResultDto matchResult) {
+    private void validateMatchResult(Order findOrder, Long tokenId, MatchResultDto matchResult) {
         if (matchResult == null
+                || matchResult.getOrderId() == null
+                || matchResult.getTokenId() == null
                 || matchResult.getFilledQuantity() == null
                 || matchResult.getRemainingQuantity() == null
                 || matchResult.getExecutions() == null) {
+            throw new BusinessException(INVALID_INPUT_VALUE);
+        }
+
+        if (!findOrder.getOrderId().equals(matchResult.getOrderId())
+                || !tokenId.equals(matchResult.getTokenId())) {
             throw new BusinessException(INVALID_INPUT_VALUE);
         }
 
@@ -201,7 +208,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    private record RetryOrderSnapshot(Long tokenId, UpdateMatchOrderRequestDto retryDto) {
+    private record RetryOrderSnapshot(Long tokenId, MatchResultDto matchResult) {
     }
 
     @Transactional
@@ -290,7 +297,7 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
         Member findMember = findOrder.getMember();
         Long memberId = findMember.getMemberId();
-        validateMatchResult(findOrder, matchResult);
+        validateMatchResult(findOrder, tokenId, matchResult);
 
         long newTotalFilled = findOrder.getFilledQuantity() + matchResult.getFilledQuantity();
 
@@ -585,10 +592,14 @@ public class OrderServiceImpl implements OrderService {
 
     @Transactional
     @Override
-    public void markOrderFailed(Long orderId) {
+    public void markOrderFailed(Long orderId, MatchResultDto matchResult) {
         Order order = orderRepository.findWithLockById(orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-        order.markFailed();
+        try {
+            order.markFailed(objectMapper.writeValueAsString(matchResult));
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize match result for retry.", e);
+        }
     }
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -602,14 +613,19 @@ public class OrderServiceImpl implements OrderService {
                 return null;
             }
 
-            Long tokenId = order.getToken().getTokenId();
-            UpdateMatchOrderRequestDto retryDto = UpdateMatchOrderRequestDto.builder()
-                    .orderId(order.getOrderId())
-                    .tokenId(tokenId)
-                    .updatePrice(order.getOrderPrice())
-                    .updateQuantity(order.getRemainingQuantity())
-                    .build();
-            return new RetryOrderSnapshot(tokenId, retryDto);
+            if (order.getFailedMatchResultJson() == null || order.getFailedMatchResultJson().isBlank()) {
+                throw new IllegalStateException("Missing stored match result for failed order retry.");
+            }
+
+            try {
+                MatchResultDto storedMatchResult = objectMapper.readValue(
+                        order.getFailedMatchResultJson(),
+                        MatchResultDto.class
+                );
+                return new RetryOrderSnapshot(order.getToken().getTokenId(), storedMatchResult);
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to deserialize stored match result.", e);
+            }
         });
 
         if (snapshot == null) {
@@ -617,7 +633,6 @@ public class OrderServiceImpl implements OrderService {
         }
 
         try {
-            MatchResultDto matchResult = matchClient.updateOrder(snapshot.retryDto());
             createLockRetryTemplate().execute(context -> {
                 executeInTransaction(() -> {
                     Order lockedOrder = orderRepository.findWithLockById(orderId)
@@ -627,7 +642,7 @@ public class OrderServiceImpl implements OrderService {
                         return;
                     }
 
-                    processMatchResult(lockedOrder.getOrderId(), snapshot.tokenId(), matchResult);
+                    processMatchResult(lockedOrder.getOrderId(), snapshot.tokenId(), snapshot.matchResult());
                     lockedOrder.resetRetryCount();
                 });
                 return null;
@@ -652,6 +667,8 @@ public class OrderServiceImpl implements OrderService {
                 matchClient.cancelOrder(orderId, snapshot.tokenId());
             } catch (org.springframework.web.client.HttpClientErrorException.NotFound notFound) {
                 log.warn("Retry cancel target was not found on match service. orderId={}", orderId, notFound);
+            } catch (org.springframework.web.client.RestClientException cancelException) {
+                log.error("Failed to cancel order on match service after retry limit. orderId={}", orderId, cancelException);
             }
 
             executeInRequiresNewTransaction(() -> {
