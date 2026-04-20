@@ -1,4 +1,4 @@
-package server.main.myaccount.controller;
+package server.main.myAccount.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

@@ -19,7 +19,11 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -110,8 +114,9 @@ public class OrderServiceImpl implements OrderService {
     private final BankingRepository bankingRepository;
     private final PlatformBankingRepository platformBankingRepository;
     private final MatchClient matchClient;
+    private final PlatformTransactionManager transactionManager;
 
-    // createOrder Phase 1: 검증 + 잔고 차감 + 주문 저장
+    // createOrder Phase 1: 寃利?+ ?붽퀬 李④컧 + 二쇰Ц ???
     private void validateMatchResult(Order findOrder, MatchResultDto matchResult) {
         if (matchResult == null
                 || matchResult.getFilledQuantity() == null
@@ -124,8 +129,9 @@ public class OrderServiceImpl implements OrderService {
         long remainingQuantity = matchResult.getRemainingQuantity();
         long currentFilled = findOrder.getFilledQuantity();
         long orderQuantity = findOrder.getOrderQuantity();
+        long availableQuantity = orderQuantity - currentFilled;
 
-        if (filledQuantity < 0 || remainingQuantity < 0) {
+        if (filledQuantity < 0 || remainingQuantity < 0 || availableQuantity < 0) {
             throw new BusinessException(INVALID_INPUT_VALUE);
         }
 
@@ -133,9 +139,11 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(INVALID_INPUT_VALUE);
         }
 
-        long executionTotal = matchResult.getExecutions().stream()
-                .mapToLong(TradeExecutionDto::getTradeQuantity)
-                .sum();
+        long executionTotal = 0L;
+        for (TradeExecutionDto execution : matchResult.getExecutions()) {
+            validateExecution(execution, availableQuantity);
+            executionTotal += execution.getTradeQuantity();
+        }
 
         if (executionTotal != filledQuantity) {
             throw new BusinessException(INVALID_INPUT_VALUE);
@@ -146,7 +154,7 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private void validateExecution(Order findOrder, TradeExecutionDto execution) {
+    private void validateExecution(TradeExecutionDto execution, long availableQuantity) {
         if (execution == null
                 || execution.getCounterMemberId() == null
                 || execution.getCounterOrderId() == null
@@ -159,9 +167,19 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException(INVALID_INPUT_VALUE);
         }
 
-        if (execution.getTradeQuantity() > findOrder.getRemainingQuantity()) {
+        if (execution.getTradeQuantity() > availableQuantity) {
             throw new BusinessException(INVALID_INPUT_VALUE);
         }
+    }
+
+    private void executeInTransaction(Runnable action) {
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> action.run());
+    }
+
+    private void executeInRequiresNewTransaction(Runnable action) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        template.executeWithoutResult(status -> action.run());
     }
 
     @Transactional
@@ -175,10 +193,10 @@ public class OrderServiceImpl implements OrderService {
         Token findToken = tokenRepository.findById(tokenId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-        // 호가 단위 검증
+        // ?멸? ?⑥쐞 寃利?
         TickSizePolicy.validate(dto.getOrderPrice());
 
-        // 매수일 경우
+        // 留ㅼ닔??寃쎌슦
         if (OrderType.BUY.equals(dto.getOrderType())) {
 
             Account findMemberAccount = accountRepository.findWithLockByMember(findMember)
@@ -197,7 +215,7 @@ public class OrderServiceImpl implements OrderService {
                 findMemberAccount.lockBalance(totalLockAmount);
         }
 
-        // 매도일 경우
+        // 留ㅻ룄??寃쎌슦
         if (OrderType.SELL.equals(dto.getOrderType())) {
             Account findMemberAccount = accountRepository.findWithLockByMember(findMember)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
@@ -213,7 +231,7 @@ public class OrderServiceImpl implements OrderService {
             findMemberHolding.lockQuantity(dto.getOrderQuantity());
         }
 
-        // 주문 생성
+        // 二쇰Ц ?앹꽦
         Order createOrder = Order.builder()
                 .orderPrice(dto.getOrderPrice())
                 .orderQuantity(dto.getOrderQuantity())
@@ -228,8 +246,8 @@ public class OrderServiceImpl implements OrderService {
 
         orderRepository.save(createOrder);
 
-        // 로그 저장
-        String detail = String.format("토큰=%s 가격=%d 수량=%d",
+        // 濡쒓렇 ???
+        String detail = String.format("?좏겙=%s 媛寃?%d ?섎웾=%d",
                 findToken.getTokenName(), dto.getOrderPrice(), dto.getOrderQuantity());
         orderLogService.save(findMember.getMemberName(), String.valueOf(dto.getOrderType()), detail, true);
 
@@ -243,7 +261,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    // createOrder / updateOrder Phase 2: 체결 결과 반영
+    // createOrder / updateOrder Phase 2: 泥닿껐 寃곌낵 諛섏쁺
     @Retryable(retryFor = CannotAcquireLockException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional
     @Override
@@ -256,7 +274,7 @@ public class OrderServiceImpl implements OrderService {
         Long memberId = findMember.getMemberId();
         validateMatchResult(findOrder, matchResult);
 
-        // ORDERS 테이블 업데이트 — match 서버는 누적 체결을 모르므로 main 에서 상태 재계산
+        // ORDERS ?뚯씠釉??낅뜲?댄듃 ??match ?쒕쾭???꾩쟻 泥닿껐??紐⑤Ⅴ誘濡?main ?먯꽌 ?곹깭 ?ш퀎??
         long newTotalFilled = findOrder.getFilledQuantity() + matchResult.getFilledQuantity();
 
         OrderStatus finalStatus;
@@ -273,7 +291,7 @@ public class OrderServiceImpl implements OrderService {
 
         boolean isBuy = OrderType.BUY.equals(findOrder.getOrderType());
 
-        // findMember Account/Holding — 체결 건이 있을 때만 조회
+        // findMember Account/Holding ??泥닿껐 嫄댁씠 ?덉쓣 ?뚮쭔 議고쉶
         Account findMemberAccount = null;
         MemberTokenHolding findMemberHolding = null;
 
@@ -295,7 +313,6 @@ public class OrderServiceImpl implements OrderService {
         }
 
         for (TradeExecutionDto execution : matchResult.getExecutions()) {
-            validateExecution(findOrder, execution);
             Member counterMember = memberRepository.findById(execution.getCounterMemberId())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             Order counterOrder = orderRepository.findWithLockById(execution.getCounterOrderId())
@@ -308,7 +325,7 @@ public class OrderServiceImpl implements OrderService {
                     .tradePrice(execution.getTradePrice())
                     .tradeQuantity(execution.getTradeQuantity())
                     .totalTradePrice(tradeAmount)
-                    .feeAmount(feeAmount) // 매수자 또는 매도자 각 한쪽 기준 수수료 (플랫폼 총 수수료 = feeAmount × 2)
+                    .feeAmount(feeAmount) // 留ㅼ닔???먮뒗 留ㅻ룄??媛??쒖そ 湲곗? ?섏닔猷?(?뚮옯??珥??섏닔猷?= feeAmount 횞 2)
                     .settlementStatus(SettlementStatus.ON_CHAIN_PENDING)
                     .executedAt(LocalDateTime.now())
                     .token(findToken)
@@ -320,12 +337,12 @@ public class OrderServiceImpl implements OrderService {
 
             tradeRepository.save(trade);
 
-            // 체결가로 토큰 현재가 갱신
+            // 泥닿껐媛濡??좏겙 ?꾩옱媛 媛깆떊
             findToken.updateCurrentPrice(execution.getTradePrice());
 
-            // admin 대시보드 이벤트 (거래 체결 시 대시보드 실시간 업데이트)
+            // admin ??쒕낫???대깽??(嫄곕옒 泥닿껐 ????쒕낫???ㅼ떆媛??낅뜲?댄듃)
             eventPublisher.publishEvent(new AdminDashboardEvent());
-            // admin 대시보드 실시간 업데이트 용 (체결 거래내역 실시간 업데이트) > 범근
+            // admin ??쒕낫???ㅼ떆媛??낅뜲?댄듃 ??(泥닿껐 嫄곕옒?댁뿭 ?ㅼ떆媛??낅뜲?댄듃) > 踰붽렐
             eventPublisher.publishEvent(new TradeExecutedEvent(
                     DashBoardTradeListDTO.builder()
                             .tradeId(trade.getTradeId())
@@ -362,10 +379,10 @@ public class OrderServiceImpl implements OrderService {
             buyerAccount.settleBuyTrade(tradeAmount, totalLockedAmount, feeAmount);
             sellerAccount.settleSellTrade(tradeAmount, feeAmount);
 
-            // platform_accounts 수수료 적립 (매수+매도 수수료 합산)
+            // platform_accounts ?섏닔猷??곷┰ (留ㅼ닔+留ㅻ룄 ?섏닔猷??⑹궛)
             platformAccount.earnFee(feeAmount * 2);
 
-            // platform_banking 이력 저장
+            // platform_banking ?대젰 ???
             platformBankingRepository.save(PlatformBanking.builder()
                     .tokenId(findToken.getTokenId())
                     .tradeId(trade.getTradeId())
@@ -374,7 +391,7 @@ public class OrderServiceImpl implements OrderService {
                     .platformBankingDirection(PlatformDirection.DEPOSIT)
                     .build());
 
-            // 매수자 거래 이력
+            // 留ㅼ닔??嫄곕옒 ?대젰
             bankingRepository.save(MemberBank.builder()
                     .account(buyerAccount)
                     .txType(TxType.TRADE_SETTLEMENT_BUY)
@@ -383,7 +400,7 @@ public class OrderServiceImpl implements OrderService {
                     .balanceSnapshot(buyerAccount.getAvailableBalance())
                     .build());
 
-            // 매도자 거래 이력
+            // 留ㅻ룄??嫄곕옒 ?대젰
             bankingRepository.save(MemberBank.builder()
                     .account(sellerAccount)
                     .txType(TxType.TRADE_SETTLEMENT_SELL)
@@ -392,7 +409,7 @@ public class OrderServiceImpl implements OrderService {
                     .balanceSnapshot(sellerAccount.getAvailableBalance())
                     .build());
 
-            // 매수자 Holding 반영
+            // 留ㅼ닔??Holding 諛섏쁺
             MemberTokenHolding buyerHolding;
             if (isBuy) {
                 buyerHolding = findMemberHolding;
@@ -423,7 +440,7 @@ public class OrderServiceImpl implements OrderService {
                 buyerHolding.settleBuyTrade(execution.getTradeQuantity(), execution.getTradePrice());
             }
 
-            // 매도자 Holding 반영
+            // 留ㅻ룄??Holding 諛섏쁺
             MemberTokenHolding sellerHolding;
             if (isBuy) {
                 sellerHolding = counterHoldingCache.get(execution.getCounterMemberId());
@@ -441,7 +458,7 @@ public class OrderServiceImpl implements OrderService {
             sellerHolding.settleSellTrade(execution.getTradeQuantity());
             blockchainOutboxService.saveTradeOutbox(trade, findToken);
 
-            // 상대방 주문 상태 DB 업데이트
+            // ?곷?諛?二쇰Ц ?곹깭 DB ?낅뜲?댄듃
             long newFilledQty = counterOrder.getFilledQuantity() + execution.getTradeQuantity();
             long newRemainingQty = counterOrder.getRemainingQuantity() - execution.getTradeQuantity();
             if (newFilledQty < 0
@@ -453,7 +470,7 @@ public class OrderServiceImpl implements OrderService {
             OrderStatus counterStatus = newRemainingQty == 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL;
             counterOrder.applyMatchResult(newFilledQty, newRemainingQty, counterStatus);
 
-            // trades_duplicated 저장
+            // trades_duplicated ???
             tradeDuplicatedRepository.save(TradeDuplicated.builder()
                     .tradeId(trade.getTradeId())
                     .sellerId(trade.getSeller().getMemberId())
@@ -470,7 +487,7 @@ public class OrderServiceImpl implements OrderService {
                     .createdAt(LocalDateTime.now())
                     .build());
 
-            // orders_duplicated — 상대방 주문 FILLED 시
+            // orders_duplicated ???곷?諛?二쇰Ц FILLED ??
             if (counterStatus == OrderStatus.FILLED) {
                 orderDuplicatedRepository.save(OrderDuplicated.builder()
                         .orderId(counterOrder.getOrderId())
@@ -490,7 +507,7 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        // orders_duplicated — 내 주문 FILLED 시 (재계산된 상태 기준)
+        // orders_duplicated ????二쇰Ц FILLED ??(?ш퀎?곕맂 ?곹깭 湲곗?)
         if (findOrder.getOrderStatus() == OrderStatus.FILLED) {
             orderDuplicatedRepository.save(OrderDuplicated.builder()
                     .orderId(findOrder.getOrderId())
@@ -509,29 +526,29 @@ public class OrderServiceImpl implements OrderService {
                     .build());
         }
 
-        // 주문 체결 시 발생할 알람 리스트
+        // 二쇰Ц 泥닿껐 ??諛쒖깮???뚮엺 由ъ뒪??
         List<AlarmEvent.AlarmRecord> alarmRecords = new ArrayList<>();
         String tokenName = findToken.getTokenName();
 
-        // 알람 생성 : 주문이 체결되었을 때 알람 생성, FILLED, PARTIAL 구분 // 나와 상대 모두에게 알람 전달
+        // ?뚮엺 ?앹꽦 : 二쇰Ц??泥닿껐?섏뿀?????뚮엺 ?앹꽦, FILLED, PARTIAL 援щ텇 // ?섏? ?곷? 紐⑤몢?먭쾶 ?뚮엺 ?꾨떖
         if ((finalStatus == OrderStatus.FILLED || finalStatus == OrderStatus.PARTIAL)
                 && !matchResult.getExecutions().isEmpty()) {
-            String orderTypeLabel = isBuy ? "매수" : "매도";
+            String orderTypeLabel = isBuy ? "留ㅼ닔" : "留ㅻ룄";
             AlarmType myAlarmType = finalStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED
-                    : AlarmType.ORDER_PARTIAL; // 부분 체결, 전체 체결 판단
+                    : AlarmType.ORDER_PARTIAL; // 遺遺?泥닿껐, ?꾩껜 泥닿껐 ?먮떒
             long totalFilled = matchResult.getExecutions().stream().mapToLong(TradeExecutionDto::getTradeQuantity)
                     .sum();
             long tradePrice = matchResult.getExecutions().get(0).getTradePrice();
-            String myMsg = String.format("[ %s ] %s 주문 %,d원 × %d주 %s",
+            String myMsg = String.format("[ %s ] %s 二쇰Ц %,d??횞 %d二?%s",
                     tokenName, orderTypeLabel, tradePrice, totalFilled,
-                    finalStatus == OrderStatus.FILLED ? "체결 완료" : "부분 체결");
+                    finalStatus == OrderStatus.FILLED ? "泥닿껐 ?꾨즺" : "遺遺?泥닿껐");
 
             alarmRecords.add(new AlarmEvent.AlarmRecord(memberId, myAlarmType, tokenId, myMsg));
         }
 
-        // 상대방 알람 생성
+        // ?곷?諛??뚮엺 ?앹꽦
         Set<Long> notifiedCounters = new HashSet<>();
-        for (TradeExecutionDto execution : matchResult.getExecutions()) { // 매치에서 체결된 내역을 꺼낸다
+        for (TradeExecutionDto execution : matchResult.getExecutions()) { // 留ㅼ튂?먯꽌 泥닿껐???댁뿭??爰쇰궦??
             Long counterMemberId = execution.getCounterMemberId();
             if (notifiedCounters.contains(counterMemberId))
                 continue;
@@ -544,23 +561,23 @@ public class OrderServiceImpl implements OrderService {
             if (counterStatus != OrderStatus.FILLED && counterStatus != OrderStatus.PARTIAL)
                 continue;
 
-            String counterTypeLabel = isBuy ? "매도" : "매수"; // 내가 매수자면 상대방은 매도자, 내가 매도자면 상대방은 매수자.
+            String counterTypeLabel = isBuy ? "留ㅻ룄" : "留ㅼ닔"; // ?닿? 留ㅼ닔?먮㈃ ?곷?諛⑹? 留ㅻ룄?? ?닿? 留ㅻ룄?먮㈃ ?곷?諛⑹? 留ㅼ닔??
             AlarmType counterAlarmType = counterStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED
                     : AlarmType.ORDER_PARTIAL;
-            String counterMsg = String.format("[ %s ] %s 주문 %,d원 × %d주 %s",
+            String counterMsg = String.format("[ %s ] %s 二쇰Ц %,d??횞 %d二?%s",
                     tokenName, counterTypeLabel, execution.getTradePrice(), execution.getTradeQuantity(),
-                    counterStatus == OrderStatus.FILLED ? "체결 완료" : "부분 체결");
+                    counterStatus == OrderStatus.FILLED ? "泥닿껐 ?꾨즺" : "遺遺?泥닿껐");
 
             alarmRecords.add(new AlarmEvent.AlarmRecord(counterMemberId, counterAlarmType, tokenId, counterMsg));
             notifiedCounters.add(counterMemberId);
         }
 
-        // 이벤트 발생
+        // ?대깽??諛쒖깮
         if (!alarmRecords.isEmpty()) {
             eventPublisher.publishEvent(new AlarmEvent(alarmRecords));
         }
 
-        // WebSocket push 이벤트 발행 — 커밋 후 리스너가 실행
+        // WebSocket push ?대깽??諛쒗뻾 ??而ㅻ컠 ??由ъ뒪?덇? ?ㅽ뻾
         List<Long> counterMemberIds = matchResult.getExecutions().stream()
                 .map(TradeExecutionDto::getCounterMemberId)
                 .distinct()
@@ -568,7 +585,7 @@ public class OrderServiceImpl implements OrderService {
         eventPublisher.publishEvent(new OrderWebSocketEvent(tokenId, memberId, counterMemberIds));
     }
 
-    // match 실패 시 보상: 잔고 복구 + 주문 삭제
+    // match ?ㅽ뙣 ??蹂댁긽: ?붽퀬 蹂듦뎄 + 二쇰Ц ??젣
     @Transactional
     @Override
     public void markOrderFailed(Long orderId) {
@@ -577,18 +594,19 @@ public class OrderServiceImpl implements OrderService {
         order.markFailed();
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @Override
     public void retryFailedOrder(Long orderId) {
-        Order order = orderRepository.findWithLockById(orderId)
+        Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
         if (order.getOrderStatus() != OrderStatus.FAILED || order.getRemainingQuantity() <= 0) {
             return;
         }
 
+        Long tokenId = order.getToken().getTokenId();
         MatchOrderRequestDto retryDto = MatchOrderRequestDto.builder()
-                .tokenId(order.getToken().getTokenId())
+                .tokenId(tokenId)
                 .memberId(order.getMember().getMemberId())
                 .orderId(order.getOrderId())
                 .orderPrice(order.getOrderPrice())
@@ -598,19 +616,36 @@ public class OrderServiceImpl implements OrderService {
 
         try {
             MatchResultDto matchResult = matchClient.sendOrder(retryDto);
-            processMatchResult(order.getOrderId(), order.getToken().getTokenId(), matchResult);
-            order.resetRetryCount();
+            executeInTransaction(() -> {
+                Order lockedOrder = orderRepository.findWithLockById(orderId)
+                        .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+                if (lockedOrder.getOrderStatus() != OrderStatus.FAILED || lockedOrder.getRemainingQuantity() <= 0) {
+                    return;
+                }
+
+                processMatchResult(lockedOrder.getOrderId(), tokenId, matchResult);
+                lockedOrder.resetRetryCount();
+            });
         } catch (RuntimeException e) {
-            order.increaseRetryCount();
-            if (order.getRetryCount() >= MAX_FAILED_RETRY) {
-                compensateFailedOrder(order.getOrderId());
-                log.warn("FAILED 주문 자동 재처리 한도 초과로 취소 처리. orderId={}, retryCount={}",
-                        order.getOrderId(), order.getRetryCount());
-            }
+            executeInRequiresNewTransaction(() -> {
+                Order lockedOrder = orderRepository.findWithLockById(orderId)
+                        .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+                if (lockedOrder.getOrderStatus() != OrderStatus.FAILED || lockedOrder.getRemainingQuantity() <= 0) {
+                    return;
+                }
+
+                lockedOrder.increaseRetryCount();
+                if (lockedOrder.getRetryCount() >= MAX_FAILED_RETRY) {
+                    compensateFailedOrder(lockedOrder.getOrderId());
+                    log.warn("Failed order retry limit exceeded. Cancelling order. orderId={}, retryCount={}",
+                            lockedOrder.getOrderId(), lockedOrder.getRetryCount());
+                }
+            });
             throw e;
         }
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @Override
     public void retryFailedOrders() {
         List<Order> failedOrders = orderRepository.findFailedOrdersForRetry();
@@ -618,7 +653,7 @@ public class OrderServiceImpl implements OrderService {
             try {
                 retryFailedOrder(failedOrder.getOrderId());
             } catch (RuntimeException e) {
-                log.error("FAILED 주문 자동 재처리 실패. orderId={}", failedOrder.getOrderId(), e);
+                log.error("Failed order retry failed. orderId={}", failedOrder.getOrderId(), e);
             }
         }
     }
@@ -647,7 +682,7 @@ public class OrderServiceImpl implements OrderService {
         order.removeOrder();
     }
 
-    // updateOrder Phase 1: 검증 + 잔고 재조정 + 주문 수정
+    // updateOrder Phase 1: 寃利?+ ?붽퀬 ?ъ“??+ 二쇰Ц ?섏젙
     @Transactional
     @Override
     public UpdateMatchOrderRequestDto validateAndUpdateOrder(Long orderId, UpdateOrderRequestDto dto) {
@@ -658,7 +693,7 @@ public class OrderServiceImpl implements OrderService {
         Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-        // 호가 단위 검증
+        // ?멸? ?⑥쐞 寃利?
         TickSizePolicy.validate(dto.getUpdatePrice());
 
         OrderStatus status = findOrder.getOrderStatus();
@@ -708,7 +743,7 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        // 수정 전 값 저장 (보상용) — updateOrder 호출 전에 가져와야 함
+        // ?섏젙 ??媛????(蹂댁긽?? ??updateOrder ?몄텧 ?꾩뿉 媛?몄?????
         Long originalPrice = findOrder.getOrderPrice();
         Long originalQuantity = findOrder.getOrderQuantity();
 
@@ -724,7 +759,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    // update match 실패 시 보상: 원래 가격/수량으로 복구
+    // update match ?ㅽ뙣 ??蹂댁긽: ?먮옒 媛寃??섎웾?쇰줈 蹂듦뎄
     @Transactional
     @Override
     public void compensateFailedUpdate(Long orderId, Long originalPrice, Long originalQuantity) {
@@ -755,7 +790,7 @@ public class OrderServiceImpl implements OrderService {
         order.restoreOrder(originalPrice, originalQuantity);
     }
 
-    // 미체결 주문 조회
+    // 誘몄껜寃?二쇰Ц 議고쉶
     @Override
     public List<PendingOrderResponseDto> getPendingOrders(Long tokenId) {
         CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
@@ -766,7 +801,7 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.toPendingDtoList(pendingOrders);
     }
 
-    // cancelOrder Phase 1: 검증 + 잔고 복구 + PENDING 전환
+    // cancelOrder Phase 1: 寃利?+ ?붽퀬 蹂듦뎄 + PENDING ?꾪솚
     @Transactional
     @Override
     public CancelOrderContext validateAndCancelOrder(Long orderId, CancelOrderRequestDto dto) {
@@ -817,7 +852,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    // cancelOrder Phase 2: CANCELLED 최종 전환
+    // cancelOrder Phase 2: CANCELLED 理쒖쥌 ?꾪솚
     @Transactional
     @Override
     public void completeCancelOrder(Long orderId) {
@@ -826,7 +861,7 @@ public class OrderServiceImpl implements OrderService {
         findOrder.removeOrder();
     }
 
-    // cancel match 실패 시 보상: 잔고 재잠금 + 상태 복원
+    // cancel match ?ㅽ뙣 ??蹂댁긽: ?붽퀬 ?ъ옞湲?+ ?곹깭 蹂듭썝
     @Transactional
     @Override
     public void compensateFailedCancel(CancelOrderContext ctx) {
@@ -851,7 +886,7 @@ public class OrderServiceImpl implements OrderService {
         findOrder.restoreOrder(ctx.getOrderPrice(), findOrder.getOrderQuantity());
     }
 
-    // 주문 가능 금액/수량 조회
+    // 二쇰Ц 媛??湲덉븸/?섎웾 議고쉶
     @Override
     public OrderCapacityResponseDto getOrderCapacity(Long tokenId) {
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
@@ -878,3 +913,6 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 }
+
+
+

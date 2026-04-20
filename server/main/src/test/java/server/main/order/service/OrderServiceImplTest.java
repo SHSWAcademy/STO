@@ -21,6 +21,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import server.main.admin.entity.Common;
 import server.main.admin.entity.PlatformAccount;
@@ -80,6 +82,7 @@ class OrderServiceImplTest {
     @Mock BankingRepository bankingRepository;
     @Mock PlatformBankingRepository platformBankingRepository;
     @Mock PlatformAccount platformAccount;
+    @Mock PlatformTransactionManager transactionManager;
 
     @InjectMocks
     OrderServiceImpl orderService;
@@ -101,6 +104,7 @@ class OrderServiceImplTest {
         lenient().when(common.getChargeRate()).thenReturn(0.0);
         lenient().when(passwordEncoder.matches(any(CharSequence.class), nullable(String.class))).thenReturn(true);
         lenient().when(platformAccountRepository.findWithLock()).thenReturn(Optional.of(platformAccount));
+        lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
     }
 
     // ──────────────── getPendingOrders ────────────────
@@ -912,5 +916,228 @@ class OrderServiceImplTest {
         assertThat(findOrder.getOrderStatus()).isEqualTo(OrderStatus.PARTIAL);
         assertThat(findOrder.getFilledQuantity()).isEqualTo(3L);  // 3+0=3
         assertThat(findOrder.getRemainingQuantity()).isEqualTo(2L);
+    }
+
+    @Test
+    void processMatchResult_executionQuantityNull_throwsBusinessException() {
+        Long orderId = 1L;
+
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
+
+        Order findOrder = Order.builder()
+                .orderId(orderId)
+                .orderPrice(12000L)
+                .orderQuantity(5L)
+                .filledQuantity(0L)
+                .remainingQuantity(5L)
+                .orderType(OrderType.BUY)
+                .orderStatus(OrderStatus.PENDING)
+                .token(token)
+                .member(member)
+                .build();
+
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(findOrder));
+        when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+
+        TradeExecutionDto execution = TradeExecutionDto.builder()
+                .counterMemberId(2L)
+                .counterOrderId(99L)
+                .tradePrice(12000L)
+                .tradeQuantity(null)
+                .build();
+
+        MatchResultDto matchResult = MatchResultDto.builder()
+                .orderId(orderId)
+                .tokenId(TOKEN_ID)
+                .filledQuantity(1L)
+                .remainingQuantity(4L)
+                .executions(List.of(execution))
+                .build();
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> orderService.processMatchResult(orderId, TOKEN_ID, matchResult));
+        assertThat(ex.getErrorCode()).isEqualTo(INVALID_INPUT_VALUE);
+    }
+
+    @Test
+    void processMatchResult_executionQuantityCanExceedFinalRemaining() {
+        Long orderId = 1L;
+        Long counterMemberId = 2L;
+        Long counterOrderId = 99L;
+
+        Member member = mock(Member.class);
+        Member counterMember = mock(Member.class);
+        Token token = mock(Token.class);
+        Account account = mock(Account.class);
+        Account counterAccount = mock(Account.class);
+        MemberTokenHolding buyerHolding = mock(MemberTokenHolding.class);
+        MemberTokenHolding sellerHolding = mock(MemberTokenHolding.class);
+
+        when(member.getMemberId()).thenReturn(MEMBER_ID);
+
+        Order findOrder = Order.builder()
+                .orderId(orderId)
+                .orderPrice(12000L)
+                .orderQuantity(100L)
+                .filledQuantity(0L)
+                .remainingQuantity(100L)
+                .orderType(OrderType.BUY)
+                .orderStatus(OrderStatus.PENDING)
+                .token(token)
+                .member(member)
+                .build();
+
+        Order counterOrder = Order.builder()
+                .orderId(counterOrderId)
+                .orderPrice(12000L)
+                .orderQuantity(100L)
+                .filledQuantity(0L)
+                .remainingQuantity(100L)
+                .orderType(OrderType.SELL)
+                .orderStatus(OrderStatus.OPEN)
+                .token(token)
+                .member(counterMember)
+                .build();
+
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(findOrder));
+        when(orderRepository.findWithLockById(counterOrderId)).thenReturn(Optional.of(counterOrder));
+        when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+        when(memberRepository.findById(counterMemberId)).thenReturn(Optional.of(counterMember));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockByMember(counterMember)).thenReturn(Optional.of(counterAccount));
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
+                .thenReturn(Optional.of(buyerHolding));
+        when(memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, token))
+                .thenReturn(Optional.of(sellerHolding));
+
+        TradeExecutionDto execution = TradeExecutionDto.builder()
+                .counterMemberId(counterMemberId)
+                .counterOrderId(counterOrderId)
+                .tradePrice(12000L)
+                .tradeQuantity(60L)
+                .build();
+
+        MatchResultDto matchResult = MatchResultDto.builder()
+                .orderId(orderId)
+                .tokenId(TOKEN_ID)
+                .filledQuantity(60L)
+                .remainingQuantity(40L)
+                .executions(List.of(execution))
+                .build();
+
+        orderService.processMatchResult(orderId, TOKEN_ID, matchResult);
+
+        assertThat(findOrder.getOrderStatus()).isEqualTo(OrderStatus.PARTIAL);
+        assertThat(findOrder.getFilledQuantity()).isEqualTo(60L);
+        assertThat(findOrder.getRemainingQuantity()).isEqualTo(40L);
+    }
+
+    @Test
+    void retryFailedOrder_whenMatchFails_increasesRetryCount() {
+        Long orderId = 1L;
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
+
+        when(member.getMemberId()).thenReturn(MEMBER_ID);
+        when(token.getTokenId()).thenReturn(TOKEN_ID);
+
+        Order order = Order.builder()
+                .orderId(orderId)
+                .orderPrice(100L)
+                .orderQuantity(3L)
+                .filledQuantity(0L)
+                .remainingQuantity(3L)
+                .orderType(OrderType.BUY)
+                .orderStatus(OrderStatus.FAILED)
+                .token(token)
+                .member(member)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(order));
+        when(matchClient.sendOrder(any())).thenThrow(new RuntimeException("boom"));
+
+        assertThrows(RuntimeException.class, () -> orderService.retryFailedOrder(orderId));
+
+        assertThat(order.getRetryCount()).isEqualTo(1);
+        assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.FAILED);
+    }
+
+    @Test
+    void retryFailedOrder_whenRetryLimitReached_cancelsOrder() {
+        Long orderId = 1L;
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
+        Account account = mock(Account.class);
+
+        when(member.getMemberId()).thenReturn(MEMBER_ID);
+        when(token.getTokenId()).thenReturn(TOKEN_ID);
+
+        Order order = Order.builder()
+                .orderId(orderId)
+                .orderPrice(100L)
+                .orderQuantity(3L)
+                .filledQuantity(0L)
+                .remainingQuantity(2L)
+                .orderType(OrderType.BUY)
+                .orderStatus(OrderStatus.FAILED)
+                .retryCount(2)
+                .token(token)
+                .member(member)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(order));
+        when(matchClient.sendOrder(any())).thenThrow(new RuntimeException("boom"));
+        when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
+
+        assertThrows(RuntimeException.class, () -> orderService.retryFailedOrder(orderId));
+
+        assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(account).cancelOrder(200L);
+    }
+
+    @Test
+    void retryFailedOrder_whenMatchSucceeds_resetsRetryCount() {
+        Long orderId = 1L;
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
+
+        when(member.getMemberId()).thenReturn(MEMBER_ID);
+        when(token.getTokenId()).thenReturn(TOKEN_ID);
+
+        Order order = Order.builder()
+                .orderId(orderId)
+                .orderPrice(100L)
+                .orderQuantity(3L)
+                .filledQuantity(0L)
+                .remainingQuantity(2L)
+                .orderType(OrderType.BUY)
+                .orderStatus(OrderStatus.FAILED)
+                .retryCount(2)
+                .token(token)
+                .member(member)
+                .build();
+
+        MatchResultDto matchResult = MatchResultDto.builder()
+                .orderId(orderId)
+                .tokenId(TOKEN_ID)
+                .filledQuantity(0L)
+                .remainingQuantity(2L)
+                .executions(List.of())
+                .build();
+
+        OrderServiceImpl spyService = spy(orderService);
+        doNothing().when(spyService).processMatchResult(orderId, TOKEN_ID, matchResult);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(order));
+        when(matchClient.sendOrder(any())).thenReturn(matchResult);
+
+        spyService.retryFailedOrder(orderId);
+
+        assertThat(order.getRetryCount()).isEqualTo(0);
+        verify(spyService).processMatchResult(orderId, TOKEN_ID, matchResult);
     }
 }

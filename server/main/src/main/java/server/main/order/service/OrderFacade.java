@@ -1,6 +1,6 @@
 package server.main.order.service;
 
-import static server.main.global.error.ErrorCode.*;
+import static server.main.global.error.ErrorCode.MATCH_SERVICE_UNAVAILABLE;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -33,7 +33,7 @@ public class OrderFacade {
         try {
             matchResult = matchClient.sendOrder(matchDto);
         } catch (RestClientException e) {
-            log.error("match 서버 호출 실패. orderId={}", matchDto.getOrderId(), e);
+            log.error("Match service call failed. orderId={}", matchDto.getOrderId(), e);
             orderService.compensateFailedOrder(matchDto.getOrderId());
             throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
         }
@@ -41,7 +41,7 @@ public class OrderFacade {
         try {
             orderService.processMatchResult(matchDto.getOrderId(), tokenId, matchResult);
         } catch (RuntimeException e) {
-            log.error("match Phase 2 ?ㅽ뙣. orderId={}", matchDto.getOrderId(), e);
+            log.error("Match phase 2 failed. orderId={}", matchDto.getOrderId(), e);
             orderService.markOrderFailed(matchDto.getOrderId());
             throw e;
         }
@@ -54,7 +54,7 @@ public class OrderFacade {
         try {
             matchResult = matchClient.updateOrder(matchDto);
         } catch (RestClientException e) {
-            log.error("match 서버 호출 실패. orderId={}", orderId, e);
+            log.error("Match service call failed. orderId={}", orderId, e);
             orderService.compensateFailedUpdate(orderId, matchDto.getOriginalPrice(), matchDto.getOriginalQuantity());
             throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
         }
@@ -62,7 +62,7 @@ public class OrderFacade {
         try {
             orderService.processMatchResult(orderId, matchDto.getTokenId(), matchResult);
         } catch (RuntimeException e) {
-            log.error("updateOrder Phase 2 ?ㅽ뙣. orderId={}", orderId, e);
+            log.error("Update order phase 2 failed. orderId={}", orderId, e);
             orderService.markOrderFailed(orderId);
             throw e;
         }
@@ -74,11 +74,11 @@ public class OrderFacade {
         try {
             matchClient.cancelOrder(ctx.getOrderId(), ctx.getTokenId());
         } catch (HttpClientErrorException.NotFound e) {
-            log.warn("match 서버에 취소 대상 주문이 없어 취소 완료로 정리합니다. orderId={}", orderId, e);
+            log.warn("Cancel target was not found on match service. Marking as cancelled. orderId={}", orderId, e);
             orderService.completeCancelOrder(orderId);
             return;
         } catch (RestClientException e) {
-            log.error("match 서버 호출 실패. orderId={}", orderId, e);
+            log.error("Match service call failed. orderId={}", orderId, e);
             orderService.compensateFailedCancel(ctx);
             throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
         }
