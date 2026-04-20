@@ -11,7 +11,10 @@ public class FailedOrderRetryScheduler {
 
     private final OrderService orderService;
 
-    @Scheduled(fixedDelay = 60000)
+    @Scheduled(
+            fixedDelayString = "${order.retry.failed.fixed-delay-ms:60000}",
+            initialDelayString = "${order.retry.failed.initial-delay-ms:60000}"
+    )
     public void retryFailedOrders() {
         orderService.retryFailedOrders();
     }

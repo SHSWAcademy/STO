@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -94,6 +95,7 @@ import server.main.trade.repository.TradeRepository;
 public class OrderServiceImpl implements OrderService {
 
     private static final int MAX_FAILED_RETRY = 3;
+    private static final int FAILED_RETRY_BATCH_SIZE = 100;
 
     private final OrderMapper orderMapper;
     private final OrderLogService orderLogService;
@@ -708,7 +710,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @Override
     public void retryFailedOrders() {
-        List<Order> failedOrders = orderRepository.findFailedOrdersForRetry();
+        List<Order> failedOrders = orderRepository.findFailedOrdersForRetry(PageRequest.of(0, FAILED_RETRY_BATCH_SIZE));
         for (Order failedOrder : failedOrders) {
             try {
                 retryFailedOrder(failedOrder.getOrderId());
@@ -721,8 +723,18 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     @Override
     public void compensateFailedOrder(Long orderId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findWithLockById(orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+        if (order.getOrderStatus() != OrderStatus.FAILED || order.getRemainingQuantity() <= 0) {
+            log.warn(
+                    "Skipping automatic compensation because order state changed before cancellation. orderId={}, orderStatus={}, remainingQuantity={}",
+                    orderId,
+                    order.getOrderStatus(),
+                    order.getRemainingQuantity()
+            );
+            return;
+        }
 
         if (OrderType.BUY.equals(order.getOrderType())) {
             Account account = accountRepository.findWithLockByMember(order.getMember())
