@@ -1,14 +1,15 @@
 package server.main.member.repository;
 
-import jakarta.persistence.LockModeType;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import server.main.myAccount.entity.Account;
-import server.main.member.entity.Member;
 
-import java.util.Optional;
+import jakarta.persistence.LockModeType;
+import server.main.member.entity.Member;
+import server.main.myAccount.entity.Account;
 
 public interface AccountRepository extends JpaRepository<Account, Long> {
     boolean existsByAccountNumber(String accountNumber);
