@@ -1233,4 +1233,37 @@ class OrderServiceImplTest {
         assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
         verify(account).cancelOrder(200L);
     }
+
+    @Test
+    void retryFailedOrder_whenSnapshotRemainingDiffers_skipsAutomaticCompensation() {
+        Long orderId = 1L;
+        Member member = mock(Member.class);
+        Token token = mock(Token.class);
+        String storedMatchResult = """
+                {"orderId":1,"tokenId":10,"filledQuantity":1,"remainingQuantity":1,"executions":[]}
+                """;
+        when(token.getTokenId()).thenReturn(TOKEN_ID);
+
+        Order order = Order.builder()
+                .orderId(orderId)
+                .orderPrice(100L)
+                .orderQuantity(3L)
+                .filledQuantity(0L)
+                .remainingQuantity(2L)
+                .orderType(OrderType.BUY)
+                .orderStatus(OrderStatus.FAILED)
+                .retryCount(2)
+                .failedMatchResultJson(storedMatchResult)
+                .token(token)
+                .member(member)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(order));
+
+        orderService.retryFailedOrder(orderId);
+
+        assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.FAILED);
+        verify(matchClient).cancelOrder(orderId, TOKEN_ID);
+    }
 }

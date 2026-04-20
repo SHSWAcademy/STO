@@ -663,12 +663,38 @@ public class OrderServiceImpl implements OrderService {
                 throw e;
             }
 
+            Long snapshotRemainingQuantity = snapshot.matchResult().getRemainingQuantity();
+            Long orderRemainingQuantity = executeInRequiresNewTransactionWithResult(() -> {
+                Order lockedOrder = orderRepository.findWithLockById(orderId)
+                        .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+                if (lockedOrder.getOrderStatus() != OrderStatus.FAILED || lockedOrder.getRemainingQuantity() <= 0) {
+                    return null;
+                }
+                return lockedOrder.getRemainingQuantity();
+            });
+
             try {
                 matchClient.cancelOrder(orderId, snapshot.tokenId());
             } catch (org.springframework.web.client.HttpClientErrorException.NotFound notFound) {
                 log.warn("Retry cancel target was not found on match service. orderId={}", orderId, notFound);
             } catch (org.springframework.web.client.RestClientException cancelException) {
                 log.error("Failed to cancel order on match service after retry limit. orderId={}", orderId, cancelException);
+            }
+
+            if (orderRemainingQuantity == null) {
+                return;
+            }
+
+            if (!snapshotRemainingQuantity.equals(orderRemainingQuantity)) {
+                log.error(
+                        "Failed order retry limit exceeded with mismatched remaining quantity. "
+                                + "Skipping automatic compensation to avoid over-refund. Manual intervention required. "
+                                + "orderId={}, orderRemainingQuantity={}, failedSnapshotRemainingQuantity={}",
+                        orderId,
+                        orderRemainingQuantity,
+                        snapshotRemainingQuantity
+                );
+                return;
             }
 
             executeInRequiresNewTransaction(() -> {
