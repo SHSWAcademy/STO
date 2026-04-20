@@ -42,6 +42,7 @@ import server.main.alarm.service.AlarmService;
 import server.main.blockchain.service.BlockchainOutboxService;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
+import server.main.global.util.MatchClient;
 import server.main.global.util.TickSizePolicy;
 import server.main.log.orderLog.service.OrderLogService;
 import server.main.myAccount.entity.Account;
@@ -86,6 +87,8 @@ import server.main.trade.repository.TradeRepository;
 @Slf4j
 public class OrderServiceImpl implements OrderService {
 
+    private static final int MAX_FAILED_RETRY = 3;
+
     private final OrderMapper orderMapper;
     private final OrderLogService orderLogService;
     private final OrderRepository orderRepository;
@@ -106,8 +109,61 @@ public class OrderServiceImpl implements OrderService {
     private final PlatformAccountRepository platformAccountRepository;
     private final BankingRepository bankingRepository;
     private final PlatformBankingRepository platformBankingRepository;
+    private final MatchClient matchClient;
 
     // createOrder Phase 1: 검증 + 잔고 차감 + 주문 저장
+    private void validateMatchResult(Order findOrder, MatchResultDto matchResult) {
+        if (matchResult == null
+                || matchResult.getFilledQuantity() == null
+                || matchResult.getRemainingQuantity() == null
+                || matchResult.getExecutions() == null) {
+            throw new BusinessException(INVALID_INPUT_VALUE);
+        }
+
+        long filledQuantity = matchResult.getFilledQuantity();
+        long remainingQuantity = matchResult.getRemainingQuantity();
+        long currentFilled = findOrder.getFilledQuantity();
+        long orderQuantity = findOrder.getOrderQuantity();
+
+        if (filledQuantity < 0 || remainingQuantity < 0) {
+            throw new BusinessException(INVALID_INPUT_VALUE);
+        }
+
+        if (currentFilled + filledQuantity > orderQuantity || remainingQuantity > orderQuantity) {
+            throw new BusinessException(INVALID_INPUT_VALUE);
+        }
+
+        long executionTotal = matchResult.getExecutions().stream()
+                .mapToLong(TradeExecutionDto::getTradeQuantity)
+                .sum();
+
+        if (executionTotal != filledQuantity) {
+            throw new BusinessException(INVALID_INPUT_VALUE);
+        }
+
+        if (orderQuantity - (currentFilled + filledQuantity) != remainingQuantity) {
+            throw new BusinessException(INVALID_INPUT_VALUE);
+        }
+    }
+
+    private void validateExecution(Order findOrder, TradeExecutionDto execution) {
+        if (execution == null
+                || execution.getCounterMemberId() == null
+                || execution.getCounterOrderId() == null
+                || execution.getTradePrice() == null
+                || execution.getTradeQuantity() == null) {
+            throw new BusinessException(INVALID_INPUT_VALUE);
+        }
+
+        if (execution.getTradePrice() <= 0 || execution.getTradeQuantity() <= 0) {
+            throw new BusinessException(INVALID_INPUT_VALUE);
+        }
+
+        if (execution.getTradeQuantity() > findOrder.getRemainingQuantity()) {
+            throw new BusinessException(INVALID_INPUT_VALUE);
+        }
+    }
+
     @Transactional
     @Override
     public MatchOrderRequestDto validateAndSaveOrder(Long tokenId, OrderRequestDto dto) {
@@ -198,6 +254,7 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
         Member findMember = findOrder.getMember();
         Long memberId = findMember.getMemberId();
+        validateMatchResult(findOrder, matchResult);
 
         // ORDERS 테이블 업데이트 — match 서버는 누적 체결을 모르므로 main 에서 상태 재계산
         long newTotalFilled = findOrder.getFilledQuantity() + matchResult.getFilledQuantity();
@@ -238,6 +295,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         for (TradeExecutionDto execution : matchResult.getExecutions()) {
+            validateExecution(findOrder, execution);
             Member counterMember = memberRepository.findById(execution.getCounterMemberId())
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
             Order counterOrder = orderRepository.findWithLockById(execution.getCounterOrderId())
@@ -385,7 +443,13 @@ public class OrderServiceImpl implements OrderService {
 
             // 상대방 주문 상태 DB 업데이트
             long newFilledQty = counterOrder.getFilledQuantity() + execution.getTradeQuantity();
-            long newRemainingQty = Math.max(0L, counterOrder.getRemainingQuantity() - execution.getTradeQuantity());
+            long newRemainingQty = counterOrder.getRemainingQuantity() - execution.getTradeQuantity();
+            if (newFilledQty < 0
+                    || newFilledQty > counterOrder.getOrderQuantity()
+                    || newRemainingQty < 0
+                    || newRemainingQty > counterOrder.getOrderQuantity()) {
+                throw new BusinessException(INVALID_INPUT_VALUE);
+            }
             OrderStatus counterStatus = newRemainingQty == 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL;
             counterOrder.applyMatchResult(newFilledQty, newRemainingQty, counterStatus);
 
@@ -505,6 +569,60 @@ public class OrderServiceImpl implements OrderService {
     }
 
     // match 실패 시 보상: 잔고 복구 + 주문 삭제
+    @Transactional
+    @Override
+    public void markOrderFailed(Long orderId) {
+        Order order = orderRepository.findWithLockById(orderId)
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        order.markFailed();
+    }
+
+    @Transactional
+    @Override
+    public void retryFailedOrder(Long orderId) {
+        Order order = orderRepository.findWithLockById(orderId)
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+
+        if (order.getOrderStatus() != OrderStatus.FAILED || order.getRemainingQuantity() <= 0) {
+            return;
+        }
+
+        MatchOrderRequestDto retryDto = MatchOrderRequestDto.builder()
+                .tokenId(order.getToken().getTokenId())
+                .memberId(order.getMember().getMemberId())
+                .orderId(order.getOrderId())
+                .orderPrice(order.getOrderPrice())
+                .orderQuantity(order.getRemainingQuantity())
+                .orderType(order.getOrderType())
+                .build();
+
+        try {
+            MatchResultDto matchResult = matchClient.sendOrder(retryDto);
+            processMatchResult(order.getOrderId(), order.getToken().getTokenId(), matchResult);
+            order.resetRetryCount();
+        } catch (RuntimeException e) {
+            order.increaseRetryCount();
+            if (order.getRetryCount() >= MAX_FAILED_RETRY) {
+                compensateFailedOrder(order.getOrderId());
+                log.warn("FAILED 주문 자동 재처리 한도 초과로 취소 처리. orderId={}, retryCount={}",
+                        order.getOrderId(), order.getRetryCount());
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public void retryFailedOrders() {
+        List<Order> failedOrders = orderRepository.findFailedOrdersForRetry();
+        for (Order failedOrder : failedOrders) {
+            try {
+                retryFailedOrder(failedOrder.getOrderId());
+            } catch (RuntimeException e) {
+                log.error("FAILED 주문 자동 재처리 실패. orderId={}", failedOrder.getOrderId(), e);
+            }
+        }
+    }
+
     @Transactional
     @Override
     public void compensateFailedOrder(Long orderId) {

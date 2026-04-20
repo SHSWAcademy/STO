@@ -38,7 +38,13 @@ public class OrderFacade {
             throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
         }
 
-        orderService.processMatchResult(matchDto.getOrderId(), tokenId, matchResult);
+        try {
+            orderService.processMatchResult(matchDto.getOrderId(), tokenId, matchResult);
+        } catch (RuntimeException e) {
+            log.error("match Phase 2 ?ㅽ뙣. orderId={}", matchDto.getOrderId(), e);
+            orderService.markOrderFailed(matchDto.getOrderId());
+            throw e;
+        }
     }
 
     public void updateOrder(Long orderId, UpdateOrderRequestDto dto) {
@@ -53,7 +59,13 @@ public class OrderFacade {
             throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
         }
 
-        orderService.processMatchResult(orderId, matchDto.getTokenId(), matchResult);
+        try {
+            orderService.processMatchResult(orderId, matchDto.getTokenId(), matchResult);
+        } catch (RuntimeException e) {
+            log.error("updateOrder Phase 2 ?ㅽ뙣. orderId={}", orderId, e);
+            orderService.markOrderFailed(orderId);
+            throw e;
+        }
     }
 
     public void cancelOrder(Long orderId, CancelOrderRequestDto dto) {

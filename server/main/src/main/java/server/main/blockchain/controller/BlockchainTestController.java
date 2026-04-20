@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 @RestController
 @RequestMapping("test/blockchain")
 @RequiredArgsConstructor
-@Profile("!prod")
+@Profile("local")
 public class BlockchainTestController {
 
     private final TokenIssueService tokenIssueService;
