@@ -96,7 +96,7 @@ function getBucketStart(date, period) {
     d.setMinutes(0, 0, 0);
   } else if (period === '일') {
     if (d.getHours() < 9) {
-      d.setDate(d.getDate() - 1)
+      d.setDate(d.getDate() - 1);
     }
     d.setHours(9, 0, 0, 0);
   } else if (period === '월') {
