@@ -21,10 +21,10 @@ public class AiSummaryScheduler {
     private final TradeRepository tradeRepository;
     private final GeminiClient geminiClient;
 
-    @PostConstruct
-    public void init() {
-        updateAllAiSummaries();
-    }
+//    @PostConstruct
+//    public void init() {
+//        updateAllAiSummaries();
+//    }
 
     @Scheduled(cron = "0 0 0/3 * * *")
     public void updateAllAiSummaries() {
