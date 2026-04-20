@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -685,7 +686,7 @@ public class OrderServiceImpl implements OrderService {
                 return;
             }
 
-            if (!snapshotRemainingQuantity.equals(orderRemainingQuantity)) {
+            if (!Objects.equals(snapshotRemainingQuantity, orderRemainingQuantity)) {
                 log.error(
                         "Failed order retry limit exceeded with mismatched remaining quantity. "
                                 + "Skipping automatic compensation to avoid over-refund. Manual intervention required. "
@@ -963,6 +964,3 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 }
-
-
-
