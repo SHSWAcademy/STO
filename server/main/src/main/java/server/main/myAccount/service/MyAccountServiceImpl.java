@@ -15,6 +15,7 @@ import server.main.member.entity.*;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberBankRepository;
 import server.main.member.repository.MemberTokenHoldingRepository;
+import server.main.member.repository.WalletRepository;
 import server.main.myAccount.dto.AccountBalanceResponse;
 import server.main.myAccount.dto.DepositRequest;
 import server.main.myAccount.dto.PortfolioResponse;
@@ -43,6 +44,7 @@ public class MyAccountServiceImpl implements MyAccountService{
     private final OrderRepository orderRepository;
     private final AllocationPayoutRepository allocationPayoutRepository;
     private final TradeRepository tradeRepository;
+    private final WalletRepository walletRepository;
 
     @Override
     public void deposit(DepositRequest depositRequest) {
@@ -225,5 +227,27 @@ public class MyAccountServiceImpl implements MyAccountService{
         LocalDateTime end = start.plusMonths(1);
 
         return tradeRepository.findSellHistoryByMemberId(memberId, start, end, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountInfoResponse getAccountInfo() {
+     Long memberId = ((CustomUserPrincipal) SecurityContextHolder
+             .getContext().getAuthentication().getPrincipal()).getId();
+
+        Account account = accountRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCOUNT_NOT_FOUND));
+
+        Member member = account.getMember();
+
+        Wallet wallet = walletRepository.findByMember(member)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        return new AccountInfoResponse(
+                member.getMemberName(),
+                member.getEmail(),
+                wallet.getWalletAddress(),
+                account.getAccountNumber()
+        );
     }
 }

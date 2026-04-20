@@ -31,6 +31,8 @@ public class BlockchainWorkerService {
     private final Web3j web3j;
     private final Credentials issuerCredentials;
     private final ObjectMapper objectMapper;
+    private final TradeRepository tradeRepository;
+
 
     @Transactional
     public void processPending() {
@@ -67,12 +69,14 @@ public class BlockchainWorkerService {
                 if (isSuccess) {
                     blockchainOutboxQ.markConfirmed();
                     blockchainOutboxQ.getTrade().updateSettlementStatus(SettlementStatus.SUCCESS);
+                    tradeRepository.save(blockchainOutboxQ.getTrade());
 
                 } else {
                     blockchainOutboxQ.incrementRetry();
                     if (blockchainOutboxQ.isMaxRetryExceeded()) {
                         blockchainOutboxQ.markAbandoned("Transaction reverted on-chain");
                         blockchainOutboxQ.getTrade().updateSettlementStatus(SettlementStatus.FAILED);
+                        tradeRepository.save(blockchainOutboxQ.getTrade());
                     } else {
                         blockchainOutboxQ.markFailed("Transaction reverted on-chain");
                     }
@@ -102,6 +106,7 @@ public class BlockchainWorkerService {
                 if (blockchainOutboxQ.isMaxRetryExceeded()) {
                     blockchainOutboxQ.markAbandoned(e.getMessage());
                     blockchainOutboxQ.getTrade().updateSettlementStatus(SettlementStatus.FAILED);
+                    tradeRepository.save(blockchainOutboxQ.getTrade());
                 } else {
                     blockchainOutboxQ.markFailed(e.getMessage());
                 }
