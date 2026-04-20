@@ -43,8 +43,7 @@ public class MatchingService {
                 Deque<Order> queue = bestEntry.getValue();
                 Order counterOrder = queue.peek();
                 if (counterOrder == null) {
-                    counterBook.remove(bestPrice);
-                    continue;
+                    throw new IllegalStateException("Order book contains an empty price level at price: " + bestPrice);
                 }
 
 //                // STP: 자기 자신과는 체결하지 않음

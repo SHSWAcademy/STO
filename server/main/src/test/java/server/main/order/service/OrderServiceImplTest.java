@@ -92,7 +92,7 @@ class OrderServiceImplTest {
 
     @BeforeEach
     void setSecurityContext() {
-        CustomUserPrincipal principal = new CustomUserPrincipal(MEMBER_ID, "ㅇㄴㅁㄹㅇ", "MEMBER", "ROLE_USER");
+        CustomUserPrincipal principal = new CustomUserPrincipal(MEMBER_ID, "test-user", "MEMBER", "ROLE_USER");
         Authentication authentication = mock(Authentication.class);
         SecurityContext securityContext = mock(SecurityContext.class);
         lenient().when(securityContext.getAuthentication()).thenReturn(authentication);
@@ -107,7 +107,6 @@ class OrderServiceImplTest {
         lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
     }
 
-    // ──────────────── getPendingOrders ────────────────
 
     @Test
     void getPendingOrders_미체결주문_정상조회() {
@@ -179,7 +178,6 @@ class OrderServiceImplTest {
         assertThat(result.get(0).getRemainingQuantity()).isEqualTo(6L);
     }
 
-    // ──────────────── validateAndSaveOrder (Phase 1: 검증 + 잔고 차감 + 주문 저장) ────────────────
 
     @Test
     void validateAndSaveOrder_매수_정상접수() {
@@ -199,7 +197,7 @@ class OrderServiceImplTest {
                 .accountPassword("1234")
                 .orderType(OrderType.BUY)
                 .orderPrice(12000L)
-                .orderQuantity(5L) // 총 60000 < 잔고 1000000
+                .orderQuantity(5L)
                 .build();
 
         // when
@@ -225,12 +223,12 @@ class OrderServiceImplTest {
         when(memberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(member));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
-        when(account.getAvailableBalance()).thenReturn(10_000L); // 잔고 부족
+        when(account.getAvailableBalance()).thenReturn(10_000L);
 
         OrderRequestDto dto = OrderRequestDto.builder().accountPassword("1234")
                 .orderType(OrderType.BUY)
                 .orderPrice(12000L)
-                .orderQuantity(5L) // 총 60000 > 잔고 10000
+                .orderQuantity(5L)
                 .build();
 
         // when & then
@@ -277,12 +275,12 @@ class OrderServiceImplTest {
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
-        when(holding.getCurrentQuantity()).thenReturn(3L); // 보유 3주
+        when(holding.getCurrentQuantity()).thenReturn(3L);
 
         OrderRequestDto dto = OrderRequestDto.builder().accountPassword("1234")
                 .orderType(OrderType.SELL)
                 .orderPrice(12000L)
-                .orderQuantity(5L) // 요청 5주 > 보유 3주
+                .orderQuantity(5L)
                 .build();
 
         // when & then
@@ -304,12 +302,12 @@ class OrderServiceImplTest {
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
                 .thenReturn(Optional.of(holding));
-        when(holding.getCurrentQuantity()).thenReturn(10L); // 보유 10주
+        when(holding.getCurrentQuantity()).thenReturn(10L);
 
         OrderRequestDto dto = OrderRequestDto.builder().accountPassword("1234")
                 .orderType(OrderType.SELL)
                 .orderPrice(12000L)
-                .orderQuantity(5L) // 요청 5주 <= 보유 10주
+                .orderQuantity(5L)
                 .build();
 
         // when
@@ -322,7 +320,6 @@ class OrderServiceImplTest {
         assertThat(result.getOrderType()).isEqualTo(OrderType.SELL);
     }
 
-    // ──────────────── validateAndUpdateOrder (Phase 1: 검증 + 잔고 재조정 + 주문 수정) ────────────────
 
     @Test
     void validateAndUpdateOrder_PENDING상태_수정불가_예외발생() {
@@ -358,7 +355,7 @@ class OrderServiceImplTest {
         UpdateOrderRequestDto dto = UpdateOrderRequestDto.builder()
                 .accountPassword("1234")
                 .updatePrice(12000L)
-                .updateQuantity(5L) // filledQuantity(5)와 같음 → 예외
+                .updateQuantity(5L)
                 .build();
 
         // when & then
@@ -398,10 +395,9 @@ class OrderServiceImplTest {
         // when
         UpdateMatchOrderRequestDto result = orderService.validateAndUpdateOrder(orderId, dto);
 
-        // then: total 기준(120*8=960)이 아닌 remaining 기준(120*3=360)으로 호출되어야 한다
         verify(account).relockBalance(500L, 450L);
         assertThat(result.getUpdatePrice()).isEqualTo(150L);
-        assertThat(result.getUpdateQuantity()).isEqualTo(3L); // remaining 기준
+        assertThat(result.getUpdateQuantity()).isEqualTo(3L);
         assertThat(result.getOriginalPrice()).isEqualTo(100L);
         assertThat(result.getOriginalQuantity()).isEqualTo(10L);
     }
@@ -440,12 +436,10 @@ class OrderServiceImplTest {
         // when
         UpdateMatchOrderRequestDto result = orderService.validateAndUpdateOrder(orderId, dto);
 
-        // then: total 기준(8)이 아닌 remaining 기준(3)으로 호출되어야 한다
         verify(holding).relockQuantity(5L, 3L);
         assertThat(result.getUpdateQuantity()).isEqualTo(3L);
     }
 
-    // ──────────────── cancelOrder ────────────────
 
     @Test
     void validateAndCancelOrder_PENDING상태_취소불가_예외발생() {
@@ -463,7 +457,6 @@ class OrderServiceImplTest {
         assertThat(ex.getErrorCode()).isEqualTo(ORDER_CANNOT_CANCEL);
     }
 
-    // ──────────────── processMatchResult (Phase 2: 체결 결과 반영) ────────────────
 
     @Test
     void processMatchResult_매수_체결_잔고및수량반영() {
@@ -482,7 +475,6 @@ class OrderServiceImplTest {
 
         when(member.getMemberId()).thenReturn(MEMBER_ID);
 
-        // 매수 주문 (incoming) — 실제 Order 객체 사용 (applyMatchResult 등 상태 변경이 반영되도록)
         Order findOrder = Order.builder()
                 .orderId(orderId)
                 .orderPrice(12000L)
@@ -495,7 +487,6 @@ class OrderServiceImplTest {
                 .member(member)
                 .build();
 
-        // 매도 주문 (상대방 resting order)
         Order counterOrder = Order.builder()
                 .orderId(counterOrderId)
                 .orderPrice(12000L)
@@ -538,7 +529,6 @@ class OrderServiceImplTest {
         // when
         orderService.processMatchResult(orderId, TOKEN_ID, matchResult);
 
-        // then — orderPrice == tradePrice(12000)이라 차액 없음, lockedAmount == tradeAmount
         verify(account).settleBuyTrade(60_000L, 60_000L, 0L); // tradeAmount=60000, lockedAmount=12000*5=60000
         verify(counterAccount).settleSellTrade(60_000L, 0L);
         verify(buyerHolding).settleBuyTrade(5L, 12000L);
@@ -548,7 +538,6 @@ class OrderServiceImplTest {
 
     @Test
     void processMatchResult_매수_체결가_주문가_차이_차액환급() {
-        // given — 매수 주문가(12000) > 체결가(10000) → 차액 환급 검증
         Long orderId = 1L;
         Long counterMemberId = 2L;
         Long counterOrderId = 99L;
@@ -577,7 +566,7 @@ class OrderServiceImplTest {
 
         Order counterOrder = Order.builder()
                 .orderId(counterOrderId)
-                .orderPrice(10000L) // 매도 호가 10000 (체결가)
+                .orderPrice(10000L)
                 .orderQuantity(5L)
                 .filledQuantity(0L)
                 .remainingQuantity(5L)
@@ -601,7 +590,7 @@ class OrderServiceImplTest {
         TradeExecutionDto execution = TradeExecutionDto.builder()
                 .counterMemberId(counterMemberId)
                 .counterOrderId(counterOrderId)
-                .tradePrice(10000L)  // 체결가 10000 < 주문가 12000
+                .tradePrice(10000L)
                 .tradeQuantity(5L)
                 .build();
 
@@ -619,14 +608,12 @@ class OrderServiceImplTest {
 
         // then
         // tradeAmount = 10000 * 5 = 50000, lockedAmount = 12000 * 5 = 60000
-        // lockedBalance -= 60000, availableBalance += (60000 - 50000) = 10000 환급
         verify(account).settleBuyTrade(50_000L, 60_000L, 0L);
         verify(counterAccount).settleSellTrade(50_000L, 0L);
     }
 
     @Test
     void processMatchResult_매수_처음토큰_보유레코드생성() {
-        // given — 매수자가 이 토큰을 처음 받는 상황 (TOKEN_HOLDINGS 레코드 없음)
         Long orderId = 1L;
         Long counterMemberId = 2L;
         Long counterOrderId = 99L;
@@ -671,7 +658,7 @@ class OrderServiceImplTest {
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
         when(accountRepository.findWithLockByMember(counterMember)).thenReturn(Optional.of(counterAccount));
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(member, token))
-                .thenReturn(Optional.empty()); // 처음 받는 토큰 — 레코드 없음
+                .thenReturn(Optional.empty());
         when(memberTokenHoldingRepository.findWithLockByMemberAndToken(counterMember, token))
                 .thenReturn(Optional.of(sellerHolding));
 
@@ -694,11 +681,9 @@ class OrderServiceImplTest {
         // when
         orderService.processMatchResult(orderId, TOKEN_ID, matchResult);
 
-        // then — 새 TOKEN_HOLDINGS 레코드가 save() 되어야 한다
         verify(memberTokenHoldingRepository).save(any(MemberTokenHolding.class));
     }
 
-    // ── getOrderCapacity ────────────────────────────────────────────
 
     @Test
     void getOrderCapacity_잔고있고_토큰보유있음_정상반환() {
@@ -773,7 +758,6 @@ class OrderServiceImplTest {
 
     @Test
     void getOrderCapacity_Member없이_ID로만_쿼리2개만_호출() {
-        // given — memberRepository, tokenRepository는 호출되지 않아야 함
         Account account = mock(Account.class);
         MemberTokenHolding holding = mock(MemberTokenHolding.class);
 
@@ -795,7 +779,6 @@ class OrderServiceImplTest {
 
     @Test
     void processMatchResult_매도_체결_잔고및수량반영() {
-        // given — 매도 주문 체결: 매도자는 토큰 차감, 매수자(상대방)는 토큰 지급 + 잔고 차감
         Long orderId = 1L;
         Long counterMemberId = 2L;
         Long counterOrderId = 99L;
@@ -810,7 +793,6 @@ class OrderServiceImplTest {
 
         when(member.getMemberId()).thenReturn(MEMBER_ID);
 
-        // 매도 주문 (incoming)
         Order findOrder = Order.builder()
                 .orderId(orderId)
                 .orderPrice(12000L)
@@ -823,10 +805,9 @@ class OrderServiceImplTest {
                 .member(member)
                 .build();
 
-        // 매수 주문 (상대방 resting order)
         Order counterOrder = Order.builder()
                 .orderId(counterOrderId)
-                .orderPrice(12000L) // resting BUY 주문가 = 체결가
+                .orderPrice(12000L)
                 .orderQuantity(5L)
                 .filledQuantity(0L)
                 .remainingQuantity(5L)
@@ -866,7 +847,6 @@ class OrderServiceImplTest {
         // when
         orderService.processMatchResult(orderId, TOKEN_ID, matchResult);
 
-        // then — SELL incoming이므로 buyer=counter, seller=incoming
         // tradeAmount = 60000, lockedAmount = counterOrder.orderPrice(12000) * 5 = 60000
         verify(counterAccount).settleBuyTrade(60_000L, 60_000L, 0L);
         verify(sellerAccount).settleSellTrade(60_000L, 0L);
@@ -877,7 +857,6 @@ class OrderServiceImplTest {
 
     @Test
     void processMatchResult_수정후_체결없음_PARTIAL유지_OPEN다운그레이드방지() {
-        // given — 기존에 5개 중 3개 체결된 PARTIAL 주문이 가격 수정 후 재매칭했지만 체결 0건
         Long orderId = 1L;
 
         Member member = mock(Member.class);
@@ -886,9 +865,9 @@ class OrderServiceImplTest {
 
         Order findOrder = Order.builder()
                 .orderId(orderId)
-                .orderPrice(900L)        // 수정된 가격
+                .orderPrice(900L)
                 .orderQuantity(5L)
-                .filledQuantity(3L)      // 이전에 3개 체결됨
+                .filledQuantity(3L)
                 .remainingQuantity(2L)
                 .orderType(OrderType.BUY)
                 .orderStatus(OrderStatus.PENDING)
@@ -899,11 +878,10 @@ class OrderServiceImplTest {
         when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(findOrder));
         when(tokenRepository.findById(TOKEN_ID)).thenReturn(Optional.of(token));
 
-        // match 서버: 이번 호출에서 체결 0건 → OPEN 반환 (match는 누적을 모름)
         MatchResultDto matchResult = MatchResultDto.builder()
                 .orderId(orderId)
                 .tokenId(TOKEN_ID)
-                .finalStatus(OrderStatus.OPEN)  // match가 보낸 값 (잘못된 값)
+                .finalStatus(OrderStatus.OPEN)
                 .filledQuantity(0L)
                 .remainingQuantity(2L)
                 .executions(List.of())
@@ -912,7 +890,6 @@ class OrderServiceImplTest {
         // when
         orderService.processMatchResult(orderId, TOKEN_ID, matchResult);
 
-        // then — main이 누적 기준으로 재계산하므로 PARTIAL이어야 함 (OPEN 다운그레이드 방지)
         assertThat(findOrder.getOrderStatus()).isEqualTo(OrderStatus.PARTIAL);
         assertThat(findOrder.getFilledQuantity()).isEqualTo(3L);  // 3+0=3
         assertThat(findOrder.getRemainingQuantity()).isEqualTo(2L);
@@ -1039,7 +1016,6 @@ class OrderServiceImplTest {
         Member member = mock(Member.class);
         Token token = mock(Token.class);
 
-        when(member.getMemberId()).thenReturn(MEMBER_ID);
         when(token.getTokenId()).thenReturn(TOKEN_ID);
 
         Order order = Order.builder()
@@ -1056,7 +1032,7 @@ class OrderServiceImplTest {
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
         when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(order));
-        when(matchClient.sendOrder(any())).thenThrow(new RuntimeException("boom"));
+        when(matchClient.updateOrder(any())).thenThrow(new RuntimeException("boom"));
 
         assertThrows(RuntimeException.class, () -> orderService.retryFailedOrder(orderId));
 
@@ -1071,7 +1047,6 @@ class OrderServiceImplTest {
         Token token = mock(Token.class);
         Account account = mock(Account.class);
 
-        when(member.getMemberId()).thenReturn(MEMBER_ID);
         when(token.getTokenId()).thenReturn(TOKEN_ID);
 
         Order order = Order.builder()
@@ -1089,12 +1064,13 @@ class OrderServiceImplTest {
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
         when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(order));
-        when(matchClient.sendOrder(any())).thenThrow(new RuntimeException("boom"));
+        when(matchClient.updateOrder(any())).thenThrow(new RuntimeException("boom"));
         when(accountRepository.findWithLockByMember(member)).thenReturn(Optional.of(account));
 
-        assertThrows(RuntimeException.class, () -> orderService.retryFailedOrder(orderId));
+        orderService.retryFailedOrder(orderId);
 
         assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(matchClient).cancelOrder(orderId, TOKEN_ID);
         verify(account).cancelOrder(200L);
     }
 
@@ -1104,7 +1080,6 @@ class OrderServiceImplTest {
         Member member = mock(Member.class);
         Token token = mock(Token.class);
 
-        when(member.getMemberId()).thenReturn(MEMBER_ID);
         when(token.getTokenId()).thenReturn(TOKEN_ID);
 
         Order order = Order.builder()
@@ -1133,7 +1108,7 @@ class OrderServiceImplTest {
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
         when(orderRepository.findWithLockById(orderId)).thenReturn(Optional.of(order));
-        when(matchClient.sendOrder(any())).thenReturn(matchResult);
+        when(matchClient.updateOrder(any())).thenReturn(matchResult);
 
         spyService.retryFailedOrder(orderId);
 

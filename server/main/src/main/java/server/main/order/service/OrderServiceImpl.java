@@ -16,6 +16,7 @@ import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -116,7 +117,7 @@ public class OrderServiceImpl implements OrderService {
     private final MatchClient matchClient;
     private final PlatformTransactionManager transactionManager;
 
-    // createOrder Phase 1: 寃利?+ ?붽퀬 李④컧 + 二쇰Ц ???
+    // Validate a match result before applying it to the main database.
     private void validateMatchResult(Order findOrder, MatchResultDto matchResult) {
         if (matchResult == null
                 || matchResult.getFilledQuantity() == null
@@ -182,6 +183,27 @@ public class OrderServiceImpl implements OrderService {
         template.executeWithoutResult(status -> action.run());
     }
 
+    private <T> T executeInTransactionWithResult(java.util.function.Supplier<T> action) {
+        return new TransactionTemplate(transactionManager).execute(status -> action.get());
+    }
+
+    private <T> T executeInRequiresNewTransactionWithResult(java.util.function.Supplier<T> action) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return template.execute(status -> action.get());
+    }
+
+    private RetryTemplate createLockRetryTemplate() {
+        return RetryTemplate.builder()
+                .maxAttempts(3)
+                .fixedBackoff(100)
+                .retryOn(CannotAcquireLockException.class)
+                .build();
+    }
+
+    private record RetryOrderSnapshot(Long tokenId, UpdateMatchOrderRequestDto retryDto) {
+    }
+
     @Transactional
     @Override
     public MatchOrderRequestDto validateAndSaveOrder(Long tokenId, OrderRequestDto dto) {
@@ -193,10 +215,8 @@ public class OrderServiceImpl implements OrderService {
         Token findToken = tokenRepository.findById(tokenId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-        // ?멸? ?⑥쐞 寃利?
         TickSizePolicy.validate(dto.getOrderPrice());
 
-        // 留ㅼ닔??寃쎌슦
         if (OrderType.BUY.equals(dto.getOrderType())) {
 
             Account findMemberAccount = accountRepository.findWithLockByMember(findMember)
@@ -215,7 +235,6 @@ public class OrderServiceImpl implements OrderService {
                 findMemberAccount.lockBalance(totalLockAmount);
         }
 
-        // 留ㅻ룄??寃쎌슦
         if (OrderType.SELL.equals(dto.getOrderType())) {
             Account findMemberAccount = accountRepository.findWithLockByMember(findMember)
                     .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
@@ -231,7 +250,6 @@ public class OrderServiceImpl implements OrderService {
             findMemberHolding.lockQuantity(dto.getOrderQuantity());
         }
 
-        // 二쇰Ц ?앹꽦
         Order createOrder = Order.builder()
                 .orderPrice(dto.getOrderPrice())
                 .orderQuantity(dto.getOrderQuantity())
@@ -246,8 +264,8 @@ public class OrderServiceImpl implements OrderService {
 
         orderRepository.save(createOrder);
 
-        // 濡쒓렇 ???
-        String detail = String.format("?좏겙=%s 媛寃?%d ?섎웾=%d",
+        // Save an order log entry.
+        String detail = String.format("token=%s price=%d quantity=%d",
                 findToken.getTokenName(), dto.getOrderPrice(), dto.getOrderQuantity());
         orderLogService.save(findMember.getMemberName(), String.valueOf(dto.getOrderType()), detail, true);
 
@@ -261,7 +279,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    // createOrder / updateOrder Phase 2: 泥닿껐 寃곌낵 諛섏쁺
+    // createOrder / updateOrder Phase 2: apply the match result
     @Retryable(retryFor = CannotAcquireLockException.class, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional
     @Override
@@ -274,7 +292,6 @@ public class OrderServiceImpl implements OrderService {
         Long memberId = findMember.getMemberId();
         validateMatchResult(findOrder, matchResult);
 
-        // ORDERS ?뚯씠釉??낅뜲?댄듃 ??match ?쒕쾭???꾩쟻 泥닿껐??紐⑤Ⅴ誘濡?main ?먯꽌 ?곹깭 ?ш퀎??
         long newTotalFilled = findOrder.getFilledQuantity() + matchResult.getFilledQuantity();
 
         OrderStatus finalStatus;
@@ -291,7 +308,6 @@ public class OrderServiceImpl implements OrderService {
 
         boolean isBuy = OrderType.BUY.equals(findOrder.getOrderType());
 
-        // findMember Account/Holding ??泥닿껐 嫄댁씠 ?덉쓣 ?뚮쭔 議고쉶
         Account findMemberAccount = null;
         MemberTokenHolding findMemberHolding = null;
 
@@ -325,7 +341,7 @@ public class OrderServiceImpl implements OrderService {
                     .tradePrice(execution.getTradePrice())
                     .tradeQuantity(execution.getTradeQuantity())
                     .totalTradePrice(tradeAmount)
-                    .feeAmount(feeAmount) // 留ㅼ닔???먮뒗 留ㅻ룄??媛??쒖そ 湲곗? ?섏닔猷?(?뚮옯??珥??섏닔猷?= feeAmount 횞 2)
+                    .feeAmount(feeAmount) // One-side fee. Platform revenue is feeAmount * 2.
                     .settlementStatus(SettlementStatus.ON_CHAIN_PENDING)
                     .executedAt(LocalDateTime.now())
                     .token(findToken)
@@ -337,12 +353,9 @@ public class OrderServiceImpl implements OrderService {
 
             tradeRepository.save(trade);
 
-            // 泥닿껐媛濡??좏겙 ?꾩옱媛 媛깆떊
             findToken.updateCurrentPrice(execution.getTradePrice());
 
-            // admin ??쒕낫???대깽??(嫄곕옒 泥닿껐 ????쒕낫???ㅼ떆媛??낅뜲?댄듃)
             eventPublisher.publishEvent(new AdminDashboardEvent());
-            // admin ??쒕낫???ㅼ떆媛??낅뜲?댄듃 ??(泥닿껐 嫄곕옒?댁뿭 ?ㅼ떆媛??낅뜲?댄듃) > 踰붽렐
             eventPublisher.publishEvent(new TradeExecutedEvent(
                     DashBoardTradeListDTO.builder()
                             .tradeId(trade.getTradeId())
@@ -379,10 +392,8 @@ public class OrderServiceImpl implements OrderService {
             buyerAccount.settleBuyTrade(tradeAmount, totalLockedAmount, feeAmount);
             sellerAccount.settleSellTrade(tradeAmount, feeAmount);
 
-            // platform_accounts ?섏닔猷??곷┰ (留ㅼ닔+留ㅻ룄 ?섏닔猷??⑹궛)
             platformAccount.earnFee(feeAmount * 2);
 
-            // platform_banking ?대젰 ???
             platformBankingRepository.save(PlatformBanking.builder()
                     .tokenId(findToken.getTokenId())
                     .tradeId(trade.getTradeId())
@@ -391,7 +402,6 @@ public class OrderServiceImpl implements OrderService {
                     .platformBankingDirection(PlatformDirection.DEPOSIT)
                     .build());
 
-            // 留ㅼ닔??嫄곕옒 ?대젰
             bankingRepository.save(MemberBank.builder()
                     .account(buyerAccount)
                     .txType(TxType.TRADE_SETTLEMENT_BUY)
@@ -400,7 +410,6 @@ public class OrderServiceImpl implements OrderService {
                     .balanceSnapshot(buyerAccount.getAvailableBalance())
                     .build());
 
-            // 留ㅻ룄??嫄곕옒 ?대젰
             bankingRepository.save(MemberBank.builder()
                     .account(sellerAccount)
                     .txType(TxType.TRADE_SETTLEMENT_SELL)
@@ -409,7 +418,6 @@ public class OrderServiceImpl implements OrderService {
                     .balanceSnapshot(sellerAccount.getAvailableBalance())
                     .build());
 
-            // 留ㅼ닔??Holding 諛섏쁺
             MemberTokenHolding buyerHolding;
             if (isBuy) {
                 buyerHolding = findMemberHolding;
@@ -440,7 +448,6 @@ public class OrderServiceImpl implements OrderService {
                 buyerHolding.settleBuyTrade(execution.getTradeQuantity(), execution.getTradePrice());
             }
 
-            // 留ㅻ룄??Holding 諛섏쁺
             MemberTokenHolding sellerHolding;
             if (isBuy) {
                 sellerHolding = counterHoldingCache.get(execution.getCounterMemberId());
@@ -458,7 +465,6 @@ public class OrderServiceImpl implements OrderService {
             sellerHolding.settleSellTrade(execution.getTradeQuantity());
             blockchainOutboxService.saveTradeOutbox(trade, findToken);
 
-            // ?곷?諛?二쇰Ц ?곹깭 DB ?낅뜲?댄듃
             long newFilledQty = counterOrder.getFilledQuantity() + execution.getTradeQuantity();
             long newRemainingQty = counterOrder.getRemainingQuantity() - execution.getTradeQuantity();
             if (newFilledQty < 0
@@ -470,7 +476,6 @@ public class OrderServiceImpl implements OrderService {
             OrderStatus counterStatus = newRemainingQty == 0 ? OrderStatus.FILLED : OrderStatus.PARTIAL;
             counterOrder.applyMatchResult(newFilledQty, newRemainingQty, counterStatus);
 
-            // trades_duplicated ???
             tradeDuplicatedRepository.save(TradeDuplicated.builder()
                     .tradeId(trade.getTradeId())
                     .sellerId(trade.getSeller().getMemberId())
@@ -487,7 +492,6 @@ public class OrderServiceImpl implements OrderService {
                     .createdAt(LocalDateTime.now())
                     .build());
 
-            // orders_duplicated ???곷?諛?二쇰Ц FILLED ??
             if (counterStatus == OrderStatus.FILLED) {
                 orderDuplicatedRepository.save(OrderDuplicated.builder()
                         .orderId(counterOrder.getOrderId())
@@ -507,7 +511,6 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        // orders_duplicated ????二쇰Ц FILLED ??(?ш퀎?곕맂 ?곹깭 湲곗?)
         if (findOrder.getOrderStatus() == OrderStatus.FILLED) {
             orderDuplicatedRepository.save(OrderDuplicated.builder()
                     .orderId(findOrder.getOrderId())
@@ -526,29 +529,26 @@ public class OrderServiceImpl implements OrderService {
                     .build());
         }
 
-        // 二쇰Ц 泥닿껐 ??諛쒖깮???뚮엺 由ъ뒪??
         List<AlarmEvent.AlarmRecord> alarmRecords = new ArrayList<>();
         String tokenName = findToken.getTokenName();
 
-        // ?뚮엺 ?앹꽦 : 二쇰Ц??泥닿껐?섏뿀?????뚮엺 ?앹꽦, FILLED, PARTIAL 援щ텇 // ?섏? ?곷? 紐⑤몢?먭쾶 ?뚮엺 ?꾨떖
         if ((finalStatus == OrderStatus.FILLED || finalStatus == OrderStatus.PARTIAL)
                 && !matchResult.getExecutions().isEmpty()) {
-            String orderTypeLabel = isBuy ? "留ㅼ닔" : "留ㅻ룄";
+            String orderTypeLabel = isBuy ? "BUY" : "SELL";
             AlarmType myAlarmType = finalStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED
-                    : AlarmType.ORDER_PARTIAL; // 遺遺?泥닿껐, ?꾩껜 泥닿껐 ?먮떒
+                    : AlarmType.ORDER_PARTIAL;
             long totalFilled = matchResult.getExecutions().stream().mapToLong(TradeExecutionDto::getTradeQuantity)
                     .sum();
             long tradePrice = matchResult.getExecutions().get(0).getTradePrice();
-            String myMsg = String.format("[ %s ] %s 二쇰Ц %,d??횞 %d二?%s",
+            String myMsg = String.format("[ %s ] %s order %,d KRW x %d units %s",
                     tokenName, orderTypeLabel, tradePrice, totalFilled,
-                    finalStatus == OrderStatus.FILLED ? "泥닿껐 ?꾨즺" : "遺遺?泥닿껐");
+                    finalStatus == OrderStatus.FILLED ? "filled" : "partially filled");
 
             alarmRecords.add(new AlarmEvent.AlarmRecord(memberId, myAlarmType, tokenId, myMsg));
         }
 
-        // ?곷?諛??뚮엺 ?앹꽦
         Set<Long> notifiedCounters = new HashSet<>();
-        for (TradeExecutionDto execution : matchResult.getExecutions()) { // 留ㅼ튂?먯꽌 泥닿껐???댁뿭??爰쇰궦??
+        for (TradeExecutionDto execution : matchResult.getExecutions()) {
             Long counterMemberId = execution.getCounterMemberId();
             if (notifiedCounters.contains(counterMemberId))
                 continue;
@@ -561,23 +561,21 @@ public class OrderServiceImpl implements OrderService {
             if (counterStatus != OrderStatus.FILLED && counterStatus != OrderStatus.PARTIAL)
                 continue;
 
-            String counterTypeLabel = isBuy ? "留ㅻ룄" : "留ㅼ닔"; // ?닿? 留ㅼ닔?먮㈃ ?곷?諛⑹? 留ㅻ룄?? ?닿? 留ㅻ룄?먮㈃ ?곷?諛⑹? 留ㅼ닔??
+            String counterTypeLabel = isBuy ? "SELL" : "BUY";
             AlarmType counterAlarmType = counterStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED
                     : AlarmType.ORDER_PARTIAL;
-            String counterMsg = String.format("[ %s ] %s 二쇰Ц %,d??횞 %d二?%s",
+            String counterMsg = String.format("[ %s ] %s order %,d KRW x %d units %s",
                     tokenName, counterTypeLabel, execution.getTradePrice(), execution.getTradeQuantity(),
-                    counterStatus == OrderStatus.FILLED ? "泥닿껐 ?꾨즺" : "遺遺?泥닿껐");
+                    counterStatus == OrderStatus.FILLED ? "filled" : "partially filled");
 
             alarmRecords.add(new AlarmEvent.AlarmRecord(counterMemberId, counterAlarmType, tokenId, counterMsg));
             notifiedCounters.add(counterMemberId);
         }
 
-        // ?대깽??諛쒖깮
         if (!alarmRecords.isEmpty()) {
             eventPublisher.publishEvent(new AlarmEvent(alarmRecords));
         }
 
-        // WebSocket push ?대깽??諛쒗뻾 ??而ㅻ컠 ??由ъ뒪?덇? ?ㅽ뻾
         List<Long> counterMemberIds = matchResult.getExecutions().stream()
                 .map(TradeExecutionDto::getCounterMemberId)
                 .distinct()
@@ -585,7 +583,6 @@ public class OrderServiceImpl implements OrderService {
         eventPublisher.publishEvent(new OrderWebSocketEvent(tokenId, memberId, counterMemberIds));
     }
 
-    // match ?ㅽ뙣 ??蹂댁긽: ?붽퀬 蹂듦뎄 + 二쇰Ц ??젣
     @Transactional
     @Override
     public void markOrderFailed(Long orderId) {
@@ -597,51 +594,70 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @Override
     public void retryFailedOrder(Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+        RetryOrderSnapshot snapshot = executeInTransactionWithResult(() -> {
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-        if (order.getOrderStatus() != OrderStatus.FAILED || order.getRemainingQuantity() <= 0) {
+            if (order.getOrderStatus() != OrderStatus.FAILED || order.getRemainingQuantity() <= 0) {
+                return null;
+            }
+
+            Long tokenId = order.getToken().getTokenId();
+            UpdateMatchOrderRequestDto retryDto = UpdateMatchOrderRequestDto.builder()
+                    .orderId(order.getOrderId())
+                    .tokenId(tokenId)
+                    .updatePrice(order.getOrderPrice())
+                    .updateQuantity(order.getRemainingQuantity())
+                    .build();
+            return new RetryOrderSnapshot(tokenId, retryDto);
+        });
+
+        if (snapshot == null) {
             return;
         }
 
-        Long tokenId = order.getToken().getTokenId();
-        MatchOrderRequestDto retryDto = MatchOrderRequestDto.builder()
-                .tokenId(tokenId)
-                .memberId(order.getMember().getMemberId())
-                .orderId(order.getOrderId())
-                .orderPrice(order.getOrderPrice())
-                .orderQuantity(order.getRemainingQuantity())
-                .orderType(order.getOrderType())
-                .build();
-
         try {
-            MatchResultDto matchResult = matchClient.sendOrder(retryDto);
-            executeInTransaction(() -> {
-                Order lockedOrder = orderRepository.findWithLockById(orderId)
-                        .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
-                if (lockedOrder.getOrderStatus() != OrderStatus.FAILED || lockedOrder.getRemainingQuantity() <= 0) {
-                    return;
-                }
+            MatchResultDto matchResult = matchClient.updateOrder(snapshot.retryDto());
+            createLockRetryTemplate().execute(context -> {
+                executeInTransaction(() -> {
+                    Order lockedOrder = orderRepository.findWithLockById(orderId)
+                            .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
+                    if (lockedOrder.getOrderStatus() != OrderStatus.FAILED
+                            || lockedOrder.getRemainingQuantity() <= 0) {
+                        return;
+                    }
 
-                processMatchResult(lockedOrder.getOrderId(), tokenId, matchResult);
-                lockedOrder.resetRetryCount();
+                    processMatchResult(lockedOrder.getOrderId(), snapshot.tokenId(), matchResult);
+                    lockedOrder.resetRetryCount();
+                });
+                return null;
             });
         } catch (RuntimeException e) {
-            executeInRequiresNewTransaction(() -> {
+            boolean shouldCancel = executeInRequiresNewTransactionWithResult(() -> {
                 Order lockedOrder = orderRepository.findWithLockById(orderId)
                         .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
                 if (lockedOrder.getOrderStatus() != OrderStatus.FAILED || lockedOrder.getRemainingQuantity() <= 0) {
-                    return;
+                    return false;
                 }
 
                 lockedOrder.increaseRetryCount();
-                if (lockedOrder.getRetryCount() >= MAX_FAILED_RETRY) {
-                    compensateFailedOrder(lockedOrder.getOrderId());
-                    log.warn("Failed order retry limit exceeded. Cancelling order. orderId={}, retryCount={}",
-                            lockedOrder.getOrderId(), lockedOrder.getRetryCount());
-                }
+                return lockedOrder.getRetryCount() >= MAX_FAILED_RETRY;
             });
-            throw e;
+
+            if (!shouldCancel) {
+                throw e;
+            }
+
+            try {
+                matchClient.cancelOrder(orderId, snapshot.tokenId());
+            } catch (org.springframework.web.client.HttpClientErrorException.NotFound notFound) {
+                log.warn("Retry cancel target was not found on match service. orderId={}", orderId, notFound);
+            }
+
+            executeInRequiresNewTransaction(() -> {
+                compensateFailedOrder(orderId);
+                log.warn("Failed order retry limit exceeded. Cancelling order. orderId={}", orderId);
+            });
         }
     }
 
@@ -682,7 +698,6 @@ public class OrderServiceImpl implements OrderService {
         order.removeOrder();
     }
 
-    // updateOrder Phase 1: 寃利?+ ?붽퀬 ?ъ“??+ 二쇰Ц ?섏젙
     @Transactional
     @Override
     public UpdateMatchOrderRequestDto validateAndUpdateOrder(Long orderId, UpdateOrderRequestDto dto) {
@@ -693,7 +708,6 @@ public class OrderServiceImpl implements OrderService {
         Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
-        // ?멸? ?⑥쐞 寃利?
         TickSizePolicy.validate(dto.getUpdatePrice());
 
         OrderStatus status = findOrder.getOrderStatus();
@@ -743,7 +757,6 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
-        // ?섏젙 ??媛????(蹂댁긽?? ??updateOrder ?몄텧 ?꾩뿉 媛?몄?????
         Long originalPrice = findOrder.getOrderPrice();
         Long originalQuantity = findOrder.getOrderQuantity();
 
@@ -759,7 +772,6 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    // update match ?ㅽ뙣 ??蹂댁긽: ?먮옒 媛寃??섎웾?쇰줈 蹂듦뎄
     @Transactional
     @Override
     public void compensateFailedUpdate(Long orderId, Long originalPrice, Long originalQuantity) {
@@ -790,7 +802,6 @@ public class OrderServiceImpl implements OrderService {
         order.restoreOrder(originalPrice, originalQuantity);
     }
 
-    // 誘몄껜寃?二쇰Ц 議고쉶
     @Override
     public List<PendingOrderResponseDto> getPendingOrders(Long tokenId) {
         CustomUserPrincipal principal = (CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication()
@@ -801,7 +812,6 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.toPendingDtoList(pendingOrders);
     }
 
-    // cancelOrder Phase 1: 寃利?+ ?붽퀬 蹂듦뎄 + PENDING ?꾪솚
     @Transactional
     @Override
     public CancelOrderContext validateAndCancelOrder(Long orderId, CancelOrderRequestDto dto) {
@@ -852,7 +862,6 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
-    // cancelOrder Phase 2: CANCELLED 理쒖쥌 ?꾪솚
     @Transactional
     @Override
     public void completeCancelOrder(Long orderId) {
@@ -861,7 +870,6 @@ public class OrderServiceImpl implements OrderService {
         findOrder.removeOrder();
     }
 
-    // cancel match ?ㅽ뙣 ??蹂댁긽: ?붽퀬 ?ъ옞湲?+ ?곹깭 蹂듭썝
     @Transactional
     @Override
     public void compensateFailedCancel(CancelOrderContext ctx) {
@@ -886,7 +894,6 @@ public class OrderServiceImpl implements OrderService {
         findOrder.restoreOrder(ctx.getOrderPrice(), findOrder.getOrderQuantity());
     }
 
-    // 二쇰Ц 媛??湲덉븸/?섎웾 議고쉶
     @Override
     public OrderCapacityResponseDto getOrderCapacity(Long tokenId) {
         Long memberId = ((CustomUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal())
