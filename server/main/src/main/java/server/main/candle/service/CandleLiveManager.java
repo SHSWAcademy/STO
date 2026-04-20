@@ -111,7 +111,9 @@ public class CandleLiveManager {
         if (lastClose == null) return null;
 
         LocalDateTime bucketStart = getCurrentBucket(type);
-        LiveCandleDto recovered = LiveCandleDto.builder()
+        // map에 저장하지 않고 표시용으로만 반환
+        // putIfAbsent로 저장하면 openPrice가 어제 종가로 오염되어 실제 첫 체결가가 시가로 반영되지 않음
+        return LiveCandleDto.builder()
                 .openPrice(lastClose)
                 .highPrice(lastClose)
                 .lowPrice(lastClose)
@@ -120,10 +122,6 @@ public class CandleLiveManager {
                 .tradeCount(0)
                 .candleTime(bucketStart)
                 .build();
-
-        // putIfAbsent: 동시 요청이 와도 최초 1개만 등록
-        map.putIfAbsent(tokenId, recovered);
-        return map.get(tokenId);
     }
 
     // 오늘 일봉 메모리 조회 (DB에 아직 저장 안 된 당일 봉)
