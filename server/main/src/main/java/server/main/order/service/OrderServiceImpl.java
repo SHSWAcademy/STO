@@ -36,6 +36,7 @@ import server.main.admin.repository.PlatformBankingRepository;
 import server.main.admin.dto.DashBoardTradeListDTO;
 import server.main.admin.event.AdminDashboardEvent;
 import server.main.admin.event.TradeExecutedEvent;
+import server.main.admin.event.TradeFlowEvent;
 import server.main.alarm.entity.AlarmType;
 import server.main.alarm.event.AlarmEvent;
 import server.main.alarm.service.AlarmService;
@@ -267,6 +268,17 @@ public class OrderServiceImpl implements OrderService {
 
             // admin 대시보드 이벤트 (거래 체결 시 대시보드 실시간 업데이트)
             eventPublisher.publishEvent(new AdminDashboardEvent());
+            // 블록체인 대시보드 플로우 이벤트 - PENDING
+            eventPublisher.publishEvent(new TradeFlowEvent(
+                    "PENDING",
+                    trade.getTradeId(),
+                    findToken.getTokenId(),
+                    findToken.getTokenSymbol(),
+                    tradeAmount,
+                    execution.getTradeQuantity(),
+                    null,
+                    null
+            ));
             // admin 대시보드 실시간 업데이트 용 (체결 거래내역 실시간 업데이트) > 범근
             eventPublisher.publishEvent(new TradeExecutedEvent(
                     DashBoardTradeListDTO.builder()

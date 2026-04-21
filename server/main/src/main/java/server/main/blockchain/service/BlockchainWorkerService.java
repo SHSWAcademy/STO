@@ -3,12 +3,14 @@ package server.main.blockchain.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.tx.gas.DefaultGasProvider;
+import server.main.admin.event.TradeFlowEvent;
 import server.main.blockchain.StoToken;
 import server.main.blockchain.dto.RecordTradePayload;
 import server.main.blockchain.entity.*;
@@ -31,6 +33,8 @@ public class BlockchainWorkerService {
     private final Web3j web3j;
     private final Credentials issuerCredentials;
     private final ObjectMapper objectMapper;
+    private final TradeRepository tradeRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void processPending() {
@@ -53,6 +57,18 @@ public class BlockchainWorkerService {
 
                 blockchainOutboxQ.markSubmitted();
 
+                // 블록체인 대시보드 플로우 이벤트 - OUTBOX_PROCESSING
+                eventPublisher.publishEvent(new TradeFlowEvent(
+                        "OUTBOX_PROCESSING",
+                        blockchainOutboxQ.getTrade().getTradeId(),
+                        blockchainOutboxQ.getTrade().getToken().getTokenId(),
+                        blockchainOutboxQ.getTrade().getToken().getTokenSymbol(),
+                        blockchainOutboxQ.getTrade().getTotalTradePrice(),
+                        blockchainOutboxQ.getTrade().getTradeQuantity(),
+                        blockchainOutboxQ.getTrade().getBuyer().getMemberName(),
+                        blockchainOutboxQ.getTrade().getSeller().getMemberName()
+                ));
+
                 TransactionReceipt receipt = stoToken.recordTrade(
                         BigInteger.valueOf(blockchainOutboxQ.getTrade().getTradeId()),
                         payload.getSellerAddress(),
@@ -67,12 +83,24 @@ public class BlockchainWorkerService {
                 if (isSuccess) {
                     blockchainOutboxQ.markConfirmed();
                     blockchainOutboxQ.getTrade().updateSettlementStatus(SettlementStatus.SUCCESS);
-
+                    // 블록체인 대시보드 플로우 이벤트 - SUCCESS
+                    eventPublisher.publishEvent(new TradeFlowEvent(
+                            "SUCCESS",
+                            blockchainOutboxQ.getTrade().getTradeId(),
+                            blockchainOutboxQ.getTrade().getToken().getTokenId(),
+                            blockchainOutboxQ.getTrade().getToken().getTokenSymbol(),
+                            blockchainOutboxQ.getTrade().getTotalTradePrice(),
+                            blockchainOutboxQ.getTrade().getTradeQuantity(),
+                            blockchainOutboxQ.getTrade().getBuyer().getMemberName(),
+                            blockchainOutboxQ.getTrade().getSeller().getMemberName()
+                    ));
+                    tradeRepository.save(blockchainOutboxQ.getTrade());
                 } else {
                     blockchainOutboxQ.incrementRetry();
                     if (blockchainOutboxQ.isMaxRetryExceeded()) {
                         blockchainOutboxQ.markAbandoned("Transaction reverted on-chain");
                         blockchainOutboxQ.getTrade().updateSettlementStatus(SettlementStatus.FAILED);
+                        tradeRepository.save(blockchainOutboxQ.getTrade());
                     } else {
                         blockchainOutboxQ.markFailed("Transaction reverted on-chain");
                     }
@@ -102,6 +130,7 @@ public class BlockchainWorkerService {
                 if (blockchainOutboxQ.isMaxRetryExceeded()) {
                     blockchainOutboxQ.markAbandoned(e.getMessage());
                     blockchainOutboxQ.getTrade().updateSettlementStatus(SettlementStatus.FAILED);
+                    tradeRepository.save(blockchainOutboxQ.getTrade());
                 } else {
                     blockchainOutboxQ.markFailed(e.getMessage());
                 }

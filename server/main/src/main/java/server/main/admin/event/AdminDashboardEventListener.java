@@ -25,4 +25,10 @@ public class AdminDashboardEventListener {
     public void handleTrades(TradeExecutedEvent event) {
           messagingTemplate.convertAndSend("/topic/admin/trades", event.getDashBoardTradeListDTO());
     }
+
+    // 블록체인 대시보드 플로우 이벤트
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleTradeFlow(TradeFlowEvent event) {
+        messagingTemplate.convertAndSend("/topic/admin/trade/flow", event);
+    }
 }

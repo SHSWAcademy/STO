@@ -23,4 +23,5 @@ public interface AdminService {
     DashBoardResponseDTO getDashBoard();    // 대시보드 데이터 조회
     Page<DashBoardTradeListDTO> getDashBoardTradeList(int page, int size);  // 대시보드 거래내역 데이터 조회
     Page<SystemLogResponseDTO> getSystemLong(String category, int page, int size);  // 로그관리 데이터 조회
+    TradeStatsResponseDTO getSettlementStats();  // 정산 현황 조회
 }

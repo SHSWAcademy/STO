@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="980" viewBox="0 0 1500 980">
+  <defs>
+    <style>
+      .bg { fill: #f7f8fa; }
+      .title { font: 800 34px Arial, "Noto Sans KR", sans-serif; fill: #1f2933; }
+      .subtitle { font: 500 18px Arial, "Noto Sans KR", sans-serif; fill: #64748b; }
+      .section-title { font: 800 21px Arial, "Noto Sans KR", sans-serif; fill: #111827; }
+      .text { font: 600 16px Arial, "Noto Sans KR", sans-serif; fill: #334155; }
+      .small { font: 500 14px Arial, "Noto Sans KR", sans-serif; fill: #64748b; }
+      .badge { font: 800 13px Arial, "Noto Sans KR", sans-serif; fill: #ffffff; }
+      .card { fill: #ffffff; stroke: #d8dee8; stroke-width: 2; rx: 8; }
+      .card-blue { fill: #edf5ff; stroke: #8ebfed; stroke-width: 2; rx: 8; }
+      .card-green { fill: #edf8f2; stroke: #90d2aa; stroke-width: 2; rx: 8; }
+      .card-yellow { fill: #fff7df; stroke: #e2be57; stroke-width: 2; rx: 8; }
+      .card-red { fill: #fff0f0; stroke: #eba1a1; stroke-width: 2; rx: 8; }
+      .header { fill: #25324a; rx: 8; }
+      .arrow { stroke: #64748b; stroke-width: 3; fill: none; marker-end: url(#arrowHead); }
+      .arrow-soft { stroke: #94a3b8; stroke-width: 2.5; fill: none; marker-end: url(#arrowHeadSoft); }
+      .lane { fill: #ffffff; stroke: #e5e7eb; stroke-width: 2; rx: 8; }
+    </style>
+    <marker id="arrowHead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowHeadSoft" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1500" height="980"/>
+  <text class="title" x="70" y="72">배당금 지급 배치 흐름</text>
+  <text class="subtitle" x="70" y="108">Spring Batch 기반으로 배당 정산일에 미지급 배당 이벤트를 계산하고, 회원/플랫폼/자산 계좌에 정산 결과를 반영</text>
+
+  <rect class="lane" x="55" y="145" width="1390" height="130"/>
+  <rect class="header" x="75" y="170" width="210" height="42"/>
+  <text class="badge" x="105" y="197">1. 실행 조건</text>
+  <text class="section-title" x="330" y="190">AllocationScheduler</text>
+  <text class="text" x="330" y="222">매일 00:00 실행</text>
+  <text class="small" x="330" y="248">시스템 설정의 배당 정산일과 오늘 날짜를 비교</text>
+  <path class="arrow" d="M620 210 H760"/>
+  <rect class="card-blue" x="780" y="168" width="285" height="85"/>
+  <text class="section-title" x="810" y="200">정산일 불일치</text>
+  <text class="small" x="810" y="228">Job 실행 없이 종료</text>
+  <rect class="card-green" x="1115" y="168" width="285" height="85"/>
+  <text class="section-title" x="1145" y="200">정산일 일치</text>
+  <text class="small" x="1145" y="228">allocationJob 실행</text>
+  <path class="arrow-soft" d="M1065 210 H1115"/>
+
+  <path class="arrow" d="M1258 253 V320"/>
+
+  <rect class="lane" x="55" y="320" width="1390" height="525"/>
+  <rect class="header" x="75" y="345" width="210" height="42"/>
+  <text class="badge" x="107" y="372">2. Batch 처리</text>
+
+  <rect class="card" x="115" y="430" width="260" height="150"/>
+  <text class="section-title" x="145" y="465">Job / Step</text>
+  <text class="text" x="145" y="498">allocationJob</text>
+  <text class="small" x="145" y="526">allocationStep</text>
+  <text class="small" x="145" y="552">chunk size = 1</text>
+
+  <path class="arrow" d="M375 505 H455"/>
+
+  <rect class="card-blue" x="455" y="430" width="280" height="150"/>
+  <text class="section-title" x="485" y="465">Reader</text>
+  <text class="text" x="485" y="498">AllocationEventReader</text>
+  <text class="small" x="485" y="526">미지급 배당 이벤트 조회</text>
+  <text class="small" x="485" y="552">allocationBatchStatus = false</text>
+
+  <path class="arrow" d="M735 505 H815"/>
+
+  <rect class="card-yellow" x="815" y="395" width="320" height="220"/>
+  <text class="section-title" x="845" y="430">Processor</text>
+  <text class="text" x="845" y="463">AllocationProcessor</text>
+  <text class="small" x="845" y="492">자산 계좌, 토큰, 보유 수량 조회</text>
+  <text class="small" x="845" y="520">회원 보유 + 플랫폼 보유 = 기준 수량</text>
+  <text class="small" x="845" y="548">월 배당금 + 이전 잔여금 = 배당 재원</text>
+  <text class="small" x="845" y="576">배당 단가, 세후 회원 지급액, 잔여금 계산</text>
+
+  <path class="arrow" d="M1135 505 H1215"/>
+
+  <rect class="card-green" x="1215" y="395" width="195" height="220"/>
+  <text class="section-title" x="1245" y="430">Result</text>
+  <text class="text" x="1245" y="463">AllocationResult</text>
+  <text class="small" x="1245" y="492">회원별 지급액</text>
+  <text class="small" x="1245" y="520">플랫폼 배당액</text>
+  <text class="small" x="1245" y="548">자산 차감액</text>
+  <text class="small" x="1245" y="576">누적 잔여금</text>
+
+  <path class="arrow" d="M1312 615 V670"/>
+
+  <rect class="card-red" x="235" y="675" width="1030" height="130"/>
+  <text class="section-title" x="270" y="714">Writer - AllocationWriter</text>
+  <text class="small" x="270" y="746">자산 계좌 출금 및 잔여금 갱신 → 회원 계좌 입금 및 입출금 내역 저장 → 배당 지급 이력 저장</text>
+  <text class="small" x="270" y="774">플랫폼 보유분 배당금 입금 및 플랫폼 수익 내역 저장 → 배당 이벤트 완료 처리 → 알림 저장 및 Redis publish</text>
+  <path class="arrow-soft" d="M1215 720 H1265"/>
+
+  <path class="arrow" d="M750 805 V875"/>
+
+  <rect class="lane" x="55" y="875" width="1390" height="75"/>
+  <text class="section-title" x="95" y="918">최종 반영</text>
+  <text class="text" x="250" y="918">회원 계좌 배당금 입금</text>
+  <text class="text" x="520" y="918">자산 계좌 출금/잔여금 보관</text>
+  <text class="text" x="835" y="918">플랫폼 배당 수익 적립</text>
+  <text class="text" x="1135" y="918">배당 완료 상태 및 알림 발행</text>
+
+  <rect class="card" x="115" y="625" width="250" height="42"/>
+  <text class="small" x="145" y="652">totalQuantity == 0 이면 skip</text>
+  <path class="arrow-soft" d="M975 615 C975 645 640 646 365 646"/>
+</svg>
