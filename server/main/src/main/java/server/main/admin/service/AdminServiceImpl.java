@@ -555,6 +555,7 @@ public class AdminServiceImpl implements AdminService {
                         .count((Long) row[2])
                         .pending((Long) row[3])
                         .amount((Long) row[4])
+                        .contract_address((String) row[5])
                         .build())
                 .collect(Collectors.toList());
         log.info("블록체인 정산현황 조회 : {}", tokenStatsList);

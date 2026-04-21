@@ -78,9 +78,10 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
                t.token.tokenSymbol,
                COUNT(t),
                SUM(CASE WHEN t.settlementStatus = 'ON_CHAIN_PENDING' THEN 1 ELSE 0 END),
-               COALESCE(SUM(t.totalTradePrice), 0)
+               COALESCE(SUM(t.totalTradePrice), 0),
+               t.token.contractAddress
         FROM Trade t
-        GROUP BY t.token.tokenId, t.token.tokenSymbol
+        GROUP BY t.token.tokenId, t.token.tokenSymbol, t.token.contractAddress
     """)
     List<Object[]> findTokenSettlementStats();
 
