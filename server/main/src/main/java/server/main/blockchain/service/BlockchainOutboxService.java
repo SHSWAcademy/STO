@@ -4,9 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.admin.entity.PlatformTokenHolding;
+import server.main.admin.event.TradeFlowEvent;
 import server.main.admin.repository.PlatformTokenHoldingsRepository;
 import server.main.blockchain.dto.RecordTradePayload;
 import server.main.blockchain.entity.BlockchainOutboxQ;
@@ -27,6 +29,7 @@ public class BlockchainOutboxService {
     private final PlatformTokenHoldingsRepository platformTokenHoldingsRepository;
     private final WalletRepository walletRepository;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void saveTradeOutbox(Trade trade, Token token) {
@@ -71,6 +74,16 @@ public class BlockchainOutboxService {
 
             blockchainOutboxQRepository.save(blockchainOutboxQ);
             log.info("BlockchainOutboxQ 저장 완료 tradeId: {}", trade.getTradeId());
+            eventPublisher.publishEvent(new TradeFlowEvent(
+                    "OUTBOX_PROCESSING",
+                    trade.getTradeId(),
+                    token.getTokenId(),
+                    token.getTokenSymbol(),
+                    trade.getTotalTradePrice(),
+                    trade.getTradeQuantity(),
+                    trade.getBuyer().getMemberName(),
+                    trade.getSeller().getMemberName()
+            ));
         } catch (JsonProcessingException e) {
             log.error("BlockchainOutboxQ payload 직렬화 실패 tradeId: {}", trade.getTradeId(), e);
             throw new BusinessException(ErrorCode.ONCHAIN_TRANSACTION_FAILED);

@@ -542,6 +542,32 @@ public class AdminServiceImpl implements AdminService {
         return targetMonth.atDay(commons.getAllocateSetDate());
     }
 
+    // 정산 현황 조회
+    @Override
+    public TradeStatsResponseDTO getSettlementStats() {
+        Object[] global = tradeRepository.findGlobalSettlementStats().get(0);
+        List<Object[]> tokenRows = tradeRepository.findTokenSettlementStats();
+        log.info("블록체인 종합데이터 조회 확인 : {}", global);
+        List<TokenStatsDTO> tokenStatsList = tokenRows.stream()
+                .map(row -> TokenStatsDTO.builder()
+                        .tokenId((Long) row[0])
+                        .tokenSymbol((String) row[1])
+                        .count((Long) row[2])
+                        .pending((Long) row[3])
+                        .amount((Long) row[4])
+                        .build())
+                .collect(Collectors.toList());
+        log.info("블록체인 정산현황 조회 : {}", tokenStatsList);
+
+        return TradeStatsResponseDTO.builder()
+                .totalTx((Long) global[0])
+                .pendingCount((Long) global[1])
+                .successCount((Long) global[2])
+                .totalAmount((Long) global[3])
+                .tokenStatsList(tokenStatsList)
+                .build();
+    }
+
     // 현재 일자 조회용 메서드
     private LocalDateTime startOfToday() {
         return LocalDate.now().atStartOfDay();

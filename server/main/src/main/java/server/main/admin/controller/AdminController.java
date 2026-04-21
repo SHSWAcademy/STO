@@ -150,4 +150,10 @@ public class AdminController {
         Page<SystemLogResponseDTO> list = adminService.getSystemLong(category, page, size);
         return ResponseEntity.ok(list);
     }
- }
+
+    // 블록체인 대시보드
+    @GetMapping("/trade/stats")
+    public ResponseEntity<TradeStatsResponseDTO> getSettlementStats() {
+        return ResponseEntity.ok(adminService.getSettlementStats());
+    }
+}

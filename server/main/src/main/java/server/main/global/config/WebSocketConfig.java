@@ -24,6 +24,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws/admin")
                 .setAllowedOrigins(allowedOrigins)
                 .withSockJS();
+
+        // admin 블록체인 대시보드 전용
+        registry.addEndpoint("/ws/admin/trade")
+                .setAllowedOrigins(allowedOrigins)
+                .withSockJS();
     }
 
     @Override
