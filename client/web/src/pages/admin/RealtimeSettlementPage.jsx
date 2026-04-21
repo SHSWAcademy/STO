@@ -28,6 +28,21 @@ const TOKEN_COLORS = [
   "#f2a0a0",
 ];
 
+const EVENT_COLORS = [
+  "#7eb8f7",
+  "#f2c94c",
+  "#6ad98d",
+  "#f58cc8",
+  "#8fc7ff",
+  "#f39b6b",
+  "#97e3b0",
+  "#c7a6ff",
+  "#ffd36e",
+  "#ff8f8f",
+  "#76e1d4",
+  "#a9b7ff",
+];
+
 const STAGE_META = {
   PENDING: {
     label: "PENDING",
@@ -51,33 +66,40 @@ const STAGE_META = {
   },
 };
 
+const SIGNAL_PATHS = {
+  PENDING: ["ob", "match"],
+  OUTBOX_PROCESSING: ["ob", "match", "outbox"],
+  SUCCESS: ["outbox", "erc20"],
+  FAILED: ["ob", "match", "outbox"],
+};
+
 const NODE_POPUPS = {
   ob: {
-    title: "호가창",
-    sub: "Order Book",
+    title: "주문",
+    sub: "Order",
     rows: [
-      ["역할", "주문 접수/집계"],
+      ["역할", "주문 접수"],
       ["이벤트", "PENDING"],
     ],
   },
   match: {
-    title: "매칭 엔진",
-    sub: "Off-Chain",
+    title: "체결",
+    sub: "Matching",
     rows: [
-      ["방식", "가격-시간 우선"],
+      ["방식", "가격-시간 우선 체결"],
       ["표시값", "pendingCount"],
     ],
   },
   outbox: {
-    title: "DB Outbox",
-    sub: "Transactional Outbox Pattern",
+    title: "DB Queue",
+    sub: "Transactional Queue",
     rows: [
       ["이벤트", "OUTBOX_PROCESSING"],
       ["처리", "BlockchainWorkerService"],
     ],
   },
   erc20: {
-    title: "ERC-20 컨트랙트",
+    title: "Blockchain",
     sub: "On-Chain",
     rows: [
       ["이벤트", "SUCCESS / FAILED"],
@@ -144,6 +166,21 @@ function formatWon(value) {
   return `${formatNumber(value)}원`;
 }
 
+function getEventColorSeed(event) {
+  return String(event.tradeId ?? event.tokenId ?? event.tokenSymbol ?? event.receivedAt ?? "0");
+}
+
+function getHashedEventColor(event) {
+  const seed = getEventColorSeed(event);
+  let hash = 0;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+  }
+
+  return EVENT_COLORS[hash % EVENT_COLORS.length];
+}
+
 function buildDisplayTokens(tokenStatsList) {
   return tokenStatsList.map((token, index) => ({
     ...token,
@@ -197,7 +234,7 @@ export function RealtimeSettlementPage() {
     signals: [],
     glows: { ob: 0, match: 0, outbox: 0, erc20: 0 },
     blockFlashes: [],
-    blockStack: 0,
+    queueBlocks: [],
   });
 
   const [settlement, setSettlement] = useState(EMPTY_SETTLEMENT);
@@ -245,80 +282,136 @@ export function RealtimeSettlementPage() {
   }, [activeFilter, displayTokens]);
 
   function getFlowColor(event) {
-    const token = latestRef.current.displayTokens.find(
-      (item) =>
-        item.key === getFlowKey(event) ||
-        (event.tokenId !== null && String(item.tokenId) === String(event.tokenId)),
-    );
-    return token?.color ?? STAGE_META[event.stage]?.color ?? "#7eb8f7";
+    return getHashedEventColor(event) ?? STAGE_META[event.stage]?.color ?? "#7eb8f7";
   }
 
-  function getNodeX(key) {
+  function getNodePosition(key) {
     const width = stateRef.current.width;
+    const height = stateRef.current.height;
+
     return {
-      ob: width * 0.14,
-      match: width * 0.34,
-      outbox: width * 0.55,
-      erc20: width * 0.78,
+      ob: { x: width * 0.14, y: height * 0.48 },
+      match: { x: width * 0.34, y: height * 0.48 },
+      outbox: { x: width * 0.52, y: height * 0.48 },
+      erc20: { x: width * 0.8, y: height * 0.48 },
     }[key];
   }
 
-  function getNodeY() {
-    return stateRef.current.height * 0.46;
+  function getNodeX(key) {
+    return getNodePosition(key).x;
   }
 
-  function enqueueSignal(fromKey, toKey, event, color) {
+  function getNodeY(key = "match") {
+    return getNodePosition(key).y;
+  }
+
+  function enqueueSignal(pathKeys, event, color) {
+    if (!Array.isArray(pathKeys) || pathKeys.length < 2) return;
+
     const state = stateRef.current;
-    const yOffset = (toNumber(event.tradeId) % 3 - 1) * 9;
+    const yOffset = (toNumber(event.tradeId) % 3 - 1) * 12;
+
+    if (event.tradeId !== null) {
+      state.signals = state.signals.filter((signal) => signal.tradeId !== event.tradeId);
+    }
+
     state.signals.push({
-      x1: getNodeX(fromKey),
-      y1: getNodeY() + yOffset,
-      x2: getNodeX(toKey),
-      y2: getNodeY() + yOffset,
+      tradeId: event.tradeId,
+      stage: event.stage,
+      event,
+      queueDeposited: false,
+      path: pathKeys.map((key) => ({
+        x: getNodeX(key),
+        y: getNodeY(key) + yOffset,
+      })),
       color,
       label: event.tokenSymbol || event.stage,
       tokenKey: getFlowKey(event),
       t: 0,
-      duration: event.stage === "SUCCESS" ? 96 : 42,
+      duration:
+        event.stage === "SUCCESS"
+          ? 176
+          : event.stage === "FAILED"
+            ? 150
+            : 132,
     });
+  }
+
+  function upsertQueueBlock(event, color) {
+    if (event.tradeId === null) return;
+
+    const state = stateRef.current;
+    const existingIndex = state.queueBlocks.findIndex((item) => item.tradeId === event.tradeId);
+    const nextBlock = {
+      tradeId: event.tradeId,
+      tokenKey: getFlowKey(event),
+      tokenSymbol: String(event.tokenSymbol || "?").slice(0, 6),
+      qty: event.qty,
+      color,
+    };
+
+    if (existingIndex >= 0) {
+      state.queueBlocks[existingIndex] = nextBlock;
+      return;
+    }
+
+    state.queueBlocks.push(nextBlock);
+    state.queueBlocks = state.queueBlocks.slice(-10);
+  }
+
+  function removeQueueBlock(event) {
+    if (event.tradeId === null) return;
+    stateRef.current.queueBlocks = stateRef.current.queueBlocks.filter(
+      (item) => item.tradeId !== event.tradeId,
+    );
   }
 
   function enqueueFlowAnimation(event) {
     const color = getFlowColor(event);
     const state = stateRef.current;
+    const path = SIGNAL_PATHS[event.stage];
+
+    if (path) {
+      enqueueSignal(path, event, color);
+    }
 
     if (event.stage === "PENDING") {
       state.glows.ob = 1;
       state.glows.match = 1;
-      enqueueSignal("ob", "match", event, color);
       return;
     }
 
     if (event.stage === "OUTBOX_PROCESSING") {
+      state.glows.ob = 0.65;
+      state.glows.match = 1;
       state.glows.outbox = 1;
-      enqueueSignal("match", "outbox", event, color);
       return;
     }
 
     if (event.stage === "SUCCESS") {
+      state.glows.ob = 0.55;
+      state.glows.match = 0.72;
+      state.glows.outbox = 0.9;
       state.glows.erc20 = 1;
-      state.blockStack += 1;
+      removeQueueBlock(event);
       state.blockFlashes.push({
-        x: getNodeX("erc20"),
-        y: getNodeY(),
+        x: getNodeX("outbox"),
+        y: getNodeY("outbox") + 74,
         r: 0,
         alpha: 0.9,
-        color: "#6ad98d",
+        color: "#d9b25a",
       });
-      enqueueSignal("outbox", "erc20", event, color);
       return;
     }
 
     if (event.stage === "FAILED") {
+      state.glows.ob = 0.45;
+      state.glows.match = 0.6;
       state.glows.outbox = 1;
+      removeQueueBlock(event);
       state.blockFlashes.push({
         x: getNodeX("outbox"),
-        y: getNodeY(),
+        y: getNodeY("outbox"),
         r: 0,
         alpha: 0.9,
         color: "#f2a0a0",
@@ -389,12 +482,30 @@ export function RealtimeSettlementPage() {
     applyFlowToStats(event);
     enqueueFlowAnimation(event);
     setFlowEvents((prev) => {
+      const now = Date.now();
       const filtered =
         event.tradeId === null
           ? prev
-          : prev.filter((item) => item.tradeId !== event.tradeId);
+          : prev.filter(
+              (item) =>
+                item.tradeId !== event.tradeId &&
+                !(item.stage === "SUCCESS" && Date.parse(item.receivedAt) + 10000 <= now),
+            );
       return [event, ...filtered].slice(0, 80);
     });
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setFlowEvents((prev) =>
+        prev.filter(
+          (event) => !(event.stage === "SUCCESS" && Date.parse(event.receivedAt) + 10000 <= now),
+        ),
+      );
+    }, 1000);
+
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -515,23 +626,45 @@ export function RealtimeSettlementPage() {
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     }
 
-    function drawLayer(cx, fill, color, label) {
-      const { width, height } = stateRef.current;
+    function drawLayer(x, y, w, h, fill, color, label) {
       ctx.fillStyle = fill;
-      ctx.fillRect(cx - width * 0.15, height * 0.12, width * 0.3, height * 0.72);
+      ctx.fillRect(x, y, w, h);
       ctx.fillStyle = color;
-      ctx.globalAlpha = 0.24;
-      ctx.font = "900 9px Noto Sans KR, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(label, cx, height * 0.19);
+      ctx.globalAlpha = 0.52;
+      ctx.font = "900 18px Noto Sans KR, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(label, x + 26, y + 34);
       ctx.globalAlpha = 1;
     }
 
     function drawLayers() {
-      const width = stateRef.current.width;
-      drawLayer(width * 0.24, "rgba(74,114,160,.04)", "#7eb8f7", "OFF-CHAIN");
-      drawLayer(width * 0.55, "rgba(160,120,40,.04)", "#c9a84c", "BRIDGE");
-      drawLayer(width * 0.78, "rgba(42,96,64,.04)", "#6ad98d", "ON-CHAIN");
+      const { width, height } = stateRef.current;
+      drawLayer(
+        width * 0.04,
+        height * 0.16,
+        width * 0.56,
+        height * 0.64,
+        "rgba(74,114,160,.12)",
+        "#9bc4ff",
+        "OFF-CHAIN",
+      );
+      drawLayer(
+        width * 0.66,
+        height * 0.16,
+        width * 0.24,
+        height * 0.64,
+        "rgba(42,96,64,.14)",
+        "#7ff0b0",
+        "ON-CHAIN",
+      );
+
+      ctx.strokeStyle = "rgba(255,255,255,.08)";
+      ctx.setLineDash([8, 10]);
+      ctx.beginPath();
+      ctx.moveTo(width * 0.63, height * 0.17);
+      ctx.lineTo(width * 0.63, height * 0.8);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
 
     function drawArrow(x1, y1, x2, y2, color, opacity) {
@@ -558,45 +691,45 @@ export function RealtimeSettlementPage() {
 
     function drawNode(x, y, label, sub, baseColor, glowColor, glowPower) {
       if (glowPower > 0.02) {
-        const gradient = ctx.createRadialGradient(x, y, 10, x, y, 70);
+        const gradient = ctx.createRadialGradient(x, y, 12, x, y, 86);
         gradient.addColorStop(0, `${glowColor}${Math.round(glowPower * 85).toString(16).padStart(2, "0")}`);
         gradient.addColorStop(1, "transparent");
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(x, y, 70, 0, Math.PI * 2);
+        ctx.arc(x, y, 86, 0, Math.PI * 2);
         ctx.fill();
       }
 
       ctx.beginPath();
-      ctx.roundRect(x - 58, y - 34, 116, 68, 8);
+      ctx.roundRect(x - 72, y - 42, 144, 84, 10);
       ctx.fillStyle = `${baseColor}22`;
       ctx.fill();
       ctx.strokeStyle = `${glowColor}${glowPower > 0.12 ? "aa" : "55"}`;
-      ctx.lineWidth = glowPower > 0.12 ? 1.5 : 0.8;
+      ctx.lineWidth = glowPower > 0.12 ? 1.8 : 1;
       ctx.stroke();
 
       ctx.fillStyle = "rgba(255,255,255,.9)";
-      ctx.font = "700 11px Noto Sans KR, sans-serif";
+      ctx.font = "700 14px Noto Sans KR, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(label, x, y - 6);
+      ctx.fillText(label, x, y - 8);
       ctx.fillStyle = "rgba(255,255,255,.32)";
-      ctx.font = "400 8px Noto Sans KR, sans-serif";
-      ctx.fillText(sub, x, y + 9);
+      ctx.font = "400 10px Noto Sans KR, sans-serif";
+      ctx.fillText(sub, x, y + 13);
     }
 
     function drawMetricPill(x, y, value, color) {
-      ctx.font = "700 8px Noto Sans KR, sans-serif";
+      ctx.font = "700 10px Noto Sans KR, sans-serif";
       const text = formatNumber(value);
       const textWidth = ctx.measureText(text).width;
       ctx.beginPath();
-      ctx.roundRect(x - textWidth / 2 - 8, y, textWidth + 16, 18, 6);
+      ctx.roundRect(x - textWidth / 2 - 10, y, textWidth + 20, 22, 7);
       ctx.fillStyle = "rgba(8,10,16,.78)";
       ctx.fill();
       ctx.strokeStyle = `${color}55`;
       ctx.stroke();
       ctx.fillStyle = color;
       ctx.textAlign = "center";
-      ctx.fillText(text, x, y + 12);
+      ctx.fillText(text, x, y + 15);
     }
 
     function drawSignals() {
@@ -611,15 +744,26 @@ export function RealtimeSettlementPage() {
         const progress = Math.min(signal.t / signal.duration, 1);
         const active = currentFilter === "ALL" || currentFilter === signal.tokenKey;
         const alphaScale = active ? 1 : 0.15;
-        const x = signal.x1 + (signal.x2 - signal.x1) * progress;
-        const y = signal.y1 + (signal.y2 - signal.y1) * progress;
+        const segmentCount = signal.path.length - 1;
+        const scaledProgress = progress * segmentCount;
+        const segmentIndex = Math.min(Math.floor(scaledProgress), segmentCount - 1);
+        const segmentProgress = Math.min(scaledProgress - segmentIndex, 1);
+        const from = signal.path[segmentIndex];
+        const to = signal.path[segmentIndex + 1];
+        const x = from.x + (to.x - from.x) * segmentProgress;
+        const y = from.y + (to.y - from.y) * segmentProgress;
 
         for (let index = 0; index < (active ? 5 : 2); index += 1) {
-          const tailProgress = Math.max(0, progress - index * 0.04);
-          const tailX = signal.x1 + (signal.x2 - signal.x1) * tailProgress;
-          const tailY = signal.y1 + (signal.y2 - signal.y1) * tailProgress;
+          const tailProgress = Math.max(0, progress - index * 0.032);
+          const tailScaledProgress = tailProgress * segmentCount;
+          const tailSegmentIndex = Math.min(Math.floor(tailScaledProgress), segmentCount - 1);
+          const tailSegmentProgress = Math.min(tailScaledProgress - tailSegmentIndex, 1);
+          const tailFrom = signal.path[tailSegmentIndex];
+          const tailTo = signal.path[tailSegmentIndex + 1];
+          const tailX = tailFrom.x + (tailTo.x - tailFrom.x) * tailSegmentProgress;
+          const tailY = tailFrom.y + (tailTo.y - tailFrom.y) * tailSegmentProgress;
           ctx.beginPath();
-          ctx.arc(tailX, tailY, 5 - index * 0.4, 0, Math.PI * 2);
+          ctx.arc(tailX, tailY, 6.5 - index * 0.55, 0, Math.PI * 2);
           ctx.fillStyle = signal.color;
           ctx.globalAlpha = (0.62 - index * 0.1) * alphaScale;
           ctx.fill();
@@ -627,19 +771,34 @@ export function RealtimeSettlementPage() {
 
         ctx.globalAlpha = 0.95 * alphaScale;
         ctx.beginPath();
-        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.arc(x, y, 7, 0, Math.PI * 2);
         ctx.fillStyle = signal.color;
         ctx.fill();
         ctx.globalAlpha = 1;
 
+        const symbol = String(signal.label || "?").slice(0, 4).toUpperCase();
+        ctx.fillStyle = "rgba(12,14,20,.9)";
+        ctx.font = "700 5px Noto Sans KR, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(symbol, x, y + 2);
+
+        if (
+          signal.stage === "OUTBOX_PROCESSING" &&
+          !signal.queueDeposited &&
+          progress >= 0.995
+        ) {
+          upsertQueueBlock(signal.event, signal.color);
+          signal.queueDeposited = true;
+        }
+
         if (active && progress < 0.78) {
-          ctx.font = "700 8px Noto Sans KR, sans-serif";
+          ctx.font = "700 7px Noto Sans KR, sans-serif";
           const width = ctx.measureText(signal.label).width;
           ctx.fillStyle = "rgba(12,14,20,.86)";
-          ctx.fillRect(x - width / 2 - 4, y - 20, width + 8, 13);
+          ctx.fillRect(x - width / 2 - 4, y - 21, width + 8, 12);
           ctx.fillStyle = signal.color;
           ctx.textAlign = "center";
-          ctx.fillText(signal.label, x, y - 10);
+          ctx.fillText(signal.label, x, y - 12);
         }
       });
     }
@@ -662,22 +821,52 @@ export function RealtimeSettlementPage() {
     }
 
     function drawBlockStack() {
-      const stack = Math.min(stateRef.current.blockStack, 10);
-      const x = getNodeX("erc20");
-      const y = getNodeY();
+      const allBlocks = stateRef.current.queueBlocks;
+      const blocks = allBlocks.slice(0, 10);
+      const stack = allBlocks.length;
+      const overflow = Math.max(0, stack - blocks.length);
+      const x = getNodeX("outbox");
+      const y = getNodeY("outbox");
 
-      for (let index = 0; index < stack; index += 1) {
+      blocks.forEach((block, index) => {
+        const top = y + 66 + index * 18;
         ctx.beginPath();
-        ctx.roundRect(x - 36, y + 44 + index * 6, 72, 5, 2);
-        ctx.fillStyle = `rgba(106,217,141,${Math.min(0.07 + (stack - index) * 0.06, 0.5)})`;
+        ctx.roundRect(x - 68, top, 136, 14, 4);
+        ctx.fillStyle = `${block.color}55`;
         ctx.fill();
-      }
+        ctx.strokeStyle = `${block.color}aa`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
 
-      if (stateRef.current.blockStack > 0) {
-        ctx.fillStyle = "rgba(106,217,141,.55)";
+        ctx.beginPath();
+        ctx.roundRect(x - 73, top, 14, 14, 4);
+        ctx.fillStyle = `${block.color}cc`;
+        ctx.fill();
+        ctx.fillStyle = "rgba(12,14,20,.88)";
         ctx.font = "700 8px Noto Sans KR, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`${stateRef.current.blockStack}블록`, x, y + 51 + stack * 6);
+        ctx.fillText(`${index + 1}`, x - 66, top + 10);
+
+        ctx.fillStyle = "rgba(12,14,20,.88)";
+        ctx.font = "700 7px Noto Sans KR, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(`TRADE ${block.tradeId ?? "-"}`, x - 48, top + 10);
+        ctx.textAlign = "right";
+        ctx.fillText(`${formatNumber(block.qty)}개`, x + 58, top + 10);
+      });
+
+      if (stack > 0) {
+        ctx.fillStyle = "rgba(217,178,90,.75)";
+        ctx.font = "700 9px Noto Sans KR, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(`${stack} in queue`, x + 70, y + 78);
+      }
+
+      if (overflow > 0) {
+        ctx.fillStyle = "rgba(255,255,255,.72)";
+        ctx.font = "700 8px Noto Sans KR, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(`+${overflow} more`, x + 70, y + 92);
       }
     }
 
@@ -693,23 +882,27 @@ export function RealtimeSettlementPage() {
         currentSettlement.totalTx > 0 ||
         currentSettlement.pendingCount > 0 ||
         currentSettlement.successCount > 0;
-      const offChainGlow = Math.max(state.glows.ob, state.glows.match, hasData ? 0.12 + basePulse * 0.18 : 0.02);
-      const bridgeGlow = Math.max(state.glows.outbox, hasData ? 0.08 + basePulse * 0.15 : 0.02);
+      const offChainGlow = Math.max(
+        state.glows.ob,
+        state.glows.match,
+        state.glows.outbox,
+        hasData ? 0.12 + basePulse * 0.18 : 0.02,
+      );
+      const queueGlow = Math.max(state.glows.outbox, hasData ? 0.09 + basePulse * 0.16 : 0.03);
       const onChainGlow = Math.max(state.glows.erc20, hasData ? 0.12 + basePulse * 0.18 : 0.02);
 
       ctx.clearRect(0, 0, state.width, state.height);
       drawLayers();
-      drawArrow(getNodeX("ob") + 62, getNodeY(), getNodeX("match") - 62, getNodeY(), "#7eb8f7", 0.18);
-      drawArrow(getNodeX("match") + 62, getNodeY(), getNodeX("outbox") - 62, getNodeY(), "#c9a84c", 0.18);
-      drawArrow(getNodeX("outbox") + 62, getNodeY(), getNodeX("erc20") - 62, getNodeY(), "#c9a84c", 0.14);
+      drawArrow(getNodeX("ob") + 76, getNodeY("ob"), getNodeX("match") - 76, getNodeY("match"), "#7eb8f7", 0.22);
+      drawArrow(getNodeX("match") + 76, getNodeY("match"), getNodeX("outbox") - 76, getNodeY("outbox"), "#c9a84c", 0.22);
+      drawArrow(getNodeX("outbox") + 76, getNodeY("outbox"), getNodeX("erc20") - 76, getNodeY("erc20"), "#6ad98d", 0.2);
 
-      drawNode(getNodeX("ob"), getNodeY(), "호가창", "Order Book", "#3a5a80", "#6a9acf", offChainGlow);
-      drawNode(getNodeX("match"), getNodeY(), "매칭 엔진", "Off-Chain", "#4a72a0", "#7eb8f7", offChainGlow);
-      drawNode(getNodeX("outbox"), getNodeY(), "DB Outbox", "@Async Web3j", "#a07828", "#c9a84c", bridgeGlow);
-      drawNode(getNodeX("erc20"), getNodeY(), "ERC-20", "transferFrom", "#2a6040", "#4ad98d", onChainGlow);
+      drawNode(getNodeX("ob"), getNodeY("ob"), "주문", "Order", "#3a5a80", "#6a9acf", offChainGlow);
+      drawNode(getNodeX("match"), getNodeY("match"), "체결", "Matching", "#4a72a0", "#7eb8f7", offChainGlow);
+      drawNode(getNodeX("outbox"), getNodeY("outbox"), "DB Queue", "Queue", "#86611f", "#d9b25a", queueGlow);
+      drawNode(getNodeX("erc20"), getNodeY("erc20"), "Blockchain", "transferFrom", "#2a6040", "#4ad98d", onChainGlow);
 
-      drawMetricPill(getNodeX("match"), getNodeY() + 48, currentSettlement.pendingCount, "#f2c94c");
-      drawMetricPill(getNodeX("erc20"), getNodeY() + 48, currentSettlement.successCount, "#6ad98d");
+      drawMetricPill(getNodeX("erc20"), getNodeY("erc20") + 58, currentSettlement.successCount, "#6ad98d");
       drawBlockStack();
       drawSignals();
       drawBlockFlashes();
@@ -725,11 +918,11 @@ export function RealtimeSettlementPage() {
       const rect = canvas.getBoundingClientRect();
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
-      const nodes = [
-        { key: "ob", x: getNodeX("ob"), y: getNodeY() },
-        { key: "match", x: getNodeX("match"), y: getNodeY() },
-        { key: "outbox", x: getNodeX("outbox"), y: getNodeY() },
-        { key: "erc20", x: getNodeX("erc20"), y: getNodeY() },
+        const nodes = [
+        { key: "ob", x: getNodeX("ob"), y: getNodeY("ob") },
+        { key: "match", x: getNodeX("match"), y: getNodeY("match") },
+        { key: "outbox", x: getNodeX("outbox"), y: getNodeY("outbox") },
+        { key: "erc20", x: getNodeX("erc20"), y: getNodeY("erc20") },
       ];
       const node = nodes.find((item) => Math.hypot(mouseX - item.x, mouseY - item.y) < 58);
 
@@ -750,7 +943,7 @@ export function RealtimeSettlementPage() {
       const mouseX = event.clientX - rect.left;
       const mouseY = event.clientY - rect.top;
       const hover = ["ob", "match", "outbox", "erc20"].some((key) =>
-        Math.hypot(mouseX - getNodeX(key), mouseY - getNodeY()) < 58,
+        Math.hypot(mouseX - getNodeX(key), mouseY - getNodeY(key)) < 58,
       );
       canvas.style.cursor = hover ? "pointer" : "default";
     }
@@ -772,57 +965,57 @@ export function RealtimeSettlementPage() {
   return (
     <div
       data-settlement-root
-      className="relative h-screen min-h-[720px] w-screen overflow-hidden bg-[#0c0e14] font-sans text-white"
+      className="relative h-screen min-h-[820px] w-screen overflow-hidden bg-[#0c0e14] font-sans text-white"
     >
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
 
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-4 top-3 flex items-center gap-2">
-          <svg width="17" height="17" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <div className="absolute left-5 top-4 flex items-center gap-3">
+          <svg width="21" height="21" viewBox="0 0 32 32" fill="none" aria-hidden="true">
             <path d="M16 2L30 16L16 30L2 16Z" stroke="#c9a84c" strokeWidth="2" fill="none" />
             <path d="M16 2L30 16L2 16Z" fill="#c9a84c" fillOpacity="0.28" />
             <line x1="2" y1="16" x2="30" y2="16" stroke="#c9a84c" strokeWidth="1.5" />
           </svg>
           <div>
-            <div className="text-xs font-black">STONE</div>
-            <div className="mt-px text-[7px] font-bold tracking-[0.1em] text-white/25">
+            <div className="text-sm font-black">STONE</div>
+            <div className="mt-px text-[9px] font-bold tracking-[0.14em] text-white/25">
               REALTIME SETTLEMENT
             </div>
           </div>
         </div>
 
         <div
-          className={`absolute right-4 top-3 flex items-center gap-2 rounded-full border px-3 py-1 text-[9px] font-bold ${
+          className={`absolute right-5 top-4 flex items-center gap-2 rounded-full border px-4 py-1.5 text-[11px] font-bold ${
             socketConnected
               ? "border-[#6ad98d]/20 bg-[#6ad98d]/10 text-[#6ad98d]"
               : "border-[#f2c94c]/20 bg-[#f2c94c]/10 text-[#f2c94c]"
           }`}
         >
           <span
-            className={`h-1.5 w-1.5 animate-pulse rounded-full ${
+            className={`h-2 w-2 animate-pulse rounded-full ${
               socketConnected ? "bg-[#6ad98d]" : "bg-[#f2c94c]"
             }`}
           />
           {socketConnected ? "Trade Flow Live" : `Flow ${socketStatus}`}
         </div>
 
-        <div className="absolute right-4 top-12 max-w-[420px] rounded-md border border-white/10 bg-black/35 px-3 py-2 font-mono text-[9px] text-white/35">
+        <div className="absolute right-5 top-[60px] max-w-[460px] rounded-md border border-white/10 bg-black/35 px-4 py-2.5 font-mono text-[10px] text-white/35">
           <div>connect: {WS_ENDPOINT}</div>
           <div>subscribe: {WS_SUBSCRIPTION}</div>
         </div>
 
         {(statsError || socketError) && (
-          <div className="absolute right-4 top-[92px] max-w-xs rounded-md border border-[#b85450]/30 bg-[#b85450]/15 px-3 py-2 text-[10px] font-bold text-[#f2a0a0]">
+          <div className="absolute right-5 top-[112px] max-w-sm rounded-md border border-[#b85450]/30 bg-[#b85450]/15 px-4 py-3 text-[11px] font-bold text-[#f2a0a0]">
             {statsError || socketError}
           </div>
         )}
 
-        <div className="pointer-events-auto absolute left-0 right-0 top-12 flex h-10 items-center border-b border-white/5 bg-black/25">
-          <div className="flex flex-1 items-center gap-1 overflow-x-auto px-3 scrollbar-hide">
+        <div className="pointer-events-auto absolute left-0 right-0 top-[60px] flex h-14 items-center border-b border-white/5 bg-black/25">
+          <div className="flex flex-1 items-center gap-2 overflow-x-auto px-5 scrollbar-hide">
             <button
               type="button"
               onClick={() => setActiveFilter("ALL")}
-              className={`shrink-0 rounded-md border px-3 py-1.5 text-[10px] font-bold transition ${
+              className={`shrink-0 rounded-lg border px-4 py-2 text-sm font-bold transition ${
                 activeFilter === "ALL"
                   ? "border-white/15 bg-white/10 text-white"
                   : "border-transparent text-white/40 hover:bg-white/5 hover:text-white/70"
@@ -838,7 +1031,7 @@ export function RealtimeSettlementPage() {
                   key={`${token.tokenId ?? "token"}-${token.key}`}
                   type="button"
                   onClick={() => setActiveFilter(token.key)}
-                  className="shrink-0 rounded-md border px-3 py-1.5 text-[10px] font-bold transition hover:bg-white/5"
+                  className="shrink-0 rounded-lg border px-4 py-2 text-sm font-bold transition hover:bg-white/5"
                   style={{
                     color: active ? token.color : "rgba(255,255,255,.42)",
                     borderColor: active ? `${token.color}66` : "transparent",
@@ -847,7 +1040,7 @@ export function RealtimeSettlementPage() {
                 >
                   {token.tokenSymbol}
                   {token.pending > 0 && (
-                    <span className="ml-1 rounded-[3px] bg-[#f2c94c]/20 px-1 text-[8px] text-[#f2c94c]">
+                    <span className="ml-1.5 rounded-[4px] bg-[#f2c94c]/20 px-1.5 py-0.5 text-[10px] text-[#f2c94c]">
                       {formatNumber(token.pending)}
                     </span>
                   )}
@@ -857,7 +1050,7 @@ export function RealtimeSettlementPage() {
           </div>
         </div>
 
-        <div className="absolute left-1/2 top-28 flex -translate-x-1/2 gap-2">
+        <div className="absolute left-1/2 top-26 flex -translate-x-1/2 gap-3">
           {[
             ["총 체결", formatNumber(kpi.totalTx), "#7eb8f7"],
             ["OFF-CHAIN", formatNumber(kpi.pendingCount), "#f2c94c"],
@@ -866,22 +1059,22 @@ export function RealtimeSettlementPage() {
           ].map(([label, value, color]) => (
             <div
               key={label}
-              className="min-w-[76px] rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-center"
+              className="min-w-[108px] rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 text-center"
             >
-              <div className="text-base font-black tracking-tight" style={{ color }}>
+              <div className="text-[22px] font-black tracking-tight" style={{ color }}>
                 {value}
               </div>
-              <div className="mt-px text-[7px] font-bold uppercase text-white/30">{label}</div>
+              <div className="mt-1 text-[10px] font-bold uppercase text-white/30">{label}</div>
             </div>
           ))}
         </div>
 
         {activeToken && (
-          <div className="pointer-events-auto absolute right-4 top-40 w-44 rounded-lg border border-white/10 bg-white/[0.04] p-4">
-            <div className="text-center text-xs font-black" style={{ color: activeToken.color }}>
+          <div className="pointer-events-auto absolute right-5 top-40 w-56 rounded-xl border border-white/10 bg-white/[0.04] p-5">
+            <div className="text-center text-sm font-black" style={{ color: activeToken.color }}>
               {activeToken.tokenSymbol}
             </div>
-            <div className="mb-3 mt-1 text-center text-[10px] text-white/35">
+            <div className="mb-4 mt-1.5 text-center text-xs text-white/35">
               Token ID {activeToken.tokenId ?? "-"}
             </div>
             {[
@@ -890,7 +1083,7 @@ export function RealtimeSettlementPage() {
               ["ON-CHAIN", formatNumber(Math.max(0, activeToken.count - activeToken.pending))],
               ["누적금액", formatWon(activeToken.amount)],
             ].map(([label, value]) => (
-              <div key={label} className="flex justify-between border-b border-white/5 py-1.5 text-[9px] last:border-0">
+              <div key={label} className="flex justify-between border-b border-white/5 py-2 text-[11px] last:border-0">
                 <span className="text-white/35">{label}</span>
                 <span className="font-bold text-white/75">{value}</span>
               </div>
@@ -898,11 +1091,11 @@ export function RealtimeSettlementPage() {
           </div>
         )}
 
-        <div className="pointer-events-auto absolute bottom-0 left-0 right-0 h-24 border-t border-white/5 bg-black/45">
-          <div className="px-4 pb-1 pt-2 text-[8px] font-bold uppercase tracking-widest text-white/25">
+        <div className="pointer-events-auto absolute bottom-0 left-0 right-0 h-36 border-t border-white/5 bg-black/45">
+          <div className="px-5 pb-1 pt-3 text-[10px] font-bold uppercase tracking-widest text-white/25">
             실시간 체결 플로우
           </div>
-          <div className="flex h-16 items-center gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide">
+          <div className="flex h-[108px] items-center gap-3 overflow-x-auto px-5 pb-4 scrollbar-hide">
             {statsLoading ? (
               <div className="text-xs font-bold text-white/25">정산 통계 로딩 중</div>
             ) : visibleFlowEvents.length === 0 ? (
@@ -914,20 +1107,20 @@ export function RealtimeSettlementPage() {
                   <button
                     key={`${event.tradeId ?? "trade"}-${event.stage}-${event.receivedAt}`}
                     type="button"
-                    className="min-w-[156px] shrink-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5 text-left transition hover:bg-white/[0.08]"
+                    className="min-w-[204px] shrink-0 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2.5 text-left transition hover:bg-white/[0.08]"
                   >
-                    <div className="flex items-center gap-1">
-                      <span className="text-[9px] font-black" style={{ color: getFlowColor(event) }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black" style={{ color: getFlowColor(event) }}>
                         {event.tokenSymbol}
                       </span>
-                      <span className={`ml-auto rounded-[3px] px-1 text-[7px] font-bold ${stage.badge}`}>
+                      <span className={`ml-auto rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold ${stage.badge}`}>
                         {stage.label}
                       </span>
                     </div>
-                    <div className="mt-1 text-[8px] font-bold text-white/50">
+                    <div className="mt-1.5 text-[10px] font-bold text-white/50">
                       #{event.tradeId ?? "-"} / {formatWon(event.amount)} / {formatNumber(event.qty)}개
                     </div>
-                    <div className="truncate font-mono text-[7px] text-white/30">
+                    <div className="truncate font-mono text-[9px] text-white/30">
                       {event.sellerName ?? "sellerName: null"} -&gt; {event.buyerName ?? "buyerName: null"}
                     </div>
                   </button>
@@ -939,23 +1132,23 @@ export function RealtimeSettlementPage() {
 
         {popup && (
           <div
-            className="pointer-events-auto absolute z-20 w-56 rounded-lg border border-white/15 bg-[#0a0c12]/95 p-4"
+            className="pointer-events-auto absolute z-20 w-64 rounded-xl border border-white/15 bg-[#0a0c12]/95 p-5"
             style={{ left: popup.left, top: popup.top }}
           >
             <button
               type="button"
               onClick={() => setPopup(null)}
-              className="absolute right-2 top-1 text-sm text-white/35 hover:text-white"
+              className="absolute right-3 top-2 text-base text-white/35 hover:text-white"
               aria-label="닫기"
             >
               x
             </button>
-            <div className="text-xs font-black text-white">{popup.title}</div>
-            <div className="mb-2 mt-1 text-[9px] text-white/30">{popup.sub}</div>
+            <div className="text-sm font-black text-white">{popup.title}</div>
+            <div className="mb-3 mt-1 text-[11px] text-white/30">{popup.sub}</div>
             {popup.rows.map(([label, value]) => (
-              <div key={label} className="flex justify-between border-b border-white/5 py-1 text-[9px] last:border-0">
+              <div key={label} className="flex justify-between border-b border-white/5 py-1.5 text-[11px] last:border-0">
                 <span className="text-white/35">{label}</span>
-                <span className="max-w-[130px] truncate font-mono font-bold text-white/80">{value}</span>
+                <span className="max-w-[144px] truncate font-mono font-bold text-white/80">{value}</span>
               </div>
             ))}
           </div>
