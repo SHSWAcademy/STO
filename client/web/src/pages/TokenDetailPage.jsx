@@ -448,9 +448,9 @@ function CandleVolumeChart({
                         }}
                         formatter={(value, name, props) => {
                           const d = props?.payload;
-                          if (!d) return [value, name];
+                          if (!d || d.open == null) return null;
                           return [
-                            `시 ${d.open?.toLocaleString()}  고 ${d.high?.toLocaleString()}  저 ${d.low?.toLocaleString()}  종 ${d.close?.toLocaleString()}`,
+                            `시 ${d.open.toLocaleString()}  고 ${d.high.toLocaleString()}  저 ${d.low.toLocaleString()}  종 ${d.close.toLocaleString()}`,
                             d.time,
                           ];
                         }}
@@ -891,7 +891,7 @@ export function TokenDetailPage() {
                         <tr>
                           <th className="text-left p-4 font-bold">체결가</th>
                           <th className="text-right p-4 font-bold">체결량(주)</th>
-                          <th className="text-right p-4 font-bold">등락률</th>
+                          <th className="text-right p-4 font-bold">등락률 <span className="text-[10px] font-normal text-stone-400">(전일종가 대비 체결가)</span></th>
                           <th className="text-right p-4 font-bold">당일 총 거래량(주)</th>
                           <th className="text-right p-4 font-bold">시간</th>
                         </tr>
