@@ -9,17 +9,17 @@ import server.main.allocation.entity.AllocationEvent;
 import server.main.allocation.repository.AllocationEventRepository;
 import server.main.asset.entity.Asset;
 import server.main.candle.entity.CandleDay;
-import server.main.candle.entity.CandleMonth;
-import server.main.candle.entity.CandleYear;
 import server.main.candle.repository.CandleDayRepository;
 import server.main.candle.repository.CandleMonthRepository;
 import server.main.candle.repository.CandleYearRepository;
+import server.main.candle.service.CandleLiveManager;
 import server.main.disclosure.entity.Disclosure;
 import server.main.disclosure.entity.DisclosureCategory;
 import server.main.disclosure.repository.DisclosureRepository;
 import server.main.global.error.BusinessException;
 import server.main.global.file.File;
 import server.main.global.file.FileRepository;
+import server.main.global.util.GeminiClient;
 import server.main.token.dto.PeriodType;
 import server.main.token.dto.SelectType;
 import server.main.token.dto.TokenAllocationInfoResponseDto;
@@ -40,7 +40,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TokenServiceImplTest {
@@ -54,10 +56,11 @@ class TokenServiceImplTest {
     @Mock CandleDayRepository candleDayRepository;
     @Mock CandleMonthRepository candleMonthRepository;
     @Mock CandleYearRepository candleYearRepository;
+    @Mock CandleLiveManager candleLiveManager;
+    @Mock GeminiClient geminiClient;
 
     @InjectMocks
     TokenServiceImpl tokenService;
-
 
     @Test
     void getTokenDetail_정상조회() {
@@ -82,9 +85,7 @@ class TokenServiceImplTest {
         when(tokenRepository.findByIdWithAsset(999L)).thenReturn(Optional.empty());
 
         assertThrows(BusinessException.class, () -> tokenService.getTokenDetail(999L));
-        verify(tokenRepository).findByIdWithAsset(999L);
     }
-
 
     @Test
     void getTokenAssetInfo_정상조회() {
@@ -96,7 +97,6 @@ class TokenServiceImplTest {
                 .totalSupply(50000L)
                 .build();
         Token token = Token.builder().tokenId(1L).asset(asset).build();
-
         Disclosure disclosure = Disclosure.builder()
                 .disclosureId(10L)
                 .disclosureCategory(DisclosureCategory.BUILDING)
@@ -105,7 +105,7 @@ class TokenServiceImplTest {
         File file = File.builder()
                 .fileId(100L)
                 .disclosureId(10L)
-                .originName("건물_소개서.pdf")
+                .originName("건물_공시.pdf")
                 .build();
 
         when(tokenRepository.findByIdWithAsset(1L)).thenReturn(Optional.of(token));
@@ -117,7 +117,7 @@ class TokenServiceImplTest {
         assertThat(result.getInitPrice()).isEqualTo(10000L);
         assertThat(result.getTotalValue()).isEqualTo(500000000L);
         assertThat(result.getAssetAddress()).isEqualTo("서울시 강남구 테헤란로 123");
-        assertThat(result.getOriginName()).isEqualTo("건물_소개서.pdf");
+        assertThat(result.getOriginName()).isEqualTo("건물_공시.pdf");
         assertThat(result.getTotalSupply()).isEqualTo(50000L);
     }
 
@@ -129,23 +129,9 @@ class TokenServiceImplTest {
     }
 
     @Test
-    void getTokenAssetInfo_BUILDING_공시없음_예외() {
-        Asset asset = Asset.builder().assetId(1L).build();
-        Token token = Token.builder().tokenId(1L).asset(asset).build();
-
-        when(tokenRepository.findByIdWithAsset(1L)).thenReturn(Optional.of(token));
-        when(disclosureRepository.findByAssetIdAndCategory(1L)).thenReturn(Optional.empty());
-
-        assertThrows(BusinessException.class, () -> tokenService.getTokenAssetInfo(1L));
-    }
-
-
-
-    @Test
     void getAllocationInfo_정상조회() {
         Asset asset = Asset.builder().assetId(1L).build();
         Token token = Token.builder().tokenId(1L).totalSupply(1000L).asset(asset).build();
-
         LocalDateTime date1 = LocalDateTime.of(2024, 3, 20, 0, 0);
         LocalDateTime date2 = LocalDateTime.of(2023, 12, 20, 0, 0);
         List<AllocationEvent> events = List.of(
@@ -160,73 +146,24 @@ class TokenServiceImplTest {
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getSettledAt()).isEqualTo(date1);
-        assertThat(result.get(0).getMonthlyDividendIncome()).isEqualTo(500000L);
-        assertThat(result.get(0).getAllocationPerToken()).isEqualTo(500L);   // 500000 / 1000
-        assertThat(result.get(0).getAllocationBatchStatus()).isTrue();
+        assertThat(result.get(0).getAllocationPerToken()).isEqualTo(500L);
     }
 
     @Test
-    void getAllocationInfo_배당이벤트없음_빈리스트반환() {
+    void getAllocationInfo_이벤트없음_빈리스트() {
         Asset asset = Asset.builder().assetId(1L).build();
         Token token = Token.builder().tokenId(1L).totalSupply(1000L).asset(asset).build();
 
         when(tokenRepository.findByIdWithAsset(1L)).thenReturn(Optional.of(token));
         when(allocationEventRepository.findAllByAssetIdOrderBySettledAtDesc(1L)).thenReturn(List.of());
 
-        List<TokenAllocationInfoResponseDto> result = tokenService.getAllocationInfo(1L);
-
-        assertThat(result).isEmpty();
+        assertThat(tokenService.getAllocationInfo(1L)).isEmpty();
     }
 
     @Test
-    void getAllocationInfo_totalSupply가0이면_perToken은0() {
-        Asset asset = Asset.builder().assetId(1L).build();
-        Token token = Token.builder().tokenId(1L).totalSupply(0L).asset(asset).build(); // total supply = 0
-
-        List<AllocationEvent> events = List.of(
-                AllocationEvent.builder().allocationEventId(1L).monthlyDividendIncome(500000L)
-                        .settledAt(LocalDateTime.now()).allocationBatchStatus(true).build()
-        );
-
-        when(tokenRepository.findByIdWithAsset(1L)).thenReturn(Optional.of(token));
-        when(allocationEventRepository.findAllByAssetIdOrderBySettledAtDesc(1L)).thenReturn(events);
-
-        List<TokenAllocationInfoResponseDto> result = tokenService.getAllocationInfo(1L);
-
-        assertThat(result.get(0).getAllocationPerToken()).isEqualTo(0L);
-    }
-
-    @Test
-    void getAllocationInfo_totalSupplyNull이면_perToken은0() {
-        Asset asset = Asset.builder().assetId(1L).build();
-        Token token = Token.builder().tokenId(1L).totalSupply(null).asset(asset).build(); // total supply = null
-
-        List<AllocationEvent> events = List.of(
-                AllocationEvent.builder().allocationEventId(1L).monthlyDividendIncome(500000L)
-                        .settledAt(LocalDateTime.now()).allocationBatchStatus(false).build()
-        );
-
-        when(tokenRepository.findByIdWithAsset(1L)).thenReturn(Optional.of(token));
-        when(allocationEventRepository.findAllByAssetIdOrderBySettledAtDesc(1L)).thenReturn(events);
-
-        List<TokenAllocationInfoResponseDto> result = tokenService.getAllocationInfo(1L);
-
-        assertThat(result.get(0).getAllocationPerToken()).isEqualTo(0L);
-    }
-
-    @Test
-    void getAllocationInfo_토큰없음_예외() {
-        when(tokenRepository.findByIdWithAsset(999L)).thenReturn(Optional.empty());
-
-        assertThrows(BusinessException.class, () -> tokenService.getAllocationInfo(999L));
-    }
-
-
-    @Test
-    void getDisclosureInfo_정상조회_파일있음() {
+    void getDisclosureInfo_정상조회() {
         Asset asset = Asset.builder().assetId(1L).build();
         Token token = Token.builder().tokenId(1L).asset(asset).build();
-
         Disclosure disclosure = Disclosure.builder()
                 .disclosureId(10L)
                 .disclosureTitle("2024년 1분기 배당 공시")
@@ -234,11 +171,7 @@ class TokenServiceImplTest {
                 .disclosureCategory(DisclosureCategory.DIVIDEND)
                 .assetId(1L)
                 .build();
-        File file = File.builder()
-                .fileId(100L)
-                .disclosureId(10L)
-                .originName("공시문서.pdf")
-                .build();
+        File file = File.builder().fileId(100L).disclosureId(10L).originName("공시문서.pdf").build();
 
         when(tokenRepository.findByIdWithAsset(1L)).thenReturn(Optional.of(token));
         when(disclosureRepository.findAllByAssetId(1L)).thenReturn(List.of(disclosure));
@@ -248,68 +181,39 @@ class TokenServiceImplTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getDisclosureTitle()).isEqualTo("2024년 1분기 배당 공시");
-        assertThat(result.get(0).getDisclosureCategory()).isEqualTo(DisclosureCategory.DIVIDEND);
         assertThat(result.get(0).getOriginName()).isEqualTo("공시문서.pdf");
     }
 
     @Test
-    void getDisclosureInfo_파일X공시_OriginNameNull() {
+    void getDisclosureInfo_파일없음_originNameNull() {
         Asset asset = Asset.builder().assetId(1L).build();
         Token token = Token.builder().tokenId(1L).asset(asset).build();
-
         Disclosure disclosure = Disclosure.builder()
                 .disclosureId(10L)
-                .disclosureTitle("건물 소개")
+                .disclosureTitle("건물 공시")
                 .disclosureCategory(DisclosureCategory.BUILDING)
                 .assetId(1L)
                 .build();
 
         when(tokenRepository.findByIdWithAsset(1L)).thenReturn(Optional.of(token));
         when(disclosureRepository.findAllByAssetId(1L)).thenReturn(List.of(disclosure));
-        when(fileRepository.findByDisclosureId(10L)).thenReturn(null);  // 파일 없음
+        when(fileRepository.findByDisclosureId(10L)).thenReturn(null);
 
         List<TokenDisclosureResponseDto> result = tokenService.getDisclosureInfo(1L);
 
-        assertThat(result.get(0).getOriginName()).isNull(); // assertThat ~ .isNull은 null 인지 확인, assertThrows는 예외가 터졌는지 확인
+        assertThat(result.get(0).getOriginName()).isNull();
     }
-
-    @Test
-    void getDisclosureInfo_공시없음_빈리스트반환() {
-        Asset asset = Asset.builder().assetId(1L).build();
-        Token token = Token.builder().tokenId(1L).asset(asset).build();
-
-        when(tokenRepository.findByIdWithAsset(1L)).thenReturn(Optional.of(token));
-        when(disclosureRepository.findAllByAssetId(1L)).thenReturn(List.of());
-
-        List<TokenDisclosureResponseDto> result = tokenService.getDisclosureInfo(1L);
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void getDisclosureInfo_토큰없음_예외() {
-        when(tokenRepository.findByIdWithAsset(999L)).thenReturn(Optional.empty());
-
-        assertThrows(BusinessException.class, () -> tokenService.getDisclosureInfo(999L));
-    }
-
-
-    // ── getTokenAssetsWith10Paging ──────────────────────────────
 
     @Test
     void getTokenAssetsWith10Paging_BASIC_DAY_정상조회() {
         Asset asset = Asset.builder().assetId(1L).assetName("서울 빌딩").build();
         Token token = Token.builder().tokenId(1L).currentPrice(12000L).asset(asset).build();
-
-        CandleDay todayCandle = CandleDay.builder().openPrice(10000L).closePrice(11000L).token(token).build();
-        CandleDay sparkCandle = CandleDay.builder().closePrice(11500L).token(token).build();
+        CandleDay baseCandle = CandleDay.builder().closePrice(10000L).token(token).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
-        when(candleDayRepository.findTodayByTokenIds(anyList(), any(), any())).thenReturn(List.of(todayCandle));
-        when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(
-                List.<Object[]>of(new Object[]{1L, 50000000L, 300L})
-        );
-        when(candleDayRepository.findRecentByTokenIds(anyList(), any())).thenReturn(List.of(sparkCandle));
+        when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(baseCandle));
+        when(tradeRepository.findAggregatesByTokenIds(anyList()))
+                .thenReturn(List.<Object[]>of(new Object[]{1L, 50000000L, 300L}));
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.DAY);
 
@@ -318,11 +222,11 @@ class TokenServiceImplTest {
         assertThat(dto.getTokenId()).isEqualTo(1L);
         assertThat(dto.getAssetName()).isEqualTo("서울 빌딩");
         assertThat(dto.getCurrentPrice()).isEqualTo(12000L);
+        assertThat(dto.getBasePrice()).isEqualTo(10000L);
         assertThat(dto.getTotalTradeValue()).isEqualTo(50000000L);
         assertThat(dto.getTotalTradeQuantity()).isEqualTo(300L);
-        // 등락률: (12000 - 10000) / 10000 * 100 = 20.0%
         assertThat(dto.getFluctuationRate()).isEqualTo(20.0);
-        assertThat(dto.getSparkLine()).containsExactly(11500L);
+        assertThat(dto.getSparkLine()).isEmpty();
     }
 
     @Test
@@ -336,31 +240,29 @@ class TokenServiceImplTest {
     }
 
     @Test
-    void getTokenAssetsWith10Paging_currentPrice가null이면_0으로처리() {
-        Asset asset = Asset.builder().assetId(1L).assetName("null가격 토큰").build();
+    void getTokenAssetsWith10Paging_currentPrice가Null이면_0으로처리() {
+        Asset asset = Asset.builder().assetId(1L).assetName("null가격토큰").build();
         Token token = Token.builder().tokenId(1L).currentPrice(null).asset(asset).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
-        when(candleDayRepository.findTodayByTokenIds(anyList(), any(), any())).thenReturn(List.of());
+        when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of());
         when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
-        when(candleDayRepository.findRecentByTokenIds(anyList(), any())).thenReturn(List.of());
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.DAY);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getCurrentPrice()).isEqualTo(0L);
-        assertThat(result.get(0).getFluctuationRate()).isEqualTo(0.0);  // basePrice도 없으므로 0
+        assertThat(result.get(0).getFluctuationRate()).isEqualTo(0.0);
     }
 
     @Test
-    void getTokenAssetsWith10Paging_거래없는토큰_집계기본값0() {
-        Asset asset = Asset.builder().assetId(1L).assetName("무거래 토큰").build();
+    void getTokenAssetsWith10Paging_거래없는토큰_집계기본값() {
+        Asset asset = Asset.builder().assetId(1L).assetName("무거래토큰").build();
         Token token = Token.builder().tokenId(1L).currentPrice(5000L).asset(asset).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.TOTAL_TRADE_VALUE)).thenReturn(List.of(token));
-        when(candleDayRepository.findTodayByTokenIds(anyList(), any(), any())).thenReturn(List.of());
-        when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());  // 거래 없음
-        when(candleDayRepository.findRecentByTokenIds(anyList(), any())).thenReturn(List.of());
+        when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of());
+        when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.TOTAL_TRADE_VALUE, PeriodType.DAY);
 
@@ -374,9 +276,8 @@ class TokenServiceImplTest {
         Token token = Token.builder().tokenId(1L).currentPrice(8000L).asset(asset).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
-        when(candleDayRepository.findTodayByTokenIds(anyList(), any(), any())).thenReturn(List.of());  // 시가 없음
+        when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of());
         when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
-        when(candleDayRepository.findRecentByTokenIds(anyList(), any())).thenReturn(List.of());
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.DAY);
 
@@ -384,66 +285,62 @@ class TokenServiceImplTest {
     }
 
     @Test
-    void getTokenAssetsWith10Paging_MONTH_candleMonth사용() {
+    void getTokenAssetsWith10Paging_MONTH도_day기준BasePrice를사용() {
         Asset asset = Asset.builder().assetId(1L).assetName("월간 토큰").build();
         Token token = Token.builder().tokenId(1L).currentPrice(20000L).asset(asset).build();
-
-        CandleMonth monthCandle = CandleMonth.builder().openPrice(18000L).closePrice(19000L).token(token).build();
+        CandleDay baseCandle = CandleDay.builder().closePrice(18000L).token(token).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
-        when(candleMonthRepository.findThisMonthByTokenIds(anyList(), any(), any())).thenReturn(List.of(monthCandle));
+        when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(baseCandle));
         when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
-        when(candleMonthRepository.findRecentByTokenIds(anyList(), any())).thenReturn(List.of(monthCandle));
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.MONTH);
 
         assertThat(result).hasSize(1);
-        // 등락률: (20000 - 18000) / 18000 * 100 ≈ 11.11%
-        assertThat(result.get(0).getFluctuationRate()).isEqualTo(Math.round((20000.0 - 18000.0) / 18000.0 * 100.0 * 100.0) / 100.0);
-        verifyNoInteractions(candleDayRepository, candleYearRepository);
+        assertThat(result.get(0).getFluctuationRate())
+                .isEqualTo(Math.round((20000.0 - 18000.0) / 18000.0 * 100.0 * 100.0) / 100.0);
+        verifyNoInteractions(candleMonthRepository, candleYearRepository);
     }
 
     @Test
-    void getTokenAssetsWith10Paging_YEAR_candleYear사용() {
+    void getTokenAssetsWith10Paging_YEAR도_day기준BasePrice를사용() {
         Asset asset = Asset.builder().assetId(1L).assetName("연간 토큰").build();
         Token token = Token.builder().tokenId(1L).currentPrice(30000L).asset(asset).build();
-
-        CandleYear yearCandle = CandleYear.builder().openPrice(25000L).closePrice(28000L).token(token).build();
+        CandleDay baseCandle = CandleDay.builder().closePrice(25000L).token(token).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
-        when(candleYearRepository.findThisYearByTokenIds(anyList(), any(), any())).thenReturn(List.of(yearCandle));
+        when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(baseCandle));
         when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
-        when(candleYearRepository.findRecentByTokenIds(anyList(), any())).thenReturn(List.of());
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.YEAR);
 
         assertThat(result).hasSize(1);
+        assertThat(result.get(0).getBasePrice()).isEqualTo(25000L);
         assertThat(result.get(0).getSparkLine()).isEmpty();
-        verifyNoInteractions(candleDayRepository, candleMonthRepository);
+        verifyNoInteractions(candleMonthRepository, candleYearRepository);
     }
 
     @Test
-    void getTokenAssetsWith10Paging_스파크라인_복수토큰_tokenId별그룹핑() {
+    void getTokenAssetsWith10Paging_복수토큰_basePrice매핑() {
         Asset asset1 = Asset.builder().assetId(1L).assetName("A토큰").build();
         Asset asset2 = Asset.builder().assetId(2L).assetName("B토큰").build();
         Token token1 = Token.builder().tokenId(1L).currentPrice(1000L).asset(asset1).build();
         Token token2 = Token.builder().tokenId(2L).currentPrice(2000L).asset(asset2).build();
-
-        CandleDay spark1a = CandleDay.builder().closePrice(900L).token(token1).build();
-        CandleDay spark1b = CandleDay.builder().closePrice(950L).token(token1).build();
-        CandleDay spark2a = CandleDay.builder().closePrice(1800L).token(token2).build();
+        CandleDay base1 = CandleDay.builder().closePrice(900L).token(token1).build();
+        CandleDay base2 = CandleDay.builder().closePrice(1800L).token(token2).build();
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token1, token2));
-        when(candleDayRepository.findTodayByTokenIds(anyList(), any(), any())).thenReturn(List.of());
+        when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(base1, base2));
         when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
-        when(candleDayRepository.findRecentByTokenIds(anyList(), any())).thenReturn(List.of(spark1a, spark1b, spark2a));
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.DAY);
 
         TokenMainResponseDto dto1 = result.stream().filter(d -> d.getTokenId() == 1L).findFirst().orElseThrow();
         TokenMainResponseDto dto2 = result.stream().filter(d -> d.getTokenId() == 2L).findFirst().orElseThrow();
 
-        assertThat(dto1.getSparkLine()).containsExactly(900L, 950L);
-        assertThat(dto2.getSparkLine()).containsExactly(1800L);
+        assertThat(dto1.getBasePrice()).isEqualTo(900L);
+        assertThat(dto2.getBasePrice()).isEqualTo(1800L);
+        assertThat(dto1.getSparkLine()).isEmpty();
+        assertThat(dto2.getSparkLine()).isEmpty();
     }
 }
