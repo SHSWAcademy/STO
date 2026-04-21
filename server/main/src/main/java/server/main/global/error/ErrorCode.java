@@ -47,6 +47,9 @@ public enum ErrorCode {
     INVALID_UPDATE_QUANTITY(HttpStatus.BAD_REQUEST, "INVALID_UPDATE_QUANTITY", "이미 체결된 수량보다 적은 수량으로 수정할 수 없습니다."),
     INVALID_TICK_SIZE(HttpStatus.BAD_REQUEST, "INVALID_TICK_SIZE", "호가 단위에 맞지 않는 가격입니다."),
 
+    PRICE_OVER_LIMIT(HttpStatus.BAD_REQUEST, "PRICE_OVER_LIMIT", "상한가를 초과한 주문 가격입니다."),
+    PRICE_UNDER_LIMIT(HttpStatus.BAD_REQUEST, "PRICE_UNDER_LIMIT", "하한가 미만의 주문 가격입니다."),
+
     // ── 거래 시간 ────────────────────────────────────────────
     OUTSIDE_TRADING_HOURS(HttpStatus.BAD_REQUEST, "OUTSIDE_TRADING_HOURS", "거래 시간이 아닙니다. (09:00 ~ 15:30)"),
 
