@@ -25,6 +25,13 @@ public class AlarmController {
         return ResponseEntity.ok(alarmService.getAlarms(memberId));
     }
 
+    // 미읽음 수 조회
+    @GetMapping("/unread-count")
+    public ResponseEntity<Long> getUnreadCount() {
+        Long memberId = getMemberId();
+        return ResponseEntity.ok(alarmService.getUnreadCount(memberId));
+    }
+
     // 단건 읽음 처리
     @PatchMapping("/{alarmId}/read")
     public ResponseEntity<Void> markAsRead(@PathVariable Long alarmId) {

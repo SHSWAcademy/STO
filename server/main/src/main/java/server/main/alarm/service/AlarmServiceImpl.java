@@ -77,4 +77,10 @@ public class AlarmServiceImpl implements AlarmService {
     public void markAllAsRead(Long memberId) {
         alarmRepository.markAllAsRead(memberId);
     }
+
+    // 미읽음 알림 수
+    @Override
+    public long getUnreadCount(Long memberId) {
+        return alarmRepository.countByMemberIdAndIsReadFalse(memberId);
+    }
 }
