@@ -174,7 +174,8 @@ public class TokenServiceImpl implements TokenService{
         Map<Long, Long> basePriceMap = getBasePriceMap(tokenIds, periodType);
 
         // 4. 토큰 id 별 이때 동안의 전체 거래 대금, 전체 거래량 조회
-        Map<Long, long[]> tradeAggMap = tradeRepository.findAggregatesByTokenIds(tokenIds)
+        LocalDateTime todayStart = getDayBucket(LocalDateTime.now());
+        Map<Long, long[]> tradeAggMap = tradeRepository.findAggregatesByTokenIds(tokenIds, todayStart)
                 .stream()
                 .collect(Collectors.toMap(
                         row -> (Long) row[0],

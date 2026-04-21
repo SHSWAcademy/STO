@@ -235,8 +235,8 @@ export function DashboardPage() {
                     <span className="block">등락률</span>
                     <span className="block text-[9px] font-bold normal-case tracking-normal text-stone-700">(전날 종가 대비 현재 가격)</span>
                   </th>
-                  <th className="py-4 text-right font-medium">총 거래대금</th>
-                  <th className="py-4 text-right font-medium">총 거래량</th>
+                  <th className="py-4 text-right font-medium">당일 총거래대금</th>
+                  <th className="py-4 text-right font-medium">당일 총거래량</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-200">
