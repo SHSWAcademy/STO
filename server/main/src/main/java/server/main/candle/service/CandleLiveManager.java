@@ -14,6 +14,7 @@ import server.main.candle.repository.*;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -100,24 +101,42 @@ public class CandleLiveManager {
     }
 
     // 상세 페이지 접근 시 현재 봉 스냅샷 반환
-    // 메모리에 없으면 (서버 재시작 후 체결이 아직 없는 경우) DB에서 가장 최근 봉을 읽어 복구
+    // 메모리에 없으면 DB 체크포인트로 복원, 체크포인트도 없으면 이전 종가로 근사
+    // DB 체크포인트 : 매 분 candle_days에 덮어쓴 데이터
     public LiveCandleDto getSnapshot(Long tokenId, CandleType type) {
         ConcurrentHashMap<Long, LiveCandleDto> map = getMap(type);
         LiveCandleDto live = map.get(tokenId);
         if (live != null) return live;
 
-        // DB에서 마지막 종가를 읽어 현재 봉의 초기값으로 세팅
-        Long lastClose = findLastClose(tokenId, type);
-        if (lastClose == null) return null;
-
         LocalDateTime bucketStart = getCurrentBucket(type);
-        // map에 저장하지 않고 표시용으로만 반환
-        // putIfAbsent로 저장하면 openPrice가 어제 종가로 오염되어 실제 첫 체결가가 시가로 반영되지 않음
+
+        // DB에서 가장 최근 캔들 조회
+        Optional<Candle> latestOpt = findLatestCandle(tokenId, type);
+        if (latestOpt.isEmpty()) return null;
+
+        Candle latest = latestOpt.get();
+
+        // 현재 구간 체크포인트가 DB에 있으면 시/고/저/종/거래량 전체 복원 후 메모리에 등록
+        if (latest.getCandleTime().equals(bucketStart)) {
+            LiveCandleDto restored = LiveCandleDto.builder()
+                    .openPrice(latest.getOpenPrice())
+                    .highPrice(latest.getHighPrice())
+                    .lowPrice(latest.getLowPrice())
+                    .closePrice(latest.getClosePrice())
+                    .volume(latest.getVolume())
+                    .tradeCount(latest.getTradeCount())
+                    .candleTime(bucketStart)
+                    .build();
+            map.putIfAbsent(tokenId, restored); // 동시 체결로 map에 먼저 등록된 봉이 있으면 덮어쓰지 않음 (레이스 컨디션 방지)
+            return map.get(tokenId);
+        }
+
+        // 현재 구간 체크포인트 없으면 이전 종가로 근사 — map에 저장하지 않음 (시가 오염 방지)
         return LiveCandleDto.builder()
-                .openPrice(lastClose)
-                .highPrice(lastClose)
-                .lowPrice(lastClose)
-                .closePrice(lastClose)
+                .openPrice(latest.getClosePrice())
+                .highPrice(latest.getClosePrice())
+                .lowPrice(latest.getClosePrice())
+                .closePrice(latest.getClosePrice())
                 .volume(0L)
                 .tradeCount(0)
                 .candleTime(bucketStart)
@@ -190,14 +209,14 @@ public class CandleLiveManager {
         };
     }
 
-    // DB에서 해당 토큰의 가장 최근 캔들 종가 조회
-    private Long findLastClose(Long tokenId, CandleType type) {
+    // DB에서 해당 토큰의 가장 최근 캔들 전체 조회 — getSnapshot 복원용
+    private Optional<Candle> findLatestCandle(Long tokenId, CandleType type) {
         return switch (type) {
-            case MINUTE -> candleMinuteRepository.findLatest(tokenId).map(Candle::getClosePrice).orElse(null);
-            case HOUR   -> candleHourRepository.findLatest(tokenId).map(Candle::getClosePrice).orElse(null);
-            case DAY    -> candleDayRepository.findLatest(tokenId).map(Candle::getClosePrice).orElse(null);
-            case MONTH  -> candleMonthRepository.findLatest(tokenId).map(Candle::getClosePrice).orElse(null);
-            case YEAR   -> candleYearRepository.findLatest(tokenId).map(Candle::getClosePrice).orElse(null);
+            case MINUTE -> candleMinuteRepository.findLatest(tokenId).map(c -> (Candle) c);
+            case HOUR   -> candleHourRepository.findLatest(tokenId).map(c -> (Candle) c);
+            case DAY    -> candleDayRepository.findLatest(tokenId).map(c -> (Candle) c);
+            case MONTH  -> candleMonthRepository.findLatest(tokenId).map(c -> (Candle) c);
+            case YEAR   -> candleYearRepository.findLatest(tokenId).map(c -> (Candle) c);
         };
     }
 
@@ -216,6 +235,8 @@ public class CandleLiveManager {
         flushMap(liveDay,    CandleType.DAY,    getDayBucket(now));
         flushMap(liveMonth,  CandleType.MONTH,  now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS));
         flushMap(liveYear,   CandleType.YEAR,   now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS));
+        // 구간 만료 flush 후 진행 중인 봉 중간 저장 — 크래시 시 유실 범위를 최대 1분으로 제한
+        checkpointCurrentCandles();
     }
 
     private void flushMap(ConcurrentHashMap<Long, LiveCandleDto> map, CandleType type, LocalDateTime currentBucket) {
@@ -225,6 +246,29 @@ public class CandleLiveManager {
                 if (!candle.getCandleTime().equals(currentBucket)) {
                     candleFlushService.saveToDB(candle, tokenId, type);
                     map.remove(tokenId); // flush 후 map 에서 삭제
+                }
+            }
+        });
+    }
+
+    // 진행 중인 봉(현재 구간)을 map에서 제거하지 않고 DB에 중간 저장
+    private void checkpointCurrentCandles() {
+        checkpointMap(liveMinute, CandleType.MINUTE);
+        checkpointMap(liveHour,   CandleType.HOUR);
+        checkpointMap(liveDay,    CandleType.DAY);
+        checkpointMap(liveMonth,  CandleType.MONTH);
+        checkpointMap(liveYear,   CandleType.YEAR);
+    }
+
+    // map에서 제거 없이 upsert만 수행 — 중간 저장용
+    private void checkpointMap(ConcurrentHashMap<Long, LiveCandleDto> map, CandleType type) {
+        map.forEach((tokenId, candle) -> {
+            Object lock = tokenLocks.computeIfAbsent(tokenId, k -> new Object());
+            synchronized (lock) {
+                try {
+                    candleFlushService.saveToDB(candle, tokenId, type);
+                } catch (Exception e) {
+                    log.error("[CandleLiveManager] checkpoint 실패 tokenId={} type={}", tokenId, type, e);
                 }
             }
         });
