@@ -79,7 +79,7 @@ function OrderExecutionConfirmModal({ title, items, errorMessage, submitting, on
   );
 }
 
-export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, wsPendingData, onLoginRequired }) {
+export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, wsPendingData, onLoginRequired, yesterdayClosePrice = 0 }) {
   const [orderSide, setOrderSide] = useState('buy');
   const [inputMode, setInputMode] = useState('qty');
   const [price, setPrice] = useState(currentPrice > 0 ? String(currentPrice) : '');
@@ -266,6 +266,14 @@ export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, 
       setOrderMsg({ type: 'error', text: `호가 단위를 확인해 주세요. 현재 가격의 호가 단위는 ${tick.toLocaleString()}원입니다.` });
       return;
     }
+    if (upperLimit > 0 && numPrice > upperLimit) {
+      setOrderMsg({ type: 'error', text: `상한가(${upperLimit.toLocaleString()}원)를 초과한 주문 가격입니다.` });
+      return;
+    }
+    if (lowerLimit > 0 && numPrice < lowerLimit) {
+      setOrderMsg({ type: 'error', text: `하한가(${lowerLimit.toLocaleString()}원) 미만의 주문 가격입니다.` });
+      return;
+    }
     openPasswordModal('create');
   }
 
@@ -346,6 +354,14 @@ export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, 
     const tick = getTickSize(updatePrice);
     if (updatePrice % tick !== 0) {
       setUpdateMsg({ orderId, type: 'error', text: `호가 단위를 확인해 주세요. 현재 가격의 호가 단위는 ${tick.toLocaleString()}원입니다.` });
+      return;
+    }
+    if (upperLimit > 0 && updatePrice > upperLimit) {
+      setUpdateMsg({ orderId, type: 'error', text: `상한가(${upperLimit.toLocaleString()}원)를 초과한 주문 가격입니다.` });
+      return;
+    }
+    if (lowerLimit > 0 && updatePrice < lowerLimit) {
+      setUpdateMsg({ orderId, type: 'error', text: `하한가(${lowerLimit.toLocaleString()}원) 미만의 주문 가격입니다.` });
       return;
     }
     if (!isValidAccountPassword(editAccountPassword)) {
@@ -439,6 +455,9 @@ export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, 
     return submitCancelOrder(confirmModal.orderId);
   }
 
+  const upperLimit = yesterdayClosePrice > 0 ? Math.round(yesterdayClosePrice * 1.3) : 0;
+  const lowerLimit = yesterdayClosePrice > 0 ? Math.round(yesterdayClosePrice * 0.7) : 0;
+
   const ratioMap = { '10%': 0.1, '25%': 0.25, '50%': 0.5, '최대': 1.0 };
 
   function handleRatioClick(label) {
@@ -492,7 +511,7 @@ export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, 
                       </div>
                       {isEditing ? (
                         <div className="space-y-2">
-                          <div className="space-y-1"><label className="text-[10px] font-bold text-stone-400">수정 가격</label><div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2"><input type="number" min="1" step="1" value={editPrice} onChange={e => setEditPrice(e.target.value)} className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800" /><span className="text-[11px] font-bold text-stone-400">원</span></div>{Number(editPrice) > 0 && Number(editPrice) % getTickSize(Number(editPrice)) !== 0 && <p className="text-[10px] font-bold text-amber-600">호가 단위({getTickSize(Number(editPrice)).toLocaleString()}원)에 맞지 않습니다.</p>}</div>
+                          <div className="space-y-1"><label className="text-[10px] font-bold text-stone-400">수정 가격</label><div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2"><input type="number" min="1" step="1" value={editPrice} onChange={e => setEditPrice(e.target.value)} className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800" /><span className="text-[11px] font-bold text-stone-400">원</span></div>{Number(editPrice) > 0 && Number(editPrice) % getTickSize(Number(editPrice)) !== 0 && <p className="text-[10px] font-bold text-amber-600">호가 단위({getTickSize(Number(editPrice)).toLocaleString()}원)에 맞지 않습니다.</p>}{Number(editPrice) > 0 && upperLimit > 0 && Number(editPrice) > upperLimit && <p className="text-[10px] font-bold text-brand-red">상한가({upperLimit.toLocaleString()}원)를 초과합니다.</p>}{Number(editPrice) > 0 && lowerLimit > 0 && Number(editPrice) < lowerLimit && <p className="text-[10px] font-bold text-brand-blue">하한가({lowerLimit.toLocaleString()}원) 미만입니다.</p>}</div>
                           <div className="space-y-1"><label className="text-[10px] font-bold text-stone-400">수정 수량</label><div className="flex items-center gap-2 bg-white border border-stone-300 rounded-md px-3 py-2"><input type="number" min="1" step="1" value={editQty} onChange={e => setEditQty(e.target.value)} className="flex-1 bg-transparent text-[11px] font-mono font-bold outline-none text-right text-stone-800" /><span className="text-[11px] font-bold text-stone-400">주</span></div></div>
                           <div className="flex justify-between text-[11px] font-bold border-t border-stone-200 pt-1.5"><span className="text-stone-400">주문금액</span><span className="font-mono font-black text-stone-800">{totalAmount.toLocaleString()}원</span></div>
                           {updateMsg?.orderId === order.orderId && <p className={cn('text-[10px] font-bold text-center', updateMsg.type === 'error' ? 'text-brand-red' : 'text-green-600')}>{updateMsg.text}</p>}
@@ -510,10 +529,12 @@ export function SecureOrderPanel({ currentPrice, selectedPrice, tokenId, token, 
         ) : (
           <div className="space-y-5">
             <div className="flex items-center justify-between"><span className="px-3 py-1 bg-stone-200 rounded-lg text-[10px] font-bold text-stone-500">지정가</span><div className="flex bg-stone-200 p-1 rounded-lg">{[{ id: 'qty', label: '수량' }, { id: 'amount', label: '금액' }].map(mode => <button key={mode.id} onClick={() => setInputMode(mode.id)} className={cn('px-3 py-1 rounded-md text-[10px] font-bold transition-all', inputMode === mode.id ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-400')}>{mode.label}</button>)}</div></div>
-            <div className="space-y-1.5"><div className="flex items-center justify-between"><label className="text-[10px] font-bold text-stone-400">{isBuy ? '매수' : '매도'} 가격</label>{numPrice > 0 && <span className="text-[10px] font-bold text-stone-400">호가 단위: {getTickSize(numPrice).toLocaleString()}원</span>}</div><div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5"><input type="text" value={price} onChange={e => setPrice(e.target.value)} placeholder="가격 입력" className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800 placeholder-stone-400" /><span className="text-sm font-bold text-stone-400">원</span></div>{numPrice > 0 && numPrice % getTickSize(numPrice) !== 0 && <p className="text-[10px] font-bold text-amber-600">호가 단위({getTickSize(numPrice).toLocaleString()}원)에 맞지 않습니다.</p>}</div>
+            <div className="space-y-1.5"><div className="flex items-center justify-between"><label className="text-[10px] font-bold text-stone-400">{isBuy ? '매수' : '매도'} 가격</label>{numPrice > 0 && <span className="text-[10px] font-bold text-stone-400">호가 단위: {getTickSize(numPrice).toLocaleString()}원</span>}</div><div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5"><input type="text" value={price} onChange={e => setPrice(e.target.value)} placeholder="가격 입력" className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800 placeholder-stone-400" /><span className="text-sm font-bold text-stone-400">원</span></div>{numPrice > 0 && numPrice % getTickSize(numPrice) !== 0 && <p className="text-[10px] font-bold text-amber-600">호가 단위({getTickSize(numPrice).toLocaleString()}원)에 맞지 않습니다.</p>}
+              {numPrice > 0 && upperLimit > 0 && numPrice > upperLimit && <p className="text-[10px] font-bold text-brand-red">상한가({upperLimit.toLocaleString()}원)를 초과합니다.</p>}
+              {numPrice > 0 && lowerLimit > 0 && numPrice < lowerLimit && <p className="text-[10px] font-bold text-brand-blue">하한가({lowerLimit.toLocaleString()}원) 미만입니다.</p>}</div>
             {inputMode === 'qty' ? <div className="space-y-1.5"><label className="text-[10px] font-bold text-stone-400">{isBuy ? '매수' : '매도'} 수량</label><div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5"><input type="text" placeholder="수량 입력" value={qty} onChange={e => setQty(e.target.value)} className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800" /><span className="text-sm font-bold text-stone-400">주</span></div></div> : <div className="space-y-1.5"><label className="text-[10px] font-bold text-stone-400">{isBuy ? '매수' : '매도'} 금액</label><div className="flex items-center gap-2 bg-stone-200 border border-stone-200 rounded-md px-4 py-2.5"><input type="text" placeholder="금액 입력" value={amount} onChange={e => setAmount(e.target.value)} className="flex-1 bg-transparent text-sm font-mono font-bold outline-none text-right pr-2 text-stone-800" /><span className="text-sm font-bold text-stone-400">원</span></div>{amount && numPrice > 0 && <p className="text-[10px] text-stone-400 font-bold text-right">약 {Math.floor(Number(amount) / numPrice)}주</p>}</div>}
             <div className="grid grid-cols-4 gap-2">{['10%', '25%', '50%', '최대'].map(label => <button key={label} onClick={() => handleRatioClick(label)} disabled={!isLoggedIn} className={cn('py-1.5 rounded-lg text-[10px] font-bold transition-all border', isLoggedIn ? 'bg-stone-200 hover:bg-stone-300 border-stone-200 text-stone-400' : 'bg-stone-100 border-stone-100 text-stone-300 cursor-not-allowed')}>{label}</button>)}</div>
-            <div className="pt-3 border-t border-stone-200 space-y-2"><div className="flex justify-between text-[10px] font-bold"><span className="text-stone-400">{isBuy ? '매수 가능 금액' : '매도 가능 수량'}</span><span className="text-stone-800">{isBuy ? `${capacity.availableBalance.toLocaleString()}원` : `${capacity.availableQuantity.toLocaleString()}주`}</span></div><div className="flex justify-between text-[10px] font-bold"><span className="text-stone-400">총 주문 금액</span><span className="text-stone-800">{numAmount.toLocaleString()}원</span></div><div className="flex items-center gap-1.5 text-[10px] text-[#a07828] font-bold bg-[#fef6dc] px-3 py-2 rounded-lg"><MoreHorizontal size={12} />지정가 주문은 체결 전까지 대기 상태로 유지됩니다.</div></div>
+            <div className="pt-3 border-t border-stone-200 space-y-2"><div className="flex justify-between text-[10px] font-bold"><span className="text-stone-400">{isBuy ? '매수 가능 금액' : '매도 가능 수량'}</span><span className="text-stone-800">{isBuy ? `${capacity.availableBalance.toLocaleString()}원` : `${capacity.availableQuantity.toLocaleString()}주`}</span></div><div className="flex justify-between text-[10px] font-bold"><span className="text-stone-400">총 주문 금액</span><span className="text-stone-800">{numAmount.toLocaleString()}원</span></div>{upperLimit > 0 && (<div className="flex justify-between text-[10px] font-bold"><span className="text-stone-400">상한가</span><span className="text-brand-red">{upperLimit.toLocaleString()}원</span></div>)}{lowerLimit > 0 && (<div className="flex justify-between text-[10px] font-bold"><span className="text-stone-400">하한가</span><span className="text-brand-blue">{lowerLimit.toLocaleString()}원</span></div>)}<div className="flex items-center gap-1.5 text-[10px] text-[#a07828] font-bold bg-[#fef6dc] px-3 py-2 rounded-lg"><MoreHorizontal size={12} />지정가 주문은 체결 전까지 대기 상태로 유지됩니다.</div></div>
             <button onClick={handleSubmit} disabled={submitting} className={cn('w-full py-3.5 text-white rounded-md font-black text-sm transition-colors disabled:opacity-50', isBuy ? 'bg-brand-red hover:bg-red-700' : 'bg-brand-blue hover:bg-blue-700')}>{submitting ? '처리 중..' : isBuy ? '매수하기' : '매도하기'}</button>
             {orderMsg && <p className={cn('text-center text-[10px] font-bold', orderMsg.type === 'success' ? 'text-green-600' : 'text-red-500')}>{orderMsg.text}</p>}
             {!isLoggedIn && <p className="text-center text-[10px] text-stone-400 font-bold">주문하려면 로그인이 필요합니다.</p>}

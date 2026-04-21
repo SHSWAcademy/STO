@@ -936,8 +936,8 @@ export function TokenDetailPage() {
                     // 매도 우측 통계 항목
                     const yClose = tokenInfo?.yesterdayClosePrice;
                     const statItems = [
-                      { label: '상한가', value: yClose > 0 ? Math.round(yClose * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)', unimplemented: true, subLabel: '(전일 종가 대비 30%)' },
-                      { label: '하한가', value: yClose > 0 ? Math.round(yClose * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)', unimplemented: true, subLabel: '(전일 종가 대비 30%)' },
+                      { label: '상한가', value: yClose > 0 ? Math.round(yClose * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)', subLabel: '(전일 종가 대비 30%)' },
+                      { label: '하한가', value: yClose > 0 ? Math.round(yClose * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)', subLabel: '(전일 종가 대비 30%)' },
                       { label: '당일시가', value: tokenInfo?.todayOpenPrice != null ? tokenInfo.todayOpenPrice.toLocaleString() : '체결 기록 없음', color: tokenInfo?.todayOpenPrice != null ? '#292524' : 'var(--color-stone-400)' },
                       { label: '전일종가', value: tokenInfo?.yesterdayClosePrice != null ? tokenInfo.yesterdayClosePrice.toLocaleString() : '-', color: '#292524' },
                       { label: '1일최고', value: dailyHigh != null && dailyHigh > 0 ? dailyHigh.toLocaleString() : '체결 기록 없음', color: dailyHigh != null ? 'var(--color-brand-red)' : 'var(--color-stone-400)' },
@@ -1136,6 +1136,7 @@ export function TokenDetailPage() {
               tokenId={TOKEN_ID}
               token={user?.accessToken}
               wsPendingData={wsPendingData}
+              yesterdayClosePrice={tokenInfo?.yesterdayClosePrice ?? 0}
           />
         </div>
 
