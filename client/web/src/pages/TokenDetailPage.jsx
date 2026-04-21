@@ -888,7 +888,6 @@ export function TokenDetailPage() {
                     <div className="p-4 border-b border-stone-200 flex items-center justify-between">
                       <h3 className="text-sm font-bold text-stone-800">당일 체결 목록</h3>
                       <span className="text-xs font-bold text-stone-400">실시간</span>
-                      <X size={14} className="text-stone-400" />
                     </div>
                     <div className="flex-1 overflow-y-auto">
                       <table className="w-full text-sm">

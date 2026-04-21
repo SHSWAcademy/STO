@@ -581,15 +581,15 @@ public class OrderServiceImpl implements OrderService {
 
         if ((finalStatus == OrderStatus.FILLED || finalStatus == OrderStatus.PARTIAL)
                 && !matchResult.getExecutions().isEmpty()) {
-            String orderTypeLabel = isBuy ? "BUY" : "SELL";
+            String orderTypeLabel = isBuy ? "매수" : "매도";
             AlarmType myAlarmType = finalStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED
                     : AlarmType.ORDER_PARTIAL;
             long totalFilled = matchResult.getExecutions().stream().mapToLong(TradeExecutionDto::getTradeQuantity)
                     .sum();
             long tradePrice = matchResult.getExecutions().get(0).getTradePrice();
-            String myMsg = String.format("[ %s ] %s order %,d KRW x %d units %s",
+            String myMsg = String.format("[ %s ] %s 주문 %,d원 x %d주 %s",
                     tokenName, orderTypeLabel, tradePrice, totalFilled,
-                    finalStatus == OrderStatus.FILLED ? "filled" : "partially filled");
+                    finalStatus == OrderStatus.FILLED ? "체결" : "부분체결");
 
             alarmRecords.add(new AlarmEvent.AlarmRecord(memberId, myAlarmType, tokenId, myMsg));
         }
@@ -608,12 +608,12 @@ public class OrderServiceImpl implements OrderService {
             if (counterStatus != OrderStatus.FILLED && counterStatus != OrderStatus.PARTIAL)
                 continue;
 
-            String counterTypeLabel = isBuy ? "SELL" : "BUY";
+            String counterTypeLabel = isBuy ? "매도" : "매수";
             AlarmType counterAlarmType = counterStatus == OrderStatus.FILLED ? AlarmType.ORDER_FILLED
                     : AlarmType.ORDER_PARTIAL;
-            String counterMsg = String.format("[ %s ] %s order %,d KRW x %d units %s",
+            String counterMsg = String.format("[ %s ] %s 주문 %,d원 x %d주 %s",
                     tokenName, counterTypeLabel, execution.getTradePrice(), execution.getTradeQuantity(),
-                    counterStatus == OrderStatus.FILLED ? "filled" : "partially filled");
+                    counterStatus == OrderStatus.FILLED ? "체결" : "부분체결");
 
             alarmRecords.add(new AlarmEvent.AlarmRecord(counterMemberId, counterAlarmType, tokenId, counterMsg));
             notifiedCounters.add(counterMemberId);

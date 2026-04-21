@@ -34,10 +34,10 @@ function formatCandleTime(candleTime) {
 }
 
 function mapCandle(dto) {
-  const open  = Math.round(dto.openPrice  || 0);
-  const high  = Math.round(dto.highPrice  || 0);
-  const low   = Math.round(dto.lowPrice   || 0);
-  const close = Math.round(dto.closePrice || 0);
+  const open  = dto.openPrice  != null ? Math.round(dto.openPrice)  : null;
+  const high  = dto.highPrice  != null ? Math.round(dto.highPrice)  : null;
+  const low   = dto.lowPrice   != null ? Math.round(dto.lowPrice)   : null;
+  const close = dto.closePrice != null ? Math.round(dto.closePrice) : null;
   const vol   = Math.round(dto.volume     || 0);
   return {
     ts:   dto.candleTime ? new Date(dto.candleTime).getTime() : 0,
