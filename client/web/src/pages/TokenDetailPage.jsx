@@ -169,7 +169,7 @@ function buildChartData(fetchedCandles, period, seedClose = null) {
       fetchedCandles
           .filter(c => c?.ts)
           .sort((a, b) => a.ts - b.ts)
-          .map(c => [c.ts, { ...c, time: formatCandleTime(c.ts, period), isSynthetic: false }])
+          .map(c => [c.ts, { ...c, time: formatCandleTime(c.ts, period), isSynthetic: c.isSynthetic ?? false }])
   );
 
   let previousClose = seedClose;
@@ -281,7 +281,7 @@ function CandleVolumeChart({
   const hasInitializedRef = useRef(false);
   const [visibleCount, setVisibleCount] = useState(20);
   const minVisibleCount = 12;
-  const maxVisibleCount = 35;
+  const maxVisibleCount = 36;
 
   useEffect(() => {
     const endIndex = Math.max(chartData.length - 1, 0);
