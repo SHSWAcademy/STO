@@ -35,13 +35,6 @@ import { EmptyState } from "../components/ui/EmptyState.jsx";
 import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Pagination } from "../components/ui/Pagination.jsx";
 
-const ASSET_PIE = [
-  { name: "서울강남빌딩", value: 45, color: "var(--color-brand-blue)" },
-  { name: "송도 리조트", value: 25, color: "#64d2ff" },
-  { name: "아트프라임", value: 15, color: "var(--color-brand-gold)" },
-  { name: "기타", value: 15, color: "#a8a29e" },
-];
-
 const SIDEBAR_ITEMS = [
   { id: "assets", label: "자산", icon: Wallet },
   { id: "history", label: "거래내역", icon: History },
@@ -77,6 +70,7 @@ export function MyAccountPage() {
   const [historyTotalPages, setHistoryTotalPages] = useState(0);
   const [cancelPassword, setCancelPassword] = useState("");
   const [cancelOrderId, setCancelOrderId] = useState(null);
+  const [summary, setSummary] = useState(null);
 
   // 알람 클릭으로 넘어온 경우 해당 탭 자동 선택
   useEffect(() => {
@@ -92,12 +86,15 @@ export function MyAccountPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [balanceRes, portfolioRes] = await Promise.all([
+        const now = new Date();
+        const [balanceRes, portfolioRes, summaryRes] = await Promise.all([
           fetchBalance(),
           fetchPortfolio(),
+          fetchAccountSummary(now.getFullYear(), now.getMonth() + 1),
         ]);
         setBalance(balanceRes.data);
         setPortfolio(portfolioRes.data);
+        setSummary(summaryRes.data);
       } catch (e) {
         alert(e.response?.data?.message || "계좌 정보를 불러오지 못했습니다.");
       }
@@ -212,6 +209,7 @@ export function MyAccountPage() {
             onSend={() => setIsSendModalOpen(true)}
             balance={balance}
             portfolio={portfolio}
+            summary={summary}
           />
         )}
         {activeSubTab === "history" && (
@@ -307,7 +305,26 @@ export function MyAccountPage() {
 }
 
 // ── 자산 탭 ────────────────────────────────────────────────────
-function AssetsTab({ onFill, onSend, balance, portfolio }) {
+function AssetsTab({ onFill, onSend, balance, portfolio, summary }) {
+  const COLORS = [
+    "var(--color-brand-blue)",
+    "#64d2ff",
+    "var(--color-brand-gold)",
+    "#a8a29e",
+    "#f87171",
+  ];
+
+  const totalEval = portfolio.reduce((s, a) => s + a.evaluationAmount, 0);
+
+  const pieData =
+    totalEval > 0
+      ? portfolio.map((a, i) => ({
+          name: a.tokenName,
+          value: Math.round((a.evaluationAmount / totalEval) * 100),
+          color: COLORS[i % COLORS.length],
+        }))
+      : [];
+
   return (
     <div className="max-w-4xl space-y-12 pb-20">
       <div className="flex flex-col md:flex-row justify-between gap-8">
@@ -349,13 +366,13 @@ function AssetsTab({ onFill, onSend, balance, portfolio }) {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={ASSET_PIE}
+                    data={pieData}
                     innerRadius={30}
                     outerRadius={45}
                     paddingAngle={4}
                     dataKey="value"
                   >
-                    {ASSET_PIE.map((entry, i) => (
+                    {pieData.map((entry, i) => (
                       <Cell key={i} fill={entry.color} stroke="none" />
                     ))}
                   </Pie>
@@ -363,7 +380,7 @@ function AssetsTab({ onFill, onSend, balance, portfolio }) {
               </ResponsiveContainer>
             </div>
             <div className="flex-1 space-y-1.5">
-              {ASSET_PIE.slice(0, 3).map((item, i) => (
+              {pieData.slice(0, 3).map((item, i) => (
                 <div
                   key={i}
                   className="flex items-center justify-between text-[10px] font-bold"
@@ -477,9 +494,24 @@ function AssetsTab({ onFill, onSend, balance, portfolio }) {
 
         <div className="pt-8 border-t border-stone-200 space-y-4 mt-12">
           {[
-            { label: "3월 수익", value: "0원" },
-            { label: "판매수익", value: "0원" },
-            { label: "배당금", value: "0원" },
+            {
+              label: `${new Date().getMonth() + 1}월 수익`,
+              value: summary
+                ? summary.thisMonthTotal.toLocaleString() + "원"
+                : "-",
+            },
+            {
+              label: "판매수익",
+              value: summary
+                ? summary.thisMonthSellProfit.toLocaleString() + "원"
+                : "-",
+            },
+            {
+              label: "배당금",
+              value: summary
+                ? summary.thisMonthDividend.toLocaleString() + "원"
+                : "-",
+            },
           ].map((item, i) => (
             <div key={i} className="flex justify-between items-center">
               <span className="text-sm font-medium text-stone-500">
@@ -790,6 +822,21 @@ function DividendsTab() {
   const [totalPages, setTotalPages] = useState(0);
   const [year, setYear] = useState(new Date().getFullYear());
   const [totalDividends, setTotalDividends] = useState(0);
+  const [monthlyTotals, setMonthlyTotals] = useState(Array(12).fill(0));
+
+  async function loadChartData(y) {
+    try {
+      const res = await fetchDividendHistory(0, y, null, 1000);
+      const all = res.data.content;
+      const totals = Array(12).fill(0);
+      all.forEach((d) => {
+        totals[d.settlementMonth - 1] += d.memberIncome;
+      });
+      setMonthlyTotals(totals);
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
   async function loadDividends(p, y) {
     try {
@@ -813,9 +860,11 @@ function DividendsTab() {
 
   useEffect(() => {
     loadDividends(0, year);
-    loadTotal(year); // ← 추가
+    loadTotal(year);
+    loadChartData(year);
   }, [year]);
 
+  console.log("monthlyTotals:", monthlyTotals);
   return (
     <div className="space-y-8 pb-20">
       {/* 연도 선택 */}
@@ -851,24 +900,24 @@ function DividendsTab() {
       {/* 월별 바 차트 */}
       <div className="bg-stone-100 rounded-2xl p-8 h-64 flex flex-col justify-end border border-stone-200">
         <div className="flex justify-between items-end h-full px-4 mb-4">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => {
-            // settlementMonth 기준으로 집계 (mock의 new Date(d.date).getMonth()+1 대신)
-            const monthTotal = dividends
-              .filter((d) => d.settlementMonth === m)
-              .reduce((acc, d) => acc + d.memberIncome, 0);
-            const height =
-              monthTotal > 0 ? Math.min(100, (monthTotal / 50000) * 100) : 5;
+          {monthlyTotals.map((monthTotal, idx) => {
+            const maxTotal = Math.max(...monthlyTotals);
+            const barHeight =
+              maxTotal > 0 ? Math.max(4, (monthTotal / maxTotal) * 100) : 4;
             return (
-              <div key={m} className="flex flex-col items-center gap-2 flex-1">
+              <div
+                key={idx}
+                className="flex flex-col items-center gap-2 flex-1 h-full justify-end"
+              >
                 <div
                   className={cn(
                     "w-4 rounded-full transition-all duration-500",
                     monthTotal > 0 ? "bg-stone-800" : "bg-stone-300",
                   )}
-                  style={{ height: `${height}%` }}
+                  style={{ height: `${barHeight}%` }}
                 />
                 <span className="text-[10px] text-stone-400 font-bold">
-                  {m}월
+                  {idx + 1}월
                 </span>
               </div>
             );
