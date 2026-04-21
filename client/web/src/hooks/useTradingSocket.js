@@ -53,11 +53,17 @@ export function useTradingSocket({
         }
         if (onCandleRef.current) {
           client.subscribe(`/topic/candle/live/${tokenId}/${candleType}`, (msg) => {
-            try { onCandleRef.current(JSON.parse(msg.body)); } catch (e) {}
+            try {
+              const data = JSON.parse(msg.body);
+              onCandleRef.current(data);
+              // 버그B: DAY 탭이면 이미 DAY 토픽을 구독 중이므로 같은 구독에서 onDayCandle도 처리
+              if (candleType === 'DAY' && onDayCandleRef.current) onDayCandleRef.current(data);
+            } catch (e) {}
           }, authHeader);
         }
         // DAY 캔들은 차트 주기와 무관하게 항상 구독 — 오늘 최고/최저가 실시간 갱신용
-        if (onDayCandleRef.current) {
+        // 버그B: candleType이 DAY면 위에서 이미 구독했으므로 중복 구독 방지
+        if (onDayCandleRef.current && candleType !== 'DAY') {
           client.subscribe(`/topic/candle/live/${tokenId}/DAY`, (msg) => {
             try { onDayCandleRef.current(JSON.parse(msg.body)); } catch (e) {}
           }, authHeader);

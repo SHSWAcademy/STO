@@ -74,15 +74,17 @@ function formatTradeTime(t) {
 }
 
 function mapCandle(dto, period) {
+  const open  = Math.round(dto.openPrice  || 0);
+  const high  = Math.round(dto.highPrice  || 0);
+  const low   = Math.round(dto.lowPrice   || 0);
+  const close = Math.round(dto.closePrice || 0);
+  const vol   = Math.round(dto.volume     || 0);
   return {
-    ts:    dto.candleTime ? new Date(dto.candleTime).getTime() : 0,
-    time:  formatCandleTime(dto.candleTime, period),
-    open:  Math.round(dto.openPrice  || 0),
-    high:  Math.round(dto.highPrice  || 0),
-    low:   Math.round(dto.lowPrice   || 0),
-    close: Math.round(dto.closePrice || 0),
-    vol:   Math.round(dto.volume     || 0),
-    isSynthetic: false,
+    ts:   dto.candleTime ? new Date(dto.candleTime).getTime() : 0,
+    time: formatCandleTime(dto.candleTime, period),
+    open, high, low, close, vol,
+    // 버그D: volume=0이고 시/고/저/종이 모두 같으면 체결 없는 근사 봉 → synthetic(회색)으로 처리
+    isSynthetic: vol === 0 && open > 0 && open === close && open === high && open === low,
   };
 }
 
@@ -117,7 +119,8 @@ function shiftBucket(date, period, amount) {
   return d;
 }
 
-function generateRecentSlots(period, count = 35) {
+// 버그A: 백엔드가 과거 35개 + 현재 스냅샷 1개 = 36개 반환하므로 슬롯도 36개로 맞춤
+function generateRecentSlots(period, count = 36) {
   const currentBucket = getBucketStart(new Date(), period);
   const slots = [];
   for (let i = count - 1; i >= 0; i--) {
