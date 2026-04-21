@@ -16,6 +16,6 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
 
     @Modifying
     @Transactional
-    @Query(value = "UPDATE trades t SET settlement_status = :status WHERE tradeId = :tradeId", nativeQuery = true)
+    @Query(value = "UPDATE trades t SET settlement_status = :status WHERE trade_Id = :tradeId", nativeQuery = true)
     void updateSettlementStatus(@Param("tradeId") Long tradeId, @Param("status") String status);
 }

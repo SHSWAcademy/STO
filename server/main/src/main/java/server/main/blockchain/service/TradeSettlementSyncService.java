@@ -9,7 +9,6 @@ import server.main.blockchain.entity.BlockchainOutboxQ;
 import server.main.blockchain.entity.QueueStatus;
 import server.main.blockchain.repository.BlockchainOutboxQRepository;
 import server.main.trade.entity.SettlementStatus;
-import server.main.trade.entity.Trade;
 
 import java.util.List;
 
@@ -33,6 +32,19 @@ public class TradeSettlementSyncService {
                     outboxQ.getTrade().updateSettlementStatus(SettlementStatus.SUCCESS)
             );
             log.info("trade settlementStatus 업데이트 완료: {}건", confirmedList.size());
+
+            List<BlockchainOutboxQ> abandonedList =
+                    blockchainOutboxQRepository.findConfirmedWithPendingTrades(
+                            QueueStatus.ABANDONED,
+                            SettlementStatus.ON_CHAIN_PENDING
+                    );
+
+            if (!abandonedList.isEmpty()) {
+                abandonedList.forEach(outboxQ ->
+                        outboxQ.getTrade().updateSettlementStatus(SettlementStatus.FAILED)
+                );
+                log.info("trade settlementStatus FAILED 업데이트 완료: {}건", abandonedList.size());
+            }
         }
     }
 }
