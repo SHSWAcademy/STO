@@ -127,7 +127,10 @@ public class MyAccountController {
     }
 
 
-
+    @GetMapping("/info")
+    public ResponseEntity<AccountInfoResponse> getAccountInfo() {
+        return ResponseEntity.ok(myAccountService.getAccountInfo());
+    }
 
 
 

@@ -27,4 +27,5 @@ public class Trade {
     private LocalDateTime executedAt;               // 실제 매칭 엔진 체결 시간
 
     private Long tokenId;                           // 연관관계 없이 Long 으로 FK를 가진다
+
 }

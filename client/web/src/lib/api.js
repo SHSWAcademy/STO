@@ -91,4 +91,6 @@ export const fetchSellHistory = (year, month, page = 0, size = 1000) =>
   api.get("/api/myAccount/sell-history", {
     params: { year, month, page, size },
   });
+
+export const fetchAccountInfo = () => api.get("/api/myAccount/info");
 export default api;
