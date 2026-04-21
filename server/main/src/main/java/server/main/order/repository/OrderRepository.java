@@ -25,6 +25,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE o.token.tokenId = :tokenId AND o.orderStatus IN ('OPEN', 'PARTIAL') AND o.remainingQuantity > 0")
     List<Order> findOpenAndPartialByTokenId(@Param("tokenId") Long tokenId);
 
+    @Query("SELECT o FROM Order o WHERE o.orderStatus = 'FAILED' AND o.remainingQuantity > 0 AND o.retryCount < 3 ORDER BY o.updatedAt ASC")
+    List<Order> findFailedOrdersForRetry(Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Order o WHERE o.orderId = :orderId")
     Optional<Order> findWithLockById(@Param("orderId") Long orderId);

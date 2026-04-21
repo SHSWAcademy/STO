@@ -42,13 +42,38 @@ public class MatchingService {
 
                 Deque<Order> queue = bestEntry.getValue();
                 Order counterOrder = queue.peek();
+                if (counterOrder == null) {
+                    throw new IllegalStateException("Order book contains an empty price level at price: " + bestPrice);
+                }
 
 //                // STP: 자기 자신과는 체결하지 않음
 //                if (incomingOrder.getMemberId().equals(counterOrder.getMemberId())) {
 //                    break;
 //                }
 
-                long tradeQuantity = Math.min(incomingOrder.getRemainingQuantity(), counterOrder.getRemainingQuantity());
+                long incomingRemaining = incomingOrder.getRemainingQuantity();
+                long counterRemaining = counterOrder.getRemainingQuantity();
+                if (incomingRemaining <= 0 || counterRemaining <= 0) {
+                    throw new IllegalStateException(
+                            "Order book contains non-positive remaining quantity: tokenId="
+                                    + incomingOrder.getTokenId()
+                                    + ", incomingOrderId="
+                                    + incomingOrder.getOrderId()
+                                    + ", counterOrderId="
+                                    + counterOrder.getOrderId()
+                                    + ", price="
+                                    + bestPrice
+                                    + ", incomingRemaining="
+                                    + incomingRemaining
+                                    + ", counterRemaining="
+                                    + counterRemaining
+                    );
+                }
+
+                long tradeQuantity = Math.min(incomingRemaining, counterRemaining);
+                if (tradeQuantity <= 0) {
+                    throw new IllegalStateException("Trade quantity must be positive");
+                }
 
                 incomingOrder.reduceQuantity(tradeQuantity);
                 counterOrder.reduceQuantity(tradeQuantity);

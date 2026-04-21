@@ -68,4 +68,21 @@ public class BlockchainTx {
     @Column(name = "tx_type", nullable = false)
     private BlockchainTxType txType;
 
+    @PrePersist
+    @PreUpdate
+    private void validateTradeAssociation() {
+        if (txType == null) {
+            throw new IllegalStateException("BlockchainTx txType must not be null");
+        }
+
+        if (txType == BlockchainTxType.TRADE) {
+            if (trade == null) {
+                throw new IllegalStateException("TRADE blockchain tx must reference a trade");
+            }
+            if (queueId == null) {
+                throw new IllegalStateException("TRADE blockchain tx must reference an outbox queue");
+            }
+        }
+    }
+
 }
