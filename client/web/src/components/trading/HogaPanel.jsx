@@ -1,4 +1,4 @@
-import { Target, CheckCircle, X } from 'lucide-react';
+import { Target, CheckCircle } from 'lucide-react';
 import { HOGA_EXECUTIONS } from '../../data/mock.js';
 import { HogaRow } from './HogaRow.jsx';
 
@@ -28,7 +28,6 @@ export function HogaPanel({ currentPrice, asks = [], bids = [], lastTrade = null
         </div>
         <div className="flex gap-2">
           <button className="p-1 hover:text-stone-800 text-stone-400"><Target size={14} /></button>
-          <X size={14} className="text-stone-400 cursor-pointer hover:text-stone-800" />
         </div>
       </div>
 

@@ -60,7 +60,6 @@ public class Order extends BaseEntity {
     @Builder.Default
     private Integer retryCount = 0;
 
-    @Lob
     @Column(columnDefinition = "TEXT")
     private String failedMatchResultJson;
 

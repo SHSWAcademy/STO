@@ -169,7 +169,7 @@ function buildChartData(fetchedCandles, period, seedClose = null) {
       fetchedCandles
           .filter(c => c?.ts)
           .sort((a, b) => a.ts - b.ts)
-          .map(c => [c.ts, { ...c, time: formatCandleTime(c.ts, period), isSynthetic: false }])
+          .map(c => [c.ts, { ...c, time: formatCandleTime(c.ts, period), isSynthetic: c.isSynthetic ?? false }])
   );
 
   let previousClose = seedClose;
@@ -281,7 +281,7 @@ function CandleVolumeChart({
   const hasInitializedRef = useRef(false);
   const [visibleCount, setVisibleCount] = useState(20);
   const minVisibleCount = 12;
-  const maxVisibleCount = 35;
+  const maxVisibleCount = 36;
 
   useEffect(() => {
     const endIndex = Math.max(chartData.length - 1, 0);
@@ -424,7 +424,8 @@ function CandleVolumeChart({
                       data={visibleData}
                       margin={{ top: 8, right: rightMargin, left: 0, bottom: 0 }}
                       onMouseMove={e => {
-                        if (e?.activePayload?.length > 0) onHover(e.activePayload[0].payload);
+                        const payload = e?.activePayload?.[0]?.payload;
+                        if (payload?.open != null) onHover(payload);
                       }}
                       onMouseLeave={onLeave}
                   >
@@ -451,9 +452,9 @@ function CandleVolumeChart({
                         }}
                         formatter={(value, name, props) => {
                           const d = props?.payload;
-                          if (!d) return [value, name];
+                          if (!d || d.open == null) return [null, null];
                           return [
-                            `시 ${d.open?.toLocaleString()}  고 ${d.high?.toLocaleString()}  저 ${d.low?.toLocaleString()}  종 ${d.close?.toLocaleString()}`,
+                            `시 ${d.open.toLocaleString()}  고 ${d.high.toLocaleString()}  저 ${d.low.toLocaleString()}  종 ${d.close.toLocaleString()}`,
                             d.time,
                           ];
                         }}
@@ -597,7 +598,6 @@ export function TokenDetailPage() {
   // 호가: WebSocket snapshot이 구독 즉시 전송하므로 빈 배열로 초기화
   const [asks, setAsks]             = useState([]);
   const [bids, setBids]             = useState([]);
-  const [executions, setExecutions] = useState([]);
   const [flashingPrice, setFlashingPrice] = useState(null);
   const flashTimerRef = useRef(null);
   const [trades, setTrades]         = useState([]);
@@ -641,11 +641,12 @@ export function TokenDetailPage() {
     api.get(`/api/token/${TOKEN_ID}/trades`)
         .then(r => {
           setTrades(r.data.map(d => ({
-            price:      d.tradePrice,
-            qty:        d.tradeQuantity,
-            changeRate: d.percentageChange ?? 0,
-            vol:        d.totalVolume ?? 0,
-            time:       d.executedAt
+            price:           d.tradePrice,
+            qty:             d.tradeQuantity,
+            changeRate:      d.percentageChange ?? 0,
+            vol:             d.totalVolume ?? 0,
+            totalTradeValue: d.totalTradeValue ?? 0,
+            time:            d.executedAt
                 ? new Date(d.executedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
                 : '',
           })));
@@ -667,6 +668,8 @@ export function TokenDetailPage() {
   );
 
   const basePrice = tokenInfo?.yesterdayClosePrice || currentPrice || 1;
+  const totalTradeQuantity = trades[0]?.vol ?? 0;
+  const totalTradeValue = trades[0]?.totalTradeValue ?? 0;
   const displayData = hoveredData || lastWithData || null;
 
   // 오늘 고가/저가: 라이브 캔들(WS) > trades 배열(오늘 9시 이후 전체) 순으로 우선
@@ -727,13 +730,14 @@ export function TokenDetailPage() {
         candles = res.data.map(d => mapCandle(d, chartPeriod));
       }
 
-      setChartData(buildChartData(candles, chartPeriod, null));
+      const seed = tokenInfo?.yesterdayClosePrice ?? null;
+      setChartData(buildChartData(candles, chartPeriod, seed));
     } catch (e) {
       console.warn('[TokenDetailPage] 캔들 조회 실패:', e.message);
     } finally {
       setLoading(false);
     }
-  }, [chartPeriod, TOKEN_ID, user?.accessToken]);
+  }, [chartPeriod, TOKEN_ID, user?.accessToken, tokenInfo?.yesterdayClosePrice]);
 
   useEffect(() => {
     setChartData([]);   // 기간 변경 시 이전 기간 데이터 초기화 (분/시/일 혼재 방지)
@@ -763,20 +767,18 @@ export function TokenDetailPage() {
         clearTimeout(flashTimerRef.current);
         flashTimerRef.current = setTimeout(() => setFlashingPrice(null), 500);
       }
-      setExecutions(prev =>
-          [{ qty: data.tradeQuantity, isBuy: data.isBuy }, ...prev]
-      );
       setTrades(prev => {
-        const cumulativeVol = (prev[0]?.vol ?? 0) + (data.tradeQuantity ?? 0);
-        // 전날 종가 대비 등락률 ? REST API와 동일한 기준
+        const cumulativeVol   = (prev[0]?.vol ?? 0) + (data.tradeQuantity ?? 0);
+        const cumulativeValue = (prev[0]?.totalTradeValue ?? 0) + (data.tradePrice ?? 0) * (data.tradeQuantity ?? 0);
         const base = tokenInfo?.yesterdayClosePrice;
         const rate = base > 0 ? ((data.tradePrice - base) / base) * 100 : 0;
         return [{
-          price:      data.tradePrice,
-          qty:        data.tradeQuantity,
-          changeRate: Math.round(rate * 100) / 100,
-          vol:        cumulativeVol,
-          time:       formatTradeTime(data.tradeTime),
+          price:           data.tradePrice,
+          qty:             data.tradeQuantity,
+          changeRate:      Math.round(rate * 100) / 100,
+          vol:             cumulativeVol,
+          totalTradeValue: cumulativeValue,
+          time:            formatTradeTime(data.tradeTime),
         }, ...prev].slice(0, 100);
       });
     },
@@ -788,7 +790,7 @@ export function TokenDetailPage() {
         const merged = idx >= 0
             ? actualCandles.map((c, i) => (i === idx ? newCandle : c))
             : [...actualCandles, newCandle];
-        return buildChartData(merged, chartPeriod, null);
+        return buildChartData(merged, chartPeriod, tokenInfo?.yesterdayClosePrice ?? null);
       });
     },
     onDayCandle: (data) => {
@@ -886,7 +888,6 @@ export function TokenDetailPage() {
                     <div className="p-4 border-b border-stone-200 flex items-center justify-between">
                       <h3 className="text-sm font-bold text-stone-800">당일 체결 목록</h3>
                       <span className="text-xs font-bold text-stone-400">실시간</span>
-                      <X size={14} className="text-stone-400" />
                     </div>
                     <div className="flex-1 overflow-y-auto">
                       <table className="w-full text-sm">
@@ -925,13 +926,6 @@ export function TokenDetailPage() {
 
                   {/* 토스 스타일 3열 호가창 */}
                   {(() => {
-                    // 체결강도 계산
-                    const buyVol  = executions.filter(e => e.isBuy).reduce((s, e) => s + e.qty, 0);
-                    const sellVol = executions.filter(e => !e.isBuy).reduce((s, e) => s + e.qty, 0);
-                    const isMax = sellVol === 0 && buyVol > 0;
-                    const strengthNum = sellVol > 0 ? Math.round((buyVol / sellVol) * 100) : null;
-                    const strengthVal = isMax ? 'MAX' : strengthNum != null ? `${strengthNum}%` : '-';
-                    const strengthColor = (!isMax && strengthNum == null) ? 'text-stone-400' : (isMax || strengthNum >= 100) ? 'text-brand-red' : 'text-brand-blue';
 
                     // 매도 우측 통계 항목
                     const yClose = tokenInfo?.yesterdayClosePrice;
@@ -1004,7 +998,7 @@ export function TokenDetailPage() {
                                     <div className="flex flex-col gap-0">
                                       <span className="text-[9px] font-bold text-stone-400 leading-tight">{stat.label}</span>
                                       {stat.subLabel && (
-                                        <span className="text-[7.5px] text-stone-300 leading-tight">{stat.subLabel}</span>
+                                        <span className="text-[7.5px] text-stone-400 leading-tight">{stat.subLabel}</span>
                                       )}
                                     </div>
                                     <div className="flex flex-col items-end gap-0">
@@ -1038,51 +1032,92 @@ export function TokenDetailPage() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-[146px_108px_146px]">
-                          <div className="flex flex-col border-r border-stone-100">
-                            <div className="h-9 border-b border-stone-100 bg-stone-50/60 px-3 flex items-center">
-                              <div>
-                                <p className="text-[9px] font-bold text-stone-400 leading-none">실시간 체결강도</p>
-                                <p className={`text-[11px] font-black leading-none mt-0.5 ${strengthColor}`}>{strengthVal}</p>
-                              </div>
-                            </div>
-                            {bids.map((_, i) => (
-                              <div key={`bid-ex-${i}`} className="h-9 border-b border-stone-100" />
-                            ))}
-                          </div>
+                        {(() => {
+                          const tradeDisplayCount = Math.min(trades.length, 4);
+                          const totalRows = Math.max(bids.length, tradeDisplayCount + 2, statItems.length);
+                          return Array.from({ length: totalRows }).map((_, i) => {
+                            const bid = bids[i];
+                            const cp = bid && basePrice > 0 ? ((bid.price - basePrice) / basePrice) * 100 : 0;
+                            const dp = bid && maxBidAmount > 0 ? (bid.amount / maxBidAmount) * 100 : 0;
+                            const isFlashing = bid && flashingPrice === bid.price;
+                            const isHovered = hoveredBidIndex === i;
 
-                          <div className="col-span-2 flex flex-col">
-                            {bids.map((row, i) => {
-                              const cp = basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0;
-                              const dp = maxBidAmount > 0 ? (row.amount / maxBidAmount) * 100 : 0;
-                              return (
-                                <button
-                                    key={`bid-row-${i}`}
-                                    type="button"
-                                    onClick={() => setSelectedOrderPrice(row.price)}
-                                    onMouseEnter={() => setHoveredBidIndex(i)}
-                                    onMouseLeave={() => setHoveredBidIndex(null)}
-                                    className={cn(
-                                      'grid grid-cols-[108px_146px] h-9 border-b border-stone-100 transition-colors text-left',
-                                      flashingPrice === row.price ? 'hoga-flash-red' : hoveredBidIndex === i ? 'bg-red-100/60' : 'hover:bg-red-100/60'
-                                    )}
-                                >
-                                  <div className="flex flex-col items-center justify-center border-r border-stone-100">
-                                    <span className="text-[12px] font-mono font-black text-brand-red">{row.price.toLocaleString()}</span>
-                                    <span className="text-[9px] font-bold text-brand-red/60">{cp >= 0 ? '+' : ''}{cp.toFixed(2)}%</span>
+                            let leftContent = null;
+                            if (i === 0) {
+                              leftContent = (
+                                <>
+                                  <span className="text-[9px] font-bold text-stone-400 shrink-0">당일 총거래대금&nbsp;</span>
+                                  <span className="text-[10px] font-black font-mono text-stone-700 truncate">
+                                    {totalTradeValue > 0 ? `${totalTradeValue.toLocaleString()}원` : '-'}
+                                  </span>
+                                </>
+                              );
+                            } else if (i === 1) {
+                              leftContent = (
+                                <>
+                                  <span className="text-[9px] font-bold text-stone-400 shrink-0">당일 총거래량&nbsp;</span>
+                                  <span className="text-[10px] font-black font-mono text-stone-700">
+                                    {totalTradeQuantity > 0 ? `${totalTradeQuantity.toLocaleString()}주` : '-'}
+                                  </span>
+                                </>
+                              );
+                            } else {
+                              const trade = trades[i - 2];
+                              if (trade) {
+                                leftContent = (
+                                  <div className="flex justify-between w-full items-center">
+                                    <span className={`text-[10px] font-mono font-black leading-none ${trade.changeRate >= 0 ? 'text-brand-red' : 'text-brand-blue'}`}>
+                                      {trade.price.toLocaleString()}
+                                    </span>
+                                    <span className="text-[10px] font-mono text-stone-400 leading-none">
+                                      {trade.qty.toLocaleString()}
+                                    </span>
                                   </div>
-                                  <div className="relative flex items-center justify-start pl-3 pr-3 overflow-hidden">
-                                    <div
+                                );
+                              }
+                            }
+
+                            return (
+                              <div
+                                key={`bid-row-${i}`}
+                                className={cn(
+                                  'grid grid-cols-[146px_108px_146px] border-b border-stone-100 transition-colors',
+                                  bid && (isFlashing ? 'hoga-flash-red' : isHovered ? 'bg-red-100/60' : 'hover:bg-red-100/60'),
+                                )}
+                                onMouseEnter={() => bid && setHoveredBidIndex(i)}
+                                onMouseLeave={() => setHoveredBidIndex(null)}
+                                onClick={() => bid && setSelectedOrderPrice(bid.price)}
+                                style={bid ? { cursor: 'pointer' } : undefined}
+                              >
+                                {/* 좌측: 거래 정보 — 항상 렌더링 */}
+                                <div className="min-h-9 border-r border-stone-100 px-2 flex items-center">
+                                  {leftContent}
+                                </div>
+                                {/* 중앙: 매수 호가 가격 — 항상 렌더링 */}
+                                <div className="min-h-9 border-r border-stone-100 flex flex-col items-center justify-center">
+                                  {bid && (
+                                    <>
+                                      <span className="text-[12px] font-mono font-black text-brand-red">{bid.price.toLocaleString()}</span>
+                                      <span className="text-[9px] font-bold text-brand-red/60">{cp >= 0 ? '+' : ''}{cp.toFixed(2)}%</span>
+                                    </>
+                                  )}
+                                </div>
+                                {/* 우측: 매수 호가 수량 — 항상 렌더링 */}
+                                <div className="min-h-9 relative flex items-center justify-start pl-3 pr-3 overflow-hidden">
+                                  {bid && (
+                                    <>
+                                      <div
                                         className="absolute left-3 top-[6px] bottom-[6px] rounded-r-md bg-brand-red/10"
                                         style={{ width: `${Math.min(dp * 0.58, 58)}%` }}
-                                    />
-                                    <span className="relative z-10 text-[11px] font-mono font-bold text-brand-red">{row.amount.toLocaleString()}</span>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
+                                      />
+                                      <span className="relative z-10 text-[11px] font-mono font-bold text-brand-red">{bid.amount.toLocaleString()}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
 
                         </div>{/* scrollable wrapper 닫기 */}
                       </div>

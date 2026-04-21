@@ -18,6 +18,7 @@ public class TradeResponseDto {
 
     private Double percentageChange;                // 등락률
     private Long totalVolume;                       // 당일 누적 거래량
+    private Long totalTradeValue;                   // 당일 누적 거래대금
 
     private LocalDateTime executedAt;               // 체결 시간
 }

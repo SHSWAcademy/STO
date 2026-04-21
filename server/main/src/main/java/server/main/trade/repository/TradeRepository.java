@@ -18,8 +18,11 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
     @Query("SELECT COALESCE(SUM(t.tradeQuantity), 0) FROM Trade t WHERE t.token.tokenId = :tokenId AND t.executedAt >= :since")
     Long sumDailyVolume(@Param("tokenId") Long tokenId, @Param("since") LocalDateTime since);
 
-    @Query("SELECT t.token.tokenId, SUM(t.totalTradePrice), SUM(t.tradeQuantity) FROM Trade t WHERE t.token.tokenId IN :tokenIds GROUP BY t.token.tokenId")
-    List<Object[]> findAggregatesByTokenIds(@Param("tokenIds") List<Long> tokenIds);
+    @Query("SELECT t.token.tokenId, SUM(t.totalTradePrice), SUM(t.tradeQuantity) FROM Trade t WHERE t.token.tokenId IN :tokenIds AND t.executedAt >= :since GROUP BY t.token.tokenId")
+    List<Object[]> findAggregatesByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("since") LocalDateTime since);
+
+    @Query("SELECT COALESCE(SUM(t.totalTradePrice), 0) FROM Trade t WHERE t.token.tokenId = :tokenId AND t.executedAt >= :since")
+    Long sumDailyTradeValue(@Param("tokenId") Long tokenId, @Param("since") LocalDateTime since);
 
     // 구매유저의 통 추자 금액 조회 (admin)
     @Query("SELECT t.buyer.memberId , SUM(t.totalTradePrice) FROM Trade t "

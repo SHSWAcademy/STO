@@ -9,14 +9,8 @@ import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import server.main.candle.service.CandleLiveManager;
-import server.main.log.tradeLog.entity.TradeLog;
-import server.main.log.tradeLog.repository.TradeLogRepository;
 import server.main.log.tradeLog.service.TradeLogService;
-import server.main.token.entity.Token;
-import server.main.token.repository.TokenRepository;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
+import server.main.token.service.TokenService;
 
 @Component
 @RequiredArgsConstructor
@@ -24,7 +18,7 @@ import java.util.UUID;
 public class RedisSubscriber implements MessageListener {
 
     private final TradeLogService tradeLogService;
-    private final TokenRepository tokenRepository;
+    private final TokenService tokenService;
     private final SimpMessagingTemplate messagingTemplate; // 스프링이 메시지 브로커에게 메시지를 전달하도록 하는 템플릿(도구)
     private final CandleLiveManager candleLiveManager;
     private final ObjectMapper objectMapper;
@@ -53,9 +47,9 @@ public class RedisSubscriber implements MessageListener {
                 candleLiveManager.update(tokenId, tradePrice, tradeQuantity);
 
                 // 주문 체결 로그 DB에 저장
-                Token token = tokenRepository.findByIdWithAsset(tokenId).orElseThrow();
+                String assetName = tokenService.getAssetName(tokenId);
                 String detail = String.format("토큰 이름=%s 가격=%,d원 금액=%,d원",
-                        token.getAsset().getAssetName(), tradePrice, (tradePrice * tradeQuantity));
+                        assetName, tradePrice, (tradePrice * tradeQuantity));
                 tradeLogService.save(String.valueOf(tokenId), detail, true);
                 // 현재 클래스에서 트랜잭션을 쓰지 않기 떄문에 requires new 옵션 필요 없음
 

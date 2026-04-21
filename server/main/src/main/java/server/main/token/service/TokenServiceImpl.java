@@ -2,6 +2,7 @@ package server.main.token.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import server.main.allocation.entity.AllocationEvent;
@@ -173,7 +174,8 @@ public class TokenServiceImpl implements TokenService{
         Map<Long, Long> basePriceMap = getBasePriceMap(tokenIds, periodType);
 
         // 4. 토큰 id 별 이때 동안의 전체 거래 대금, 전체 거래량 조회
-        Map<Long, long[]> tradeAggMap = tradeRepository.findAggregatesByTokenIds(tokenIds)
+        LocalDateTime todayStart = getDayBucket(LocalDateTime.now());
+        Map<Long, long[]> tradeAggMap = tradeRepository.findAggregatesByTokenIds(tokenIds, todayStart)
                 .stream()
                 .collect(Collectors.toMap(
                         row -> (Long) row[0],
@@ -270,6 +272,15 @@ public class TokenServiceImpl implements TokenService{
     public Map<Long, List<SparkPointDto>> getSparklines(List<Long> tokenIds, PeriodType periodType) {
         if (tokenIds == null || tokenIds.isEmpty()) return Map.of();
         return getSparklineMap(tokenIds, periodType);
+    }
+
+    @Override
+    @Cacheable(value = "tokenAssetName", key = "#p0")
+    public String getAssetName(Long tokenId) {
+        return tokenRepository.findByIdWithAsset(tokenId)
+                .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR))
+                .getAsset()
+                .getAssetName();
     }
 
     @Override
