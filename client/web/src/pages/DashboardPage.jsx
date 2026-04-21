@@ -1,7 +1,7 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart } from "lucide-react";
-import { ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
+import { ResponsiveContainer, ComposedChart, Bar, YAxis, XAxis, Tooltip } from "recharts";
 import { useApp } from "../context/AppContext.jsx";
 import { cn } from "../lib/utils.js";
 import { API_BASE_URL } from "../lib/config.js";
@@ -11,9 +11,9 @@ import { useDashboardSocket } from "../hooks/useDashboardSocket.js";
 
 const API = API_BASE_URL;
 const PAGE_SIZE = 10;
+const CANDLE_COUNT = 20;
 
 const SORT_ITEMS = ["전체", "거래대금", "거래량"];
-const RANGE_ITEMS = ["1일", "1개월", "1년"];
 
 const SELECT_TYPE_MAP = {
   전체: "BASIC",
@@ -21,24 +21,88 @@ const SELECT_TYPE_MAP = {
   거래량: "TOTAL_TRADE_QUANTITY",
 };
 
-const PERIOD_TYPE_MAP = {
-  "1일": "DAY",
-  "1개월": "MONTH",
-  "1년": "YEAR",
-};
-
 function recalculateFluctuationRate(currentPrice, basePrice) {
   if (!basePrice || basePrice <= 0) return 0;
   return Math.round((((currentPrice - basePrice) / basePrice) * 100) * 100) / 100;
 }
 
+// ── 캔들 유틸 ─────────────────────────────────────────────────────
+function formatCandleTime(candleTime) {
+  if (!candleTime) return '';
+  const d = new Date(candleTime);
+  return d.toTimeString().slice(0, 5);
+}
 
+function mapCandle(dto) {
+  const open  = Math.round(dto.openPrice  || 0);
+  const high  = Math.round(dto.highPrice  || 0);
+  const low   = Math.round(dto.lowPrice   || 0);
+  const close = Math.round(dto.closePrice || 0);
+  const vol   = Math.round(dto.volume     || 0);
+  return {
+    ts:   dto.candleTime ? new Date(dto.candleTime).getTime() : 0,
+    time: formatCandleTime(dto.candleTime),
+    open, high, low, close, vol,
+    isSynthetic: vol === 0 && open > 0 && open === close && open === high && open === low,
+  };
+}
+
+function buildChartData(fetchedCandles) {
+  return [...fetchedCandles]
+    .filter(c => c?.ts)
+    .sort((a, b) => a.ts - b.ts)
+    .slice(-CANDLE_COUNT);
+}
+
+// ── 캔들스틱 shape ────────────────────────────────────────────────
+function CandlestickShape(props) {
+  const { x, y, width, height } = props;
+  const open  = props.payload?.open;
+  const close = props.payload?.close;
+  const high  = props.payload?.high;
+  const low   = props.payload?.low;
+  const isSynthetic = props.payload?.isSynthetic;
+
+  if (open == null || close == null || high == null || low == null) return null;
+  if (width <= 0) return null;
+
+  const priceRange = high - low;
+  const isUp  = close >= open;
+  const color = isSynthetic ? '#a8a29e' : (isUp ? '#e54d4d' : '#3b82f6');
+  const cx    = x + width / 2;
+
+  if (priceRange <= 0 || height <= 0) {
+    const flatY = height > 0 ? y + height / 2 : y;
+    return (
+      <g>
+        <line x1={x + 1} y1={flatY} x2={x + Math.max(width - 1, 1)} y2={flatY}
+              stroke={color} strokeWidth={isSynthetic ? 1 : 1.4} strokeLinecap="round" />
+      </g>
+    );
+  }
+
+  const ratio        = height / priceRange;
+  const highPx       = y;
+  const lowPx        = y + height;
+  const bodyTopPx    = y + (high - Math.max(open, close)) * ratio;
+  const bodyBottomPx = y + (high - Math.min(open, close)) * ratio;
+  const bodyH        = Math.max(bodyBottomPx - bodyTopPx, 1);
+
+  return (
+    <g>
+      <line x1={cx} y1={highPx}       x2={cx} y2={bodyTopPx}    stroke={color} strokeWidth={1.2} />
+      <line x1={cx} y1={bodyBottomPx} x2={cx} y2={lowPx}        stroke={color} strokeWidth={1.2} />
+      <rect x={x + 1} y={bodyTopPx} width={Math.max(width - 2, 1)} height={bodyH} fill={color} rx={1} />
+    </g>
+  );
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────────────
 export function DashboardPage() {
   const navigate = useNavigate();
   const { likedTokenIds, toggleLike, user, showGuestBanner } = useApp();
 
   const [chartFilter, setChartFilter] = useState("전체");
-  const [timeRange, setTimeRange] = useState("1일");
   const [page, setPage] = useState(0);
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -46,16 +110,16 @@ export function DashboardPage() {
   const [previewTokenId, setPreviewTokenId] = useState(null);
   const [priceFlash, setPriceFlash] = useState({});
   const flashTimersRef = useRef({});
-  const [sparklines, setSparklines] = useState({});
+  const [candleData, setCandleData] = useState([]);
+  const [candleLoading, setCandleLoading] = useState(false);
 
-  const periodType = PERIOD_TYPE_MAP[timeRange];
   const tokenIds = useMemo(() => tokens.map((token) => token.tokenId), [tokens]);
 
   useEffect(() => {
     setPage(0);
   }, [chartFilter]);
 
-  // 토큰 목록: 기간과 무관하게 selectType/page 변경 시만 재조회
+  // 토큰 목록
   useEffect(() => {
     const selectType = SELECT_TYPE_MAP[chartFilter];
     setLoading(true);
@@ -77,30 +141,39 @@ export function DashboardPage() {
       .finally(() => setLoading(false));
   }, [page, chartFilter, user]);
 
-  // 스파크라인: 토큰 목록 또는 기간 변경 시 별도 조회
+  // 1분봉 캔들 초기 로드 (선택 토큰 변경 시)
   useEffect(() => {
-    if (tokenIds.length === 0) return;
+    if (!previewTokenId) return;
+    const controller = new AbortController();
+    setCandleData([]);
+    setCandleLoading(true);
     const headers = {};
     if (user?.accessToken) headers.Authorization = `Bearer ${user.accessToken}`;
-    fetch(`${API}/api/token/sparkline?periodType=${periodType}&tokenIds=${tokenIds.join(",")}`, { headers })
-      .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
-      .then((data) => setSparklines(data ?? {}))
-      .catch((error) => console.warn("[Dashboard] sparkline fetch failed:", error));
-  }, [tokenIds, periodType, user]);
+    fetch(`${API}/api/token/${previewTokenId}/candle?type=MINUTE`, { headers, signal: controller.signal })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => {
+        const candles = (Array.isArray(data) ? data : []).map(d => mapCandle(d));
+        setCandleData(buildChartData(candles));
+      })
+      .catch(e => {
+        if (e.name === 'AbortError') return;
+        console.warn('[Dashboard] candle fetch failed:', e);
+      })
+      .finally(() => setCandleLoading(false));
+    return () => controller.abort();
+  }, [previewTokenId, user?.accessToken]);
 
   useDashboardSocket({
     tokenIds,
-    candleType: periodType,
+    candleType: 'MINUTE',
     token: user?.accessToken,
     onTrade: ({ tokenId, trade }) => {
       setTokens((prev) =>
         prev.map((token) => {
           if (token.tokenId !== tokenId) return token;
-
           const currentPrice = trade.tradePrice ?? token.currentPrice ?? 0;
           const tradeQuantity = trade.tradeQuantity ?? 0;
           const tradeAmount = currentPrice * tradeQuantity;
-
           return {
             ...token,
             currentPrice,
@@ -110,14 +183,26 @@ export function DashboardPage() {
           };
         }),
       );
-
       clearTimeout(flashTimersRef.current[tokenId]);
       setPriceFlash((prev) => ({ ...prev, [tokenId]: trade.isBuy ? 'red' : 'blue' }));
       flashTimersRef.current[tokenId] = setTimeout(() => {
         setPriceFlash((prev) => ({ ...prev, [tokenId]: null }));
       }, 500);
     },
-    onCandle: () => {},
+    onCandle: ({ tokenId, candle }) => {
+      if (tokenId !== previewTokenId) return;
+      const incoming = mapCandle(candle);
+      setCandleData(prev => {
+        const idx = prev.findIndex(c => c.ts === incoming.ts);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...incoming, isSynthetic: false };
+          return next;
+        }
+        const next = [...prev, { ...incoming, isSynthetic: false }];
+        return next.length > CANDLE_COUNT ? next.slice(-CANDLE_COUNT) : next;
+      });
+    },
   });
 
   const previewToken = useMemo(
@@ -125,9 +210,10 @@ export function DashboardPage() {
     [tokens, previewTokenId],
   );
 
-  const sparklineData = previewTokenId != null
-    ? (sparklines[previewTokenId] ?? []).map((p) => ({ value: p.value, date: p.date }))
-    : [];
+  const validData = candleData.filter(d => d.open != null && d.open > 0);
+  const yMin = validData.length > 0 ? Math.min(...validData.map(d => d.low))  : 0;
+  const yMax = validData.length > 0 ? Math.max(...validData.map(d => d.high)) : 100;
+  const yPad = Math.max((yMax - yMin) * 0.08, 1);
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
@@ -191,7 +277,6 @@ export function DashboardPage() {
                                   showGuestBanner("관심 종목, 내 계좌 등 개인 기능은 로그인 후 이용할 수 있어요.");
                                   return;
                                 }
-
                                 try {
                                   await toggleLike(token.tokenId);
                                 } catch (error) {
@@ -235,17 +320,12 @@ export function DashboardPage() {
                       </td>
                       <td className={cn(
                         "py-4 text-right font-mono font-bold text-stone-800",
-                        priceFlash[token.tokenId] === 'red' && 'hoga-flash-red',
+                        priceFlash[token.tokenId] === 'red'  && 'hoga-flash-red',
                         priceFlash[token.tokenId] === 'blue' && 'hoga-flash-blue',
                       )}>
                         {(token.currentPrice ?? 0).toLocaleString()}원
                       </td>
-                      <td
-                        className={cn(
-                          "py-4 text-right font-bold",
-                          (token.fluctuationRate ?? 0) >= 0 ? "text-brand-red" : "text-brand-blue",
-                        )}
-                      >
+                      <td className={cn("py-4 text-right font-bold", (token.fluctuationRate ?? 0) >= 0 ? "text-brand-red" : "text-brand-blue")}>
                         {(token.fluctuationRate ?? 0) >= 0 ? "+" : ""}
                         {token.fluctuationRate ?? 0}%
                       </td>
@@ -281,11 +361,12 @@ export function DashboardPage() {
           </div>
         </div>
 
+        {/* ── 우측 미리보기 패널 ──────────────────────────────────── */}
         <div className="w-full min-w-0 lg:w-[380px]">
           <div className="sticky top-24 rounded-xl border border-stone-200 bg-white p-8 shadow-sm">
             {previewToken ? (
               <>
-                <div className="mb-8 flex items-start gap-4">
+                <div className="mb-6 flex items-start gap-4">
                   <AssetAvatar
                     symbol={previewToken.tokenSymbol}
                     src={previewToken.imgUrl}
@@ -295,10 +376,7 @@ export function DashboardPage() {
                     className="shrink-0"
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="truncate text-xl font-black text-stone-800">{previewToken.assetName}</h3>
-                      <TabSwitcher items={RANGE_ITEMS} active={timeRange} onChange={setTimeRange} />
-                    </div>
+                    <h3 className="truncate text-xl font-black text-stone-800">{previewToken.assetName}</h3>
                     <p className="mt-1 font-mono text-xs font-bold text-stone-400">
                       {previewToken.tokenSymbol || "-"}
                     </p>
@@ -306,12 +384,7 @@ export function DashboardPage() {
                       <span className="font-mono text-stone-800">
                         {(previewToken.currentPrice ?? 0).toLocaleString()}원
                       </span>
-                      <span
-                        className={cn(
-                          "ml-2",
-                          (previewToken.fluctuationRate ?? 0) >= 0 ? "text-brand-red" : "text-brand-blue",
-                        )}
-                      >
+                      <span className={cn("ml-2", (previewToken.fluctuationRate ?? 0) >= 0 ? "text-brand-red" : "text-brand-blue")}>
                         {(previewToken.fluctuationRate ?? 0) >= 0 ? "+" : ""}
                         {previewToken.fluctuationRate ?? 0}%
                       </span>
@@ -320,45 +393,61 @@ export function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="mb-8 h-64">
-                  <div className="mb-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">
-                        {timeRange === '1일' ? '1일 차트 (최근 7일 종가)' : timeRange === '1개월' ? '1개월 차트 (최근 7개월 종가)' : '1년 차트 (최근 7년 종가)'}
-                      </p>
-                      <p className="mt-0.5 text-[9px] font-bold text-stone-700">
-                        {timeRange === '1일'
-                          ? 'x축 : 최근 7일 (당일 제외, 어제까지) · y축 : 종가'
-                          : timeRange === '1개월'
-                          ? 'x축 : 최근 7개월 (당월 제외, 전월까지) · y축 : 종가'
-                          : 'x축 : 최근 7년 (당해 제외, 전년까지) · y축 : 종가'}
-                      </p>
+                {/* 1분봉 캔들차트 */}
+                <div className="mb-6">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">1분봉 차트</p>
+                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-green-500">
+                      <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
+                      실시간
+                    </span>
                   </div>
-                  {sparklineData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                      <LineChart data={sparklineData}>
+                  {validData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={200} minWidth={0}>
+                      <ComposedChart data={candleData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                        <YAxis
+                          domain={[yMin - yPad, yMax + yPad]}
+                          tick={{ fontSize: 9, fill: '#a8a29e' }}
+                          tickFormatter={v => v.toLocaleString()}
+                          width={54}
+                          axisLine={false}
+                          tickLine={false}
+                          tickCount={4}
+                        />
+                        <XAxis
+                          dataKey="time"
+                          tick={{ fontSize: 9, fill: '#a8a29e' }}
+                          interval="preserveStartEnd"
+                          axisLine={false}
+                          tickLine={false}
+                        />
                         <Tooltip
-                          contentStyle={{
-                            backgroundColor: "#ffffff",
-                            border: "1px solid #e7e5e4",
-                            borderRadius: "8px",
-                            fontSize: "10px",
+                          cursor={{ stroke: '#d6d3d1', strokeWidth: 1 }}
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.[0]?.payload) return null;
+                            const d = payload[0].payload;
+                            if (d.open == null) return null;
+                            const isUp = d.close >= d.open;
+                            return (
+                              <div style={{ background: '#fff', border: '1px solid #e7e5e4', borderRadius: 8, fontSize: 10, padding: '6px 10px' }}>
+                                <p style={{ color: '#a8a29e', fontWeight: 700, marginBottom: 2 }}>{label}</p>
+                                <p style={{ color: isUp ? '#e54d4d' : '#3b82f6', fontFamily: 'monospace', fontWeight: 700 }}>
+                                  시 {d.open?.toLocaleString()}  고 {d.high?.toLocaleString()}  저 {d.low?.toLocaleString()}  종 {d.close?.toLocaleString()}
+                                </p>
+                              </div>
+                            );
                           }}
-                          itemStyle={{ color: "#292524" }}
-                          formatter={(value) => [`${value.toLocaleString()}원`, "종가"]}
-                          labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ''}
                         />
-                        <Line
-                          type="monotone"
-                          dataKey="value"
-                          stroke={(previewToken.fluctuationRate ?? 0) >= 0 ? "var(--color-brand-red)" : "var(--color-brand-blue)"}
-                          strokeWidth={3}
-                          dot={false}
+                        <Bar
+                          dataKey={d => d.open == null ? [0, 0] : [d.low, d.high]}
+                          shape={<CandlestickShape />}
+                          isAnimationActive={false}
                         />
-                      </LineChart>
+                      </ComposedChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="flex h-full items-center justify-center text-sm text-stone-300">
-                      차트 데이터가 없습니다.
+                    <div className="flex h-[200px] items-center justify-center text-sm text-stone-300">
+                      {candleLoading ? '로딩 중..' : '체결 기록이 없습니다.'}
                     </div>
                   )}
                 </div>

@@ -424,7 +424,8 @@ function CandleVolumeChart({
                       data={visibleData}
                       margin={{ top: 8, right: rightMargin, left: 0, bottom: 0 }}
                       onMouseMove={e => {
-                        if (e?.activePayload?.length > 0) onHover(e.activePayload[0].payload);
+                        const payload = e?.activePayload?.[0]?.payload;
+                        if (payload?.open != null) onHover(payload);
                       }}
                       onMouseLeave={onLeave}
                   >
@@ -451,9 +452,9 @@ function CandleVolumeChart({
                         }}
                         formatter={(value, name, props) => {
                           const d = props?.payload;
-                          if (!d) return [value, name];
+                          if (!d || d.open == null) return [null, null];
                           return [
-                            `시 ${d.open?.toLocaleString()}  고 ${d.high?.toLocaleString()}  저 ${d.low?.toLocaleString()}  종 ${d.close?.toLocaleString()}`,
+                            `시 ${d.open.toLocaleString()}  고 ${d.high.toLocaleString()}  저 ${d.low.toLocaleString()}  종 ${d.close.toLocaleString()}`,
                             d.time,
                           ];
                         }}
@@ -727,13 +728,14 @@ export function TokenDetailPage() {
         candles = res.data.map(d => mapCandle(d, chartPeriod));
       }
 
-      setChartData(buildChartData(candles, chartPeriod, null));
+      const seed = tokenInfo?.yesterdayClosePrice ?? null;
+      setChartData(buildChartData(candles, chartPeriod, seed));
     } catch (e) {
       console.warn('[TokenDetailPage] 캔들 조회 실패:', e.message);
     } finally {
       setLoading(false);
     }
-  }, [chartPeriod, TOKEN_ID, user?.accessToken]);
+  }, [chartPeriod, TOKEN_ID, user?.accessToken, tokenInfo?.yesterdayClosePrice]);
 
   useEffect(() => {
     setChartData([]);   // 기간 변경 시 이전 기간 데이터 초기화 (분/시/일 혼재 방지)
@@ -788,7 +790,7 @@ export function TokenDetailPage() {
         const merged = idx >= 0
             ? actualCandles.map((c, i) => (i === idx ? newCandle : c))
             : [...actualCandles, newCandle];
-        return buildChartData(merged, chartPeriod, null);
+        return buildChartData(merged, chartPeriod, tokenInfo?.yesterdayClosePrice ?? null);
       });
     },
     onDayCandle: (data) => {
