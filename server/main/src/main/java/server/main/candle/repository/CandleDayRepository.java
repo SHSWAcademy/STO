@@ -25,8 +25,16 @@ public interface CandleDayRepository extends JpaRepository<CandleDay, Long> {
     @Query("SELECT c FROM CandleDay c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :startOfDay AND c.candleTime < :endOfDay")
     List<CandleDay> findTodayByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);
 
-    @Query("SELECT c FROM CandleDay c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :since ORDER BY c.token.tokenId ASC, c.candleTime ASC")
-    List<CandleDay> findRecentByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("since") LocalDateTime since);
+    @Query("SELECT c FROM CandleDay c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :since AND c.candleTime < :before ORDER BY c.token.tokenId ASC, c.candleTime ASC")
+    List<CandleDay> findRecentByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("since") LocalDateTime since, @Param("before") LocalDateTime before);
+
+    @Query(nativeQuery = true, value = """
+        SELECT DISTINCT ON (token_id) candle_id, token_id, open_price, high_price, low_price, close_price, volume, candle_time, trade_count
+        FROM candle_days
+        WHERE token_id IN :tokenIds AND candle_time < :before
+        ORDER BY token_id, candle_time DESC
+    """)
+    List<CandleDay> findLatestBeforeByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("before") LocalDateTime before);
 
     @Modifying
     @Query(nativeQuery = true, value =

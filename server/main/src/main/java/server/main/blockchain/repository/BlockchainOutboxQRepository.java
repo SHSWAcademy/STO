@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import server.main.blockchain.entity.BlockchainOutboxQ;
 import server.main.blockchain.entity.QueueStatus;
+import server.main.trade.entity.SettlementStatus;
 
 import java.util.Collection;
 import java.util.List;
@@ -18,4 +19,10 @@ public interface BlockchainOutboxQRepository extends JpaRepository<BlockchainOut
 
     @Query("SELECT b FROM BlockchainOutboxQ b LEFT JOIN FETCH b.trade LEFT JOIN FETCH b.platformTokenHolding WHERE b.status IN :statuses")
     List<BlockchainOutboxQ> findByStatusInWithFetch(@Param("statuses") Collection<QueueStatus> statuses);
+
+    @Query("SELECT b FROM BlockchainOutboxQ b JOIN FETCH b.trade t " +
+            "WHERE b.status = :outboxStatus AND t.settlementStatus = :tradeStatus")
+    List<BlockchainOutboxQ> findConfirmedWithPendingTrades(
+            @Param("outboxStatus") QueueStatus outboxStatus,
+            @Param("tradeStatus") SettlementStatus tradeStatus);
 }

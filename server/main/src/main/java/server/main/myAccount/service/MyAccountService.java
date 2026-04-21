@@ -35,5 +35,7 @@ public interface MyAccountService {
 
     Page<SellHistoryResponse> getSellHistory(int year, int month, Pageable pageable);
 
+    AccountInfoResponse getAccountInfo();
+
 
 }

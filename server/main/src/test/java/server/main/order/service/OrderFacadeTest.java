@@ -176,4 +176,38 @@ class OrderFacadeTest {
         verify(orderService).compensateFailedUpdate(ORDER_ID, 12000L, 5L);
         verify(orderService, never()).processMatchResult(any(), any(), any());
     }
+
+    @Test
+    void createOrder_phase2Failure_storesOriginalMatchResult() {
+        OrderRequestDto requestDto = OrderRequestDto.builder()
+                .accountPassword("1234")
+                .orderType(OrderType.BUY)
+                .orderPrice(12000L)
+                .orderQuantity(5L)
+                .build();
+
+        MatchOrderRequestDto matchDto = MatchOrderRequestDto.builder()
+                .orderId(ORDER_ID)
+                .tokenId(TOKEN_ID)
+                .orderPrice(12000L)
+                .orderQuantity(5L)
+                .orderType(OrderType.BUY)
+                .build();
+
+        MatchResultDto matchResult = MatchResultDto.builder()
+                .orderId(ORDER_ID)
+                .tokenId(TOKEN_ID)
+                .filledQuantity(0L)
+                .remainingQuantity(5L)
+                .executions(List.of())
+                .build();
+
+        when(orderService.validateAndSaveOrder(TOKEN_ID, requestDto)).thenReturn(matchDto);
+        when(matchClient.sendOrder(matchDto)).thenReturn(matchResult);
+        doThrow(new RuntimeException("phase2")).when(orderService).processMatchResult(ORDER_ID, TOKEN_ID, matchResult);
+
+        assertThrows(RuntimeException.class, () -> orderFacade.createOrder(TOKEN_ID, requestDto));
+
+        verify(orderService).markOrderFailed(ORDER_ID, matchResult);
+    }
 }

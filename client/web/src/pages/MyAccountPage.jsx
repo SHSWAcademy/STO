@@ -26,6 +26,7 @@ import {
   fetchDividendTotal,
   fetchAccountSummary,
   fetchSellHistory,
+  fetchAccountInfo,
 } from "../lib/api.js";
 
 import { cn } from "../lib/utils.js";
@@ -1102,6 +1103,12 @@ function AnalysisTab() {
 
 // ── 계좌관리 탭 ───────────────────────────────────────────────
 function SettingsTab() {
+  const [accountInfo, setAccountInfo] = useState(null);
+
+  useEffect(() => {
+    fetchAccountInfo().then((res) => setAccountInfo(res.data));
+  }, []);
+
   return (
     <div className="max-w-2xl space-y-8">
       <h2 className="text-xl font-black text-stone-800 uppercase tracking-tight">
@@ -1114,54 +1121,48 @@ function SettingsTab() {
           </div>
           <div>
             <p className="text-xl font-black text-stone-800 tracking-tight">
-              {MOCK_USER.name}
+              {accountInfo?.memberName ?? "-"}
             </p>
             <p className="text-sm text-stone-400 font-bold">
-              {MOCK_USER.email}
+              {accountInfo?.email ?? "-"}
             </p>
           </div>
         </div>
 
         <div className="space-y-4">
-          {[
-            {
-              icon: Wallet,
-              color: "text-stone-600",
-              label: "연결된 지갑",
-              value: "0x742d35Cc...1F3A",
-            },
-            {
-              icon: Landmark,
-              color: "text-brand-red",
-              label: "출금 계좌",
-              value: "국민은행 ****4521",
-            },
-          ].map((item, i) => {
-            const Icon = item.icon;
-            return (
-              <div
-                key={i}
-                className="flex items-center justify-between p-6 bg-stone-100 rounded-2xl border border-stone-200"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-stone-200 shadow-sm">
-                    <Icon size={20} className={item.color} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5">
-                      {item.label}
-                    </p>
-                    <p className="text-sm font-bold text-stone-800 font-mono">
-                      {item.value}
-                    </p>
-                  </div>
-                </div>
-                <button className="text-[10px] font-black text-stone-600 uppercase tracking-widest hover:underline">
-                  변경하기
-                </button>
+          <div className="flex items-center justify-between p-6 bg-stone-100 rounded-2xl border border-stone-200">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-stone-200 shadow-sm">
+                <Wallet size={20} className="text-stone-600" />
               </div>
-            );
-          })}
+              <div>
+                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5">
+                  계좌번호
+                </p>
+                <p className="text-sm font-bold text-stone-800 font-mono">
+                  {accountInfo?.accountNumber ?? "-"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-6 bg-stone-100 rounded-2xl border border-stone-200">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-stone-200 shadow-sm">
+                <Wallet size={20} className="text-stone-600" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-0.5">
+                  연결된 지갑
+                </p>
+                <p className="text-sm font-bold text-stone-800 font-mono">
+                  {accountInfo?.walletAddress ?? "-"}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -16,13 +16,11 @@ import { useApp }            from '../context/AppContext.jsx';
 import { useTradingSocket }  from '../hooks/useTradingSocket.js';
 import { AssetHeader }       from '../components/trading/AssetHeader.jsx';
 import { SecureOrderPanel }  from '../components/trading/SecureOrderPanel.jsx';
-import { HogaRow }           from '../components/trading/HogaRow.jsx';
 import { PriceRow }          from '../components/trading/PriceRow.jsx';
 import { cn } from '../lib/utils.js';
 import { API_BASE_URL } from '../lib/config.js';
 import api from '../lib/api.js';
 
-const API = API_BASE_URL;
 
 // JWT payload에서 memberId(sub 클레임) 추출
 function parseJwtMemberId(token) {
@@ -95,7 +93,10 @@ function getBucketStart(date, period) {
   } else if (period === '시간') {
     d.setMinutes(0, 0, 0);
   } else if (period === '일') {
-    d.setHours(0, 0, 0, 0);
+    if (d.getHours() < 9) {
+      d.setDate(d.getDate() - 1);
+    }
+    d.setHours(9, 0, 0, 0);
   } else if (period === '월') {
     d.setDate(1);
     d.setHours(0, 0, 0, 0);
@@ -190,6 +191,13 @@ function buildChartData(fetchedCandles, period, seedClose = null) {
   });
 }
 
+function getTickSize(price) {
+  if (price < 100)   return 10;
+  if (price < 1000)  return 50;
+  if (price < 10000) return 100;
+  return 500;
+}
+
 // ── 캔들스틱 shape ───────────────────────────────────────────────
 // dataKey={d => [d.low, d.high]} 와 함께 사용
 // Recharts: y = high 의 픽셀 위치(위쪽), y+height = low 의 픽셀 위치(아래쪽)
@@ -256,8 +264,6 @@ function CandleVolumeChart({
   chartData,
   loading,
   displayData,
-  yDomain,
-  yTicks,
   rightMargin,
   yAxisWidth,
   volumeTickGap,
@@ -292,6 +298,11 @@ function CandleVolumeChart({
         return { startIndex, endIndex };
       }
       if (current.endIndex <= endIndex && current.endIndex >= 0) {
+        // 사용자가 맨 끝에 있었으면 새 캔들에 맞춰 자동 스크롤
+        const wasAtEnd = current.endIndex === endIndex - 1;
+        if (wasAtEnd) {
+          return { startIndex: Math.max(endIndex - visibleCount + 1, 0), endIndex };
+        }
         const clampedStart = Math.min(current.startIndex, Math.max(chartData.length - visibleCount, 0));
         const clampedEnd = Math.min(clampedStart + visibleCount - 1, endIndex);
         return { startIndex: clampedStart, endIndex: clampedEnd };
@@ -328,6 +339,24 @@ function CandleVolumeChart({
   }, [chartData.length, visibleCount]);
 
   const visibleData = chartData.slice(visibleRange.startIndex, visibleRange.endIndex + 1);
+
+  // Y축 도메인: 화면에 보이는 캔들(visibleData)만 기준으로 계산
+  const { yDomain, yTicks } = useMemo(() => {
+    const prices = visibleData.flatMap(d => [d.low, d.high]).filter(v => v != null);
+    if (prices.length === 0) return { yDomain: ['auto', 'auto'], yTicks: undefined };
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const mid = (min + max) / 2;
+    const tickSize = getTickSize(mid);
+    const pad = Math.max(tickSize, Math.ceil((max - min) * 0.1 / tickSize) * tickSize);
+    const domainMin = Math.floor((min - pad) / tickSize) * tickSize;
+    const domainMax = Math.ceil((max + pad) / tickSize) * tickSize;
+    const range = domainMax - domainMin;
+    const interval = Math.ceil(range / (5 * tickSize)) * tickSize;
+    const ticks = [];
+    for (let t = domainMin; t <= domainMax; t += interval) ticks.push(t);
+    return { yDomain: [domainMin, domainMax], yTicks: ticks };
+  }, [visibleData]);
 
   const beginDrag = (event) => {
     if (chartData.length <= visibleCount) return;
@@ -567,16 +596,42 @@ export function TokenDetailPage() {
   const [bids, setBids]             = useState([]);
   const [executions, setExecutions] = useState([]);
   const [flashingPrice, setFlashingPrice] = useState(null);
-  const [flashIsBuy, setFlashIsBuy]       = useState(false);
   const flashTimerRef = useRef(null);
   const [trades, setTrades]         = useState([]);
   const [todayHigh, setTodayHigh]   = useState(null);
   const [todayLow, setTodayLow]     = useState(null);
+  const hogaScrollRef  = useRef(null);
+  const priceBarRef    = useRef(null);
+  const hogaCenteredRef = useRef(false);
 
   useEffect(() => {
     setTodayHigh(tokenInfo?.todayHighPrice ?? null);
     setTodayLow(tokenInfo?.todayLowPrice ?? null);
   }, [tokenInfo]);
+
+  // 차트/호가 탭으로 돌아올 때 센터링 플래그 리셋
+  useEffect(() => {
+    if (activeTab === 'chart') {
+      hogaCenteredRef.current = false;
+    }
+  }, [activeTab]);
+
+  // 호가창 초기 진입 시 현재가 바를 가운데로 스크롤
+  useEffect(() => {
+    if (activeTab !== 'chart') return;
+    if (hogaCenteredRef.current) return;
+    if (asks.length === 0 && bids.length === 0) return;
+    const container = hogaScrollRef.current;
+    const priceBar  = priceBarRef.current;
+    if (!container || !priceBar) return;
+    requestAnimationFrame(() => {
+      const containerRect = container.getBoundingClientRect();
+      const priceBarRect  = priceBar.getBoundingClientRect();
+      const priceBarTopInContent = priceBarRect.top - containerRect.top + container.scrollTop;
+      container.scrollTop = priceBarTopInContent - container.clientHeight / 2 + priceBar.offsetHeight / 2;
+      hogaCenteredRef.current = true;
+    });
+  }, [asks, bids, activeTab]);
 
   // ── 체결 목록 초기 REST 로드 ─────────────────────────────────
   useEffect(() => {
@@ -611,44 +666,13 @@ export function TokenDetailPage() {
   const basePrice = tokenInfo?.yesterdayClosePrice || currentPrice || 1;
   const displayData = hoveredData || lastWithData || null;
 
-  const validHighs = useMemo(() => chartData.map(c => c.high).filter(v => v != null), [chartData]);
-  const validLows  = useMemo(() => chartData.map(c => c.low).filter(v  => v != null), [chartData]);
-  const chartHigh  = validHighs.length > 0 ? Math.max(...validHighs) : 0;
-  const chartLow   = validLows.length  > 0 ? Math.min(...validLows)  : 0;
-  const dailyHigh  = todayHigh ?? chartHigh;
-  const dailyLow   = todayLow  ?? chartLow;
+  // 오늘 고가/저가: 라이브 캔들(WS) > trades 배열(오늘 9시 이후 전체) 순으로 우선
+  const tradePrices = useMemo(() => trades.map(t => t.price).filter(v => v != null && v > 0), [trades]);
+  const tradeHigh   = tradePrices.length > 0 ? Math.max(...tradePrices) : null;
+  const tradeLow    = tradePrices.length > 0 ? Math.min(...tradePrices) : null;
+  const dailyHigh   = todayHigh != null ? Math.max(todayHigh, tradeHigh ?? 0) : tradeHigh;
+  const dailyLow    = todayLow  != null ? Math.min(todayLow,  tradeLow  ?? Infinity) : tradeLow;
 
-  // Y축 도메인 ? null 슬롯 제외한 실제 가격 기준
-  // 호가 단위 정책 (TickSizePolicy.java 동일 기준)
-  const getTickSize = (price) => {
-    if (price < 100)   return 10;
-    if (price < 1000)  return 50;
-    if (price < 10000) return 100;
-    return 500;
-  };
-
-  const { yDomain, yTicks } = useMemo(() => {
-    const prices = chartData.flatMap(d => [d.low, d.high]).filter(v => v != null);
-    if (prices.length === 0) return { yDomain: ['auto', 'auto'], yTicks: undefined };
-
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const mid = (min + max) / 2;
-    const tickSize = getTickSize(mid);
-
-    // 패딩: 최소 tickSize 1칸, 범위의 10%
-    const pad = Math.max(tickSize, Math.ceil((max - min) * 0.1 / tickSize) * tickSize);
-    const domainMin = Math.floor((min - pad) / tickSize) * tickSize;
-    const domainMax = Math.ceil((max + pad) / tickSize) * tickSize;
-
-    // 5~7개 tick ? 호가 단위 배수로 정렬
-    const range = domainMax - domainMin;
-    const interval = Math.ceil(range / (5 * tickSize)) * tickSize;
-    const ticks = [];
-    for (let t = domainMin; t <= domainMax; t += interval) ticks.push(t);
-
-    return { yDomain: [domainMin, domainMax], yTicks: ticks };
-  }, [chartData]);
 
   const maxAskAmount = Math.max(...asks.map(r => r.amount), 1);
   const maxBidAmount = Math.max(...bids.map(r => r.amount), 1);
@@ -706,7 +730,7 @@ export function TokenDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [chartPeriod, TOKEN_ID, tokenInfo?.currentPrice, tokenInfo?.yesterdayClosePrice, user?.accessToken]);
+  }, [chartPeriod, TOKEN_ID, user?.accessToken]);
 
   useEffect(() => {
     setChartData([]);   // 기간 변경 시 이전 기간 데이터 초기화 (분/시/일 혼재 방지)
@@ -733,12 +757,11 @@ export function TokenDetailPage() {
       if (data.tradePrice) {
         setCurrentPrice(data.tradePrice);
         setFlashingPrice(data.tradePrice);
-        setFlashIsBuy(data.isBuy);
         clearTimeout(flashTimerRef.current);
         flashTimerRef.current = setTimeout(() => setFlashingPrice(null), 500);
       }
       setExecutions(prev =>
-          [{ price: data.tradePrice, qty: data.tradeQuantity, isBuy: data.isBuy }, ...prev].slice(0, 15)
+          [{ qty: data.tradeQuantity, isBuy: data.isBuy }, ...prev]
       );
       setTrades(prev => {
         const cumulativeVol = (prev[0]?.vol ?? 0) + (data.tradeQuantity ?? 0);
@@ -751,7 +774,7 @@ export function TokenDetailPage() {
           changeRate: Math.round(rate * 100) / 100,
           vol:        cumulativeVol,
           time:       formatTradeTime(data.tradeTime),
-        }, ...prev].slice(0, 50);
+        }, ...prev].slice(0, 100);
       });
     },
     onCandle: (data) => {
@@ -845,8 +868,6 @@ export function TokenDetailPage() {
                           chartData={chartData}
                           loading={loading}
                           displayData={displayData}
-                          yDomain={yDomain}
-                          yTicks={yTicks}
                           rightMargin={48}
                           yAxisWidth={56}
                           volumeTickGap={40}
@@ -860,7 +881,7 @@ export function TokenDetailPage() {
                   {/* 시세 섹션 */}
                   <div className="flex-1 min-h-0 bg-white rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm">
                     <div className="p-4 border-b border-stone-200 flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-stone-800">시세</h3>
+                      <h3 className="text-sm font-bold text-stone-800">당일 체결 목록</h3>
                       <span className="text-xs font-bold text-stone-400">실시간</span>
                       <X size={14} className="text-stone-400" />
                     </div>
@@ -871,7 +892,7 @@ export function TokenDetailPage() {
                           <th className="text-left p-4 font-bold">체결가</th>
                           <th className="text-right p-4 font-bold">체결량(주)</th>
                           <th className="text-right p-4 font-bold">등락률</th>
-                          <th className="text-right p-4 font-bold">거래량(주)</th>
+                          <th className="text-right p-4 font-bold">당일 총 거래량(주)</th>
                           <th className="text-right p-4 font-bold">시간</th>
                         </tr>
                         </thead>
@@ -904,16 +925,18 @@ export function TokenDetailPage() {
                     // 체결강도 계산
                     const buyVol  = executions.filter(e => e.isBuy).reduce((s, e) => s + e.qty, 0);
                     const sellVol = executions.filter(e => !e.isBuy).reduce((s, e) => s + e.qty, 0);
-                    const strengthNum = sellVol > 0 ? Math.round((buyVol / sellVol) * 100) : buyVol > 0 ? 200 : null;
-                    const strengthVal = strengthNum != null ? `${strengthNum}%` : '-';
-                    const strengthColor = strengthNum == null ? 'text-stone-400' : strengthNum >= 100 ? 'text-brand-red' : 'text-brand-blue';
+                    const isMax = sellVol === 0 && buyVol > 0;
+                    const strengthNum = sellVol > 0 ? Math.round((buyVol / sellVol) * 100) : null;
+                    const strengthVal = isMax ? 'MAX' : strengthNum != null ? `${strengthNum}%` : '-';
+                    const strengthColor = (!isMax && strengthNum == null) ? 'text-stone-400' : (isMax || strengthNum >= 100) ? 'text-brand-red' : 'text-brand-blue';
 
                     // 매도 우측 통계 항목
+                    const yClose = tokenInfo?.yesterdayClosePrice;
                     const statItems = [
-                      // TODO: 백엔드 로직 미구현 ? 전일 종가 기준 ±30% 하드코딩
-                      { label: '상한가', value: basePrice > 0 ? Math.round(basePrice * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)', unimplemented: true },
-                      { label: '하한가', value: basePrice > 0 ? Math.round(basePrice * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)', unimplemented: true },
-                      { label: '시작',   value: tokenInfo?.todayOpenPrice != null ? tokenInfo.todayOpenPrice.toLocaleString() : '체결 기록 없음', color: tokenInfo?.todayOpenPrice != null ? '#292524' : 'var(--color-stone-400)' },
+                      { label: '상한가', value: yClose > 0 ? Math.round(yClose * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)', unimplemented: true, subLabel: '(전일 종가 대비 30%)' },
+                      { label: '하한가', value: yClose > 0 ? Math.round(yClose * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)', unimplemented: true, subLabel: '(전일 종가 대비 30%)' },
+                      { label: '당일시가', value: tokenInfo?.todayOpenPrice != null ? tokenInfo.todayOpenPrice.toLocaleString() : '체결 기록 없음', color: tokenInfo?.todayOpenPrice != null ? '#292524' : 'var(--color-stone-400)' },
+                      { label: '전일종가', value: tokenInfo?.yesterdayClosePrice != null ? tokenInfo.yesterdayClosePrice.toLocaleString() : '-', color: '#292524' },
                       { label: '1일최고', value: dailyHigh != null && dailyHigh > 0 ? dailyHigh.toLocaleString() : '체결 기록 없음', color: dailyHigh != null ? 'var(--color-brand-red)' : 'var(--color-stone-400)' },
                       { label: '1일최저', value: dailyLow  != null && dailyLow  > 0 ? dailyLow.toLocaleString()  : '체결 기록 없음', color: dailyLow  != null ? 'var(--color-brand-blue)' : 'var(--color-stone-400)' },
                     ];
@@ -929,29 +952,35 @@ export function TokenDetailPage() {
                           <span aria-hidden="true" />
                         </div>
 
-                        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
+                        <div ref={hogaScrollRef} className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
 
-                        <div className="grid grid-cols-[146px_108px_146px]">
-                          <div className="col-span-2 flex flex-col">
-                            {reversedAsks.map((row, i) => {
-                              const dp = maxAskAmount > 0 ? (row.amount / maxAskAmount) * 100 : 0;
-                              const cp = basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0;
-                              return (
+                        {/* asks + stats를 행 단위로 함께 렌더 — 높이 불일치 원천 차단 */}
+                        {/* asks는 아래 정렬(낮은 가격이 현재가 바 바로 위) → 빈 행은 위쪽에 */}
+                        {(() => {
+                          const totalRows = Math.max(reversedAsks.length, statItems.length);
+                          const topPad = totalRows - reversedAsks.length;
+                          return Array.from({ length: totalRows }).map((_, i) => {
+                          const row  = i < topPad ? null : reversedAsks[i - topPad];
+                          const stat = statItems[i];
+                          const dp = row && maxAskAmount > 0 ? (row.amount / maxAskAmount) * 100 : 0;
+                          const cp = row && basePrice > 0 ? ((row.price - basePrice) / basePrice) * 100 : 0;
+                          return (
+                            <div key={`ask-row-${i}`} className="grid grid-cols-[146px_108px_146px] border-b border-stone-100">
+                              {row ? (
                                 <button
-                                    key={`ask-row-${i}`}
-                                    type="button"
-                                    onClick={() => setSelectedOrderPrice(row.price)}
-                                    onMouseEnter={() => setHoveredAskIndex(i)}
-                                    onMouseLeave={() => setHoveredAskIndex(null)}
-                                    className={cn(
-                                      'grid grid-cols-[146px_108px] h-9 border-b border-stone-100 transition-colors text-left',
-                                      flashingPrice === row.price ? 'hoga-flash-blue' : hoveredAskIndex === i ? 'bg-blue-100/60' : 'hover:bg-blue-100/60'
-                                    )}
+                                  type="button"
+                                  onClick={() => setSelectedOrderPrice(row.price)}
+                                  onMouseEnter={() => setHoveredAskIndex(i)}
+                                  onMouseLeave={() => setHoveredAskIndex(null)}
+                                  className={cn(
+                                    'col-span-2 grid grid-cols-[146px_108px] min-h-9 transition-colors text-left',
+                                    flashingPrice === row.price ? 'hoga-flash-blue' : hoveredAskIndex === i ? 'bg-blue-100/60' : 'hover:bg-blue-100/60'
+                                  )}
                                 >
                                   <div className="relative flex items-center justify-end pr-3 pl-3 overflow-hidden border-r border-stone-100">
                                     <div
-                                        className="absolute right-3 top-[6px] bottom-[6px] rounded-l-md bg-brand-blue/10"
-                                        style={{ width: `${Math.min(dp * 0.58, 58)}%` }}
+                                      className="absolute right-3 top-[6px] bottom-[6px] rounded-l-md bg-brand-blue/10"
+                                      style={{ width: `${Math.min(dp * 0.58, 58)}%` }}
                                     />
                                     <span className="relative z-10 text-[11px] font-mono font-bold text-brand-blue">{row.amount.toLocaleString()}</span>
                                   </div>
@@ -960,28 +989,36 @@ export function TokenDetailPage() {
                                     <span className="text-[9px] font-bold text-brand-blue/60">{cp >= 0 ? '+' : ''}{cp.toFixed(2)}%</span>
                                   </div>
                                 </button>
-                              );
-                            })}
-                          </div>
-
-                          <div className="flex flex-col justify-end border-l border-stone-100">
-                            {statItems.map((stat, i) => (
-                              <div key={`ask-stat-${i}`} className="h-9 border-b border-stone-100 px-2 flex items-center">
-                                <div className="flex flex-col w-full gap-0.5">
-                                  <div className="flex justify-between w-full">
-                                    <span className="text-[9px] font-bold text-stone-400">{stat.label}</span>
-                                    <span className="text-[9px] font-bold" style={{ color: stat.color }}>{stat.value}</span>
-                                  </div>
-                                  {stat.unimplemented && (
-                                    <span className="text-[8px] font-bold text-amber-400 text-right">미구현</span>
-                                  )}
+                              ) : (
+                                <div className="col-span-2 grid grid-cols-[146px_108px] min-h-9">
+                                  <div className="border-r border-stone-100" />
+                                  <div />
                                 </div>
+                              )}
+                              <div className="border-l border-stone-100 px-2 py-1 flex items-center min-h-9">
+                                {stat && (
+                                  <div className="flex justify-between w-full items-start">
+                                    <div className="flex flex-col gap-0">
+                                      <span className="text-[9px] font-bold text-stone-400 leading-tight">{stat.label}</span>
+                                      {stat.subLabel && (
+                                        <span className="text-[7.5px] text-stone-300 leading-tight">{stat.subLabel}</span>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col items-end gap-0">
+                                      <span className="text-[9px] font-bold leading-tight" style={{ color: stat.color }}>{stat.value}</span>
+                                      {stat.unimplemented && (
+                                        <span className="text-[7.5px] font-bold text-amber-400 leading-tight">백엔드 미구현</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            ))}
-                          </div>
-                        </div>
+                            </div>
+                          );
+                        });
+                        })()}
 
-                        <div className="h-10 bg-stone-200 flex items-center justify-center relative flex-none border-y border-stone-300">
+                        <div ref={priceBarRef} className="h-10 bg-stone-200 flex items-center justify-center relative flex-none border-y border-stone-300">
                           <div className="absolute left-2 w-5 h-5 bg-brand-blue rounded flex items-center justify-center text-[9px] font-black text-white">현</div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-sm font-black text-stone-800 font-mono tracking-tight">
@@ -1006,22 +1043,9 @@ export function TokenDetailPage() {
                                 <p className={`text-[11px] font-black leading-none mt-0.5 ${strengthColor}`}>{strengthVal}</p>
                               </div>
                             </div>
-                            {bids.map((row, i) => {
-                              const ex = executions[i];
-                              return (
-                                <div
-                                    key={`bid-ex-${i}`}
-                                    className="h-9 border-b border-stone-100 flex items-center px-2 overflow-hidden"
-                                >
-                                  {ex && (
-                                    <div className="flex justify-between w-full">
-                                      <span className="text-[10px] font-mono text-stone-400 truncate">{ex.price.toLocaleString()}</span>
-                                      <span className={`text-[10px] font-bold ml-1 flex-shrink-0 ${ex.isBuy ? 'text-brand-red' : 'text-brand-blue'}`}>{ex.qty}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                            {bids.map((_, i) => (
+                              <div key={`bid-ex-${i}`} className="h-9 border-b border-stone-100" />
+                            ))}
                           </div>
 
                           <div className="col-span-2 flex flex-col">
@@ -1160,11 +1184,6 @@ export function TokenDetailPage() {
                           chartData={chartData}
                           loading={loading}
                           displayData={displayData}
-                      yDomain={([min, max]) => {
-                        const pad = Math.max(Math.ceil((max - min) * 0.05), 1);
-                        return [min - pad, max + pad];
-                      }}
-                      yTicks={undefined}
                       rightMargin={60}
                       yAxisWidth={64}
                       volumeTickGap={30}

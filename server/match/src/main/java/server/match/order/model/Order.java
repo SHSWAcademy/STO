@@ -16,6 +16,9 @@ public class Order {
     private Long sequence;          // 오더북 삽입 시 부여되는 시간 우선순위 번호
 
     public Order(Long orderId, Long memberId, Long tokenId, OrderType orderType, Long price, Long quantity) {
+        if (quantity == null || quantity <= 0) {
+            throw new IllegalArgumentException("remainingQuantity must be positive");
+        }
         this.orderId = orderId;
         this.memberId = memberId;
         this.tokenId = tokenId;
@@ -25,6 +28,9 @@ public class Order {
     }
 
     public void reduceQuantity(Long amount) {
+        if (amount == null || amount <= 0 || amount > this.remainingQuantity) {
+            throw new IllegalArgumentException("invalid reduce amount");
+        }
         this.remainingQuantity -= amount;
     }
 
@@ -35,6 +41,9 @@ public class Order {
 
     // 수량 감소 시 in-place 수정 — 오더북 줄 위치(시간 우선순위) 유지
     public void updateQuantity(Long newQuantity) {
+        if (newQuantity == null || newQuantity <= 0) {
+            throw new IllegalArgumentException("remainingQuantity must be positive");
+        }
         this.remainingQuantity = newQuantity;
     }
 

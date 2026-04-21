@@ -1,4 +1,4 @@
-package server.main.myaccount.controller;
+package server.main.myAccount.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -127,7 +127,10 @@ public class MyAccountController {
     }
 
 
-
+    @GetMapping("/info")
+    public ResponseEntity<AccountInfoResponse> getAccountInfo() {
+        return ResponseEntity.ok(myAccountService.getAccountInfo());
+    }
 
 
 

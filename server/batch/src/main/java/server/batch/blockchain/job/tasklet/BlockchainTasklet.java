@@ -11,6 +11,7 @@ import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
@@ -43,6 +44,7 @@ public class BlockchainTasklet implements Tasklet {
     @PostConstruct
     public void init() {
         this.transactionTemplate = new TransactionTemplate(txManager);
+        this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
 

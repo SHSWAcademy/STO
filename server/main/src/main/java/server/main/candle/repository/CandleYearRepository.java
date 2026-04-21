@@ -22,8 +22,8 @@ public interface CandleYearRepository extends JpaRepository<CandleYear, Long> {
     @Query("SELECT c FROM CandleYear c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :startOfYear AND c.candleTime < :endOfYear")
     List<CandleYear> findThisYearByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("startOfYear") LocalDateTime startOfYear, @Param("endOfYear") LocalDateTime endOfYear);
 
-    @Query("SELECT c FROM CandleYear c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :since ORDER BY c.token.tokenId ASC, c.candleTime ASC")
-    List<CandleYear> findRecentByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("since") LocalDateTime since);
+    @Query("SELECT c FROM CandleYear c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :since AND c.candleTime < :before ORDER BY c.token.tokenId ASC, c.candleTime ASC")
+    List<CandleYear> findRecentByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("since") LocalDateTime since, @Param("before") LocalDateTime before);
 
     @Modifying
     @Query(nativeQuery = true, value =

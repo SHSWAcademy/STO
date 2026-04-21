@@ -28,6 +28,7 @@ public class OrderBookInitializer implements ApplicationRunner {
                 SELECT order_id, member_id, token_id, order_type, order_price, remaining_quantity
                 FROM orders
                 WHERE order_status IN ('OPEN', 'PARTIAL')
+                  AND remaining_quantity > 0
                 """;
 
         jdbcTemplate.query(sql, rs -> {
