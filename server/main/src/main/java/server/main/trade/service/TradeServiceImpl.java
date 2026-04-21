@@ -30,6 +30,7 @@ public class TradeServiceImpl implements TradeService {
 
         List<Trade> trades = tradeRepository.findTradeList(tokenId, since);
         Long totalVolume = tradeRepository.sumDailyVolume(tokenId, since);
+        Long totalTradeValue = tradeRepository.sumDailyTradeValue(tokenId, since);
 
         List<TradeResponseDto> dtos =
                 trades.stream().map(tradeMapper::toDto).toList();
@@ -48,8 +49,11 @@ public class TradeServiceImpl implements TradeService {
             }
         }
 
-        // 총 체결량
-        dtos.forEach(dto -> dto.setTotalVolume(totalVolume));
+        // 당일 누적 거래량 / 거래대금
+        dtos.forEach(dto -> {
+            dto.setTotalVolume(totalVolume);
+            dto.setTotalTradeValue(totalTradeValue);
+        });
         return dtos;
     }
 

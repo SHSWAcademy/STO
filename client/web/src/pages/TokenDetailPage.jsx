@@ -641,11 +641,12 @@ export function TokenDetailPage() {
     api.get(`/api/token/${TOKEN_ID}/trades`)
         .then(r => {
           setTrades(r.data.map(d => ({
-            price:      d.tradePrice,
-            qty:        d.tradeQuantity,
-            changeRate: d.percentageChange ?? 0,
-            vol:        d.totalVolume ?? 0,
-            time:       d.executedAt
+            price:           d.tradePrice,
+            qty:             d.tradeQuantity,
+            changeRate:      d.percentageChange ?? 0,
+            vol:             d.totalVolume ?? 0,
+            totalTradeValue: d.totalTradeValue ?? 0,
+            time:            d.executedAt
                 ? new Date(d.executedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
                 : '',
           })));
@@ -668,10 +669,7 @@ export function TokenDetailPage() {
 
   const basePrice = tokenInfo?.yesterdayClosePrice || currentPrice || 1;
   const totalTradeQuantity = trades[0]?.vol ?? 0;
-  const totalTradeValue = useMemo(
-    () => trades.reduce((sum, t) => sum + (t.price ?? 0) * (t.qty ?? 0), 0),
-    [trades]
-  );
+  const totalTradeValue = trades[0]?.totalTradeValue ?? 0;
   const displayData = hoveredData || lastWithData || null;
 
   // 오늘 고가/저가: 라이브 캔들(WS) > trades 배열(오늘 9시 이후 전체) 순으로 우선
@@ -770,16 +768,17 @@ export function TokenDetailPage() {
         flashTimerRef.current = setTimeout(() => setFlashingPrice(null), 500);
       }
       setTrades(prev => {
-        const cumulativeVol = (prev[0]?.vol ?? 0) + (data.tradeQuantity ?? 0);
-        // 전날 종가 대비 등락률 ? REST API와 동일한 기준
+        const cumulativeVol   = (prev[0]?.vol ?? 0) + (data.tradeQuantity ?? 0);
+        const cumulativeValue = (prev[0]?.totalTradeValue ?? 0) + (data.tradePrice ?? 0) * (data.tradeQuantity ?? 0);
         const base = tokenInfo?.yesterdayClosePrice;
         const rate = base > 0 ? ((data.tradePrice - base) / base) * 100 : 0;
         return [{
-          price:      data.tradePrice,
-          qty:        data.tradeQuantity,
-          changeRate: Math.round(rate * 100) / 100,
-          vol:        cumulativeVol,
-          time:       formatTradeTime(data.tradeTime),
+          price:           data.tradePrice,
+          qty:             data.tradeQuantity,
+          changeRate:      Math.round(rate * 100) / 100,
+          vol:             cumulativeVol,
+          totalTradeValue: cumulativeValue,
+          time:            formatTradeTime(data.tradeTime),
         }, ...prev].slice(0, 100);
       });
     },
@@ -1047,7 +1046,7 @@ export function TokenDetailPage() {
                             if (i === 0) {
                               leftContent = (
                                 <>
-                                  <span className="text-[9px] font-bold text-stone-400 shrink-0">총 거래대금&nbsp;</span>
+                                  <span className="text-[9px] font-bold text-stone-400 shrink-0">당일 총거래대금&nbsp;</span>
                                   <span className="text-[10px] font-black font-mono text-stone-700 truncate">
                                     {totalTradeValue > 0 ? `${totalTradeValue.toLocaleString()}원` : '-'}
                                   </span>
@@ -1056,7 +1055,7 @@ export function TokenDetailPage() {
                             } else if (i === 1) {
                               leftContent = (
                                 <>
-                                  <span className="text-[9px] font-bold text-stone-400 shrink-0">총 거래량&nbsp;</span>
+                                  <span className="text-[9px] font-bold text-stone-400 shrink-0">당일 총거래량&nbsp;</span>
                                   <span className="text-[10px] font-black font-mono text-stone-700">
                                     {totalTradeQuantity > 0 ? `${totalTradeQuantity.toLocaleString()}주` : '-'}
                                   </span>
