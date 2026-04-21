@@ -22,7 +22,7 @@ public class TradeSettlementSyncService {
     private final BlockchainOutboxQRepository blockchainOutboxQRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Scheduled(fixedDelay = 30000)
+    @Scheduled(fixedDelay = 10000)
     @Transactional
     public void syncSettlementStatus() {
         List<BlockchainOutboxQ> confirmedList =
