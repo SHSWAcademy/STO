@@ -23,7 +23,7 @@ public class BlockchainBatchScheduler {
     private final Job blockchainJob;
 
 
-    @Scheduled(cron = "0 * * * * *") // 매 분 0초
+    @Scheduled(cron = "0/10 * * * * *") // 매 10초
     public void runBlockchainJob() throws Exception {
 
         int runningCount = jobExplorer

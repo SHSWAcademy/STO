@@ -11,4 +11,5 @@ public class TokenStatsDTO {
     private Long count;         // 카운트
     private Long pending;       // 오프체인
     private Long amount;        // 총 금액
+    private String contract_address; // 블록체인 주소
 }
