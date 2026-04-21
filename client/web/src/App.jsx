@@ -13,6 +13,7 @@ import { TokenDetailPage }      from './pages/TokenDetailPage.jsx';
 // Admin
 import { AdminLayout }          from './pages/admin/AdminLayout.jsx';
 import { AdminDashboard }       from './pages/admin/AdminDashboard.jsx';
+import { RealtimeSettlementPage } from './pages/admin/RealtimeSettlementPage.jsx';
 import { UserManagement }       from './pages/admin/UserManagement.jsx';
 import { AssetManagement }      from './pages/admin/asset';
 import { PlatformRevenue }      from './pages/admin/PlatformRevenue.jsx';
@@ -70,6 +71,11 @@ function AdminAuth({ children }) {
 function AppContent() {
   return (
     <Routes>
+      <Route
+        path="/admin-console/settlement-live"
+        element={<AdminAuth><RealtimeSettlementPage /></AdminAuth>}
+      />
+
       {/* 관리자 라우트 */}
       <Route path="/admin-console" element={<AdminAuth><AdminLayout /></AdminAuth>}>
         <Route index             element={<AdminDashboard />} />

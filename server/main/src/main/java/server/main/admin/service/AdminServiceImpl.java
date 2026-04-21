@@ -2,6 +2,7 @@ package server.main.admin.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -142,6 +143,7 @@ public class AdminServiceImpl implements AdminService {
 
     // 자산 수정
     @Transactional
+    @CacheEvict(value = "tokenAssetName", key = "#dto.tokenId")
     @Override
     public void updateAsset(Long assetId, AssetUpdateRequestDTO dto, MultipartFile imageFile, MultipartFile pdfFile) {
 
@@ -540,6 +542,32 @@ public class AdminServiceImpl implements AdminService {
                 ? YearMonth.now().plusMonths(1)
                 : YearMonth.now();
         return targetMonth.atDay(commons.getAllocateSetDate());
+    }
+
+    // 정산 현황 조회
+    @Override
+    public TradeStatsResponseDTO getSettlementStats() {
+        Object[] global = tradeRepository.findGlobalSettlementStats().get(0);
+        List<Object[]> tokenRows = tradeRepository.findTokenSettlementStats();
+        log.info("블록체인 종합데이터 조회 확인 : {}", global);
+        List<TokenStatsDTO> tokenStatsList = tokenRows.stream()
+                .map(row -> TokenStatsDTO.builder()
+                        .tokenId((Long) row[0])
+                        .tokenSymbol((String) row[1])
+                        .count((Long) row[2])
+                        .pending((Long) row[3])
+                        .amount((Long) row[4])
+                        .build())
+                .collect(Collectors.toList());
+        log.info("블록체인 정산현황 조회 : {}", tokenStatsList);
+
+        return TradeStatsResponseDTO.builder()
+                .totalTx((Long) global[0])
+                .pendingCount((Long) global[1])
+                .successCount((Long) global[2])
+                .totalAmount((Long) global[3])
+                .tokenStatsList(tokenStatsList)
+                .build();
     }
 
     // 현재 일자 조회용 메서드

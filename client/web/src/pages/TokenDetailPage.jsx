@@ -74,15 +74,17 @@ function formatTradeTime(t) {
 }
 
 function mapCandle(dto, period) {
+  const open  = Math.round(dto.openPrice  || 0);
+  const high  = Math.round(dto.highPrice  || 0);
+  const low   = Math.round(dto.lowPrice   || 0);
+  const close = Math.round(dto.closePrice || 0);
+  const vol   = Math.round(dto.volume     || 0);
   return {
-    ts:    dto.candleTime ? new Date(dto.candleTime).getTime() : 0,
-    time:  formatCandleTime(dto.candleTime, period),
-    open:  Math.round(dto.openPrice  || 0),
-    high:  Math.round(dto.highPrice  || 0),
-    low:   Math.round(dto.lowPrice   || 0),
-    close: Math.round(dto.closePrice || 0),
-    vol:   Math.round(dto.volume     || 0),
-    isSynthetic: false,
+    ts:   dto.candleTime ? new Date(dto.candleTime).getTime() : 0,
+    time: formatCandleTime(dto.candleTime, period),
+    open, high, low, close, vol,
+    // 버그D: volume=0이고 시/고/저/종이 모두 같으면 체결 없는 근사 봉 → synthetic(회색)으로 처리
+    isSynthetic: vol === 0 && open > 0 && open === close && open === high && open === low,
   };
 }
 
@@ -117,7 +119,8 @@ function shiftBucket(date, period, amount) {
   return d;
 }
 
-function generateRecentSlots(period, count = 35) {
+// 버그A: 백엔드가 과거 35개 + 현재 스냅샷 1개 = 36개 반환하므로 슬롯도 36개로 맞춤
+function generateRecentSlots(period, count = 36) {
   const currentBucket = getBucketStart(new Date(), period);
   const slots = [];
   for (let i = count - 1; i >= 0; i--) {
@@ -166,7 +169,7 @@ function buildChartData(fetchedCandles, period, seedClose = null) {
       fetchedCandles
           .filter(c => c?.ts)
           .sort((a, b) => a.ts - b.ts)
-          .map(c => [c.ts, { ...c, time: formatCandleTime(c.ts, period), isSynthetic: false }])
+          .map(c => [c.ts, { ...c, time: formatCandleTime(c.ts, period), isSynthetic: c.isSynthetic ?? false }])
   );
 
   let previousClose = seedClose;
@@ -278,7 +281,7 @@ function CandleVolumeChart({
   const hasInitializedRef = useRef(false);
   const [visibleCount, setVisibleCount] = useState(20);
   const minVisibleCount = 12;
-  const maxVisibleCount = 35;
+  const maxVisibleCount = 36;
 
   useEffect(() => {
     const endIndex = Math.max(chartData.length - 1, 0);
@@ -421,7 +424,8 @@ function CandleVolumeChart({
                       data={visibleData}
                       margin={{ top: 8, right: rightMargin, left: 0, bottom: 0 }}
                       onMouseMove={e => {
-                        if (e?.activePayload?.length > 0) onHover(e.activePayload[0].payload);
+                        const payload = e?.activePayload?.[0]?.payload;
+                        if (payload?.open != null) onHover(payload);
                       }}
                       onMouseLeave={onLeave}
                   >
@@ -448,9 +452,9 @@ function CandleVolumeChart({
                         }}
                         formatter={(value, name, props) => {
                           const d = props?.payload;
-                          if (!d) return [value, name];
+                          if (!d || d.open == null) return [null, null];
                           return [
-                            `시 ${d.open?.toLocaleString()}  고 ${d.high?.toLocaleString()}  저 ${d.low?.toLocaleString()}  종 ${d.close?.toLocaleString()}`,
+                            `시 ${d.open.toLocaleString()}  고 ${d.high.toLocaleString()}  저 ${d.low.toLocaleString()}  종 ${d.close.toLocaleString()}`,
                             d.time,
                           ];
                         }}
@@ -724,13 +728,14 @@ export function TokenDetailPage() {
         candles = res.data.map(d => mapCandle(d, chartPeriod));
       }
 
-      setChartData(buildChartData(candles, chartPeriod, null));
+      const seed = tokenInfo?.yesterdayClosePrice ?? null;
+      setChartData(buildChartData(candles, chartPeriod, seed));
     } catch (e) {
       console.warn('[TokenDetailPage] 캔들 조회 실패:', e.message);
     } finally {
       setLoading(false);
     }
-  }, [chartPeriod, TOKEN_ID, user?.accessToken]);
+  }, [chartPeriod, TOKEN_ID, user?.accessToken, tokenInfo?.yesterdayClosePrice]);
 
   useEffect(() => {
     setChartData([]);   // 기간 변경 시 이전 기간 데이터 초기화 (분/시/일 혼재 방지)
@@ -785,7 +790,7 @@ export function TokenDetailPage() {
         const merged = idx >= 0
             ? actualCandles.map((c, i) => (i === idx ? newCandle : c))
             : [...actualCandles, newCandle];
-        return buildChartData(merged, chartPeriod, null);
+        return buildChartData(merged, chartPeriod, tokenInfo?.yesterdayClosePrice ?? null);
       });
     },
     onDayCandle: (data) => {
@@ -883,7 +888,6 @@ export function TokenDetailPage() {
                     <div className="p-4 border-b border-stone-200 flex items-center justify-between">
                       <h3 className="text-sm font-bold text-stone-800">당일 체결 목록</h3>
                       <span className="text-xs font-bold text-stone-400">실시간</span>
-                      <X size={14} className="text-stone-400" />
                     </div>
                     <div className="flex-1 overflow-y-auto">
                       <table className="w-full text-sm">
@@ -933,8 +937,8 @@ export function TokenDetailPage() {
                     // 매도 우측 통계 항목
                     const yClose = tokenInfo?.yesterdayClosePrice;
                     const statItems = [
-                      { label: '상한가', value: yClose > 0 ? Math.round(yClose * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)', unimplemented: true, subLabel: '(전일 종가 대비 30%)' },
-                      { label: '하한가', value: yClose > 0 ? Math.round(yClose * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)', unimplemented: true, subLabel: '(전일 종가 대비 30%)' },
+                      { label: '상한가', value: yClose > 0 ? Math.round(yClose * 1.3).toLocaleString() : '-', color: 'var(--color-brand-red)', subLabel: '(전일 종가 대비 30%)' },
+                      { label: '하한가', value: yClose > 0 ? Math.round(yClose * 0.7).toLocaleString() : '-', color: 'var(--color-brand-blue)', subLabel: '(전일 종가 대비 30%)' },
                       { label: '당일시가', value: tokenInfo?.todayOpenPrice != null ? tokenInfo.todayOpenPrice.toLocaleString() : '체결 기록 없음', color: tokenInfo?.todayOpenPrice != null ? '#292524' : 'var(--color-stone-400)' },
                       { label: '전일종가', value: tokenInfo?.yesterdayClosePrice != null ? tokenInfo.yesterdayClosePrice.toLocaleString() : '-', color: '#292524' },
                       { label: '1일최고', value: dailyHigh != null && dailyHigh > 0 ? dailyHigh.toLocaleString() : '체결 기록 없음', color: dailyHigh != null ? 'var(--color-brand-red)' : 'var(--color-stone-400)' },
@@ -1133,6 +1137,7 @@ export function TokenDetailPage() {
               tokenId={TOKEN_ID}
               token={user?.accessToken}
               wsPendingData={wsPendingData}
+              yesterdayClosePrice={tokenInfo?.yesterdayClosePrice ?? 0}
           />
         </div>
 

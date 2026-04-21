@@ -62,6 +62,28 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
             @Param("from") LocalDateTime from
     );
 
+    // 거래 테이블에서 오프, 온체인별 현황조회
+    @Query("""
+        SELECT COUNT(t),
+               SUM(CASE WHEN t.settlementStatus = 'ON_CHAIN_PENDING' THEN 1 ELSE 0 END),
+               SUM(CASE WHEN t.settlementStatus = 'SUCCESS' THEN 1 ELSE 0 END),
+               COALESCE(SUM(t.totalTradePrice), 0)
+        FROM Trade t
+    """)
+    List<Object[]> findGlobalSettlementStats();
+
+    // 토큰별 오프체인 현황 조회 (admin)
+    @Query("""
+        SELECT t.token.tokenId,
+               t.token.tokenSymbol,
+               COUNT(t),
+               SUM(CASE WHEN t.settlementStatus = 'ON_CHAIN_PENDING' THEN 1 ELSE 0 END),
+               COALESCE(SUM(t.totalTradePrice), 0)
+        FROM Trade t
+        GROUP BY t.token.tokenId, t.token.tokenSymbol
+    """)
+    List<Object[]> findTokenSettlementStats();
+
     @Query("""
       SELECT new server.main.myAccount.dto.SellHistoryResponse(
           t.tradeId,

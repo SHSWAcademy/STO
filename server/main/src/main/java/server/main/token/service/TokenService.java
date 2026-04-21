@@ -21,4 +21,6 @@ public interface TokenService {
 
     long getTickSize(Long tokenId);
 
+    String getAssetName(Long tokenId);
+
 }

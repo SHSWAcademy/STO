@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
   Clock3,
   Coins,
+  MonitorPlay,
   Sparkles,
   RefreshCw,
   Radio,
@@ -505,12 +507,23 @@ export function AdminDashboard() {
           </p>
         </div>
 
-        <span className="rounded-lg bg-white px-3 py-2 text-xs font-bold text-stone-400">
-          요약{" "}
-          {dashboardUpdatedAt
-            ? `${formatDateTime(dashboardUpdatedAt)} 갱신`
-            : "연결 대기중"}
-        </span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Link
+            to="/admin-console/settlement-live"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-stone-800 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-stone-700"
+          >
+            <MonitorPlay className="h-4 w-4" />
+            실시간 정산 보기
+          </Link>
+          <span className="rounded-lg bg-white px-3 py-2 text-xs font-bold text-stone-400">
+            요약{" "}
+            {dashboardUpdatedAt
+              ? `${formatDateTime(dashboardUpdatedAt)} 갱신`
+              : "연결 대기중"}
+          </span>
+        </div>
       </div>
 
       {error && (

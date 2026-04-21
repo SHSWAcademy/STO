@@ -1,4 +1,4 @@
-import { Heart, Pencil, Info, Sparkles } from 'lucide-react';
+import { Heart, Info, Sparkles } from 'lucide-react';
 import { cn } from '../../lib/utils.js';
 import { AssetAvatar } from '../ui/AssetAvatar.jsx';
 
@@ -74,7 +74,6 @@ export function AssetHeader({
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-black tracking-tight text-stone-800 truncate">{asset.name}</h2>
                 <span className="text-stone-500 text-sm font-bold flex-shrink-0">{asset.symbol}</span>
-                <Pencil size={14} className="text-stone-400 cursor-pointer hover:text-stone-800 transition-colors" />
                 {hideStats && (
                     <button
                         type="button"
