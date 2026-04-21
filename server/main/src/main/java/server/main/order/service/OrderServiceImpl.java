@@ -48,6 +48,7 @@ import server.main.alarm.entity.AlarmType;
 import server.main.alarm.event.AlarmEvent;
 import server.main.alarm.service.AlarmService;
 import server.main.blockchain.service.BlockchainOutboxService;
+import server.main.candle.repository.CandleDayRepository;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.MatchClient;
@@ -110,8 +111,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderDuplicatedRepository orderDuplicatedRepository;
     private final TradeDuplicatedRepository tradeDuplicatedRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final AlarmService alarmService;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final CandleDayRepository candleDayRepository;
     private final ObjectMapper objectMapper;
     private final PasswordEncoder passwordEncoder;
     private final CommonRepository commonRepository;
@@ -228,6 +228,17 @@ public class OrderServiceImpl implements OrderService {
 
         // 호가 단위 검증
         TickSizePolicy.validate(dto.getOrderPrice());
+
+        // 상한가/하한가 검증
+        LocalDateTime startOfToday = LocalDateTime.now().toLocalDate().atStartOfDay();
+        candleDayRepository.findLatestBefore(tokenId, startOfToday).ifPresent(prev ->
+        {
+            long base  = prev.getClosePrice();
+            long upper = (long)(base * 1.3);
+            long lower = (long)(base * 0.7);
+            if (dto.getOrderPrice() > upper) throw new BusinessException(PRICE_OVER_LIMIT);
+            if (dto.getOrderPrice() < lower) throw new BusinessException(PRICE_UNDER_LIMIT);
+        });
 
         // 매수일 경우
         if (OrderType.BUY.equals(dto.getOrderType())) {
@@ -797,6 +808,18 @@ public class OrderServiceImpl implements OrderService {
 
         // 호가 단위 검증
         TickSizePolicy.validate(dto.getUpdatePrice());
+
+        // 상한가 하한가 검증
+        Long tokenId = findOrder.getToken().getTokenId();
+        LocalDateTime startOfToday = LocalDateTime.now().toLocalDate().atStartOfDay();
+        candleDayRepository.findLatestBefore(tokenId, startOfToday).ifPresent(prev ->
+        {
+            long base  = prev.getClosePrice();
+            long upper = (long)(base * 1.3);
+            long lower = (long)(base * 0.7);
+            if (dto.getUpdatePrice() > upper) throw new BusinessException(PRICE_OVER_LIMIT);
+            if (dto.getUpdatePrice() < lower) throw new BusinessException(PRICE_UNDER_LIMIT);
+        });
 
         OrderStatus status = findOrder.getOrderStatus();
         if (status != OrderStatus.OPEN && status != OrderStatus.PARTIAL) {
