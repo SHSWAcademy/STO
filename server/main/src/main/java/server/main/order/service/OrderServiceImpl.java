@@ -500,6 +500,7 @@ public class OrderServiceImpl implements OrderService {
             sellerHolding.settleSellTrade(execution.getTradeQuantity());
             blockchainOutboxService.saveTradeOutbox(trade, findToken);
 
+
             long newFilledQty = counterOrder.getFilledQuantity() + execution.getTradeQuantity();
             long newRemainingQty = counterOrder.getRemainingQuantity() - execution.getTradeQuantity();
             if (newFilledQty < 0
