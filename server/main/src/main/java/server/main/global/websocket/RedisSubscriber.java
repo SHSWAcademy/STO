@@ -9,13 +9,8 @@ import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import server.main.candle.service.CandleLiveManager;
-import server.main.log.tradeLog.entity.TradeLog;
-import server.main.log.tradeLog.repository.TradeLogRepository;
 import server.main.log.tradeLog.service.TradeLogService;
 import server.main.token.service.TokenService;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
