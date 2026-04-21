@@ -79,7 +79,7 @@ export function AppHeader() {
         api.get('/api/alarm'),
         api.get('/api/alarm/unread-count'),
       ]);
-      setAlarms(Array.isArray(listRes.data) ? listRes.data : []);
+      setAlarms((Array.isArray(listRes.data) ? listRes.data : []).filter((a) => !a.isRead));
       setUnreadCount(typeof countRes.data === 'number' ? countRes.data : 0);
     } catch (e) {
       console.warn('[Alarm] 목록 로드 실패', e);
@@ -154,9 +154,7 @@ export function AppHeader() {
     if (!alarm.isRead) {
       try {
         await api.patch(`/api/alarm/${alarm.alarmId}/read`);
-        setAlarms((prev) =>
-            prev.map((item) => (item.alarmId === alarm.alarmId ? { ...item, isRead: true } : item)),
-        );
+        setAlarms((prev) => prev.filter((item) => item.alarmId !== alarm.alarmId));
         setUnreadCount((c) => Math.max(0, c - 1));
       } catch (e) {
         console.warn('[Alarm] 읽음 처리 실패', e);
@@ -172,7 +170,7 @@ export function AppHeader() {
   async function handleMarkAllAsRead() {
     try {
       await api.patch('/api/alarm/read/all');
-      setAlarms((prev) => prev.map((alarm) => ({ ...alarm, isRead: true })));
+      setAlarms([]);
       setUnreadCount(0);
     } catch (e) {
       console.warn('[Alarm] 전체 읽음 실패', e);
