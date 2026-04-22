@@ -32,6 +32,7 @@ import server.main.admin.repository.CommonRepository;
 import server.main.admin.repository.PlatformAccountRepository;
 import server.main.admin.repository.PlatformBankingRepository;
 import server.main.blockchain.service.BlockchainOutboxService;
+import server.main.candle.repository.CandleDayRepository;
 import server.main.global.error.BusinessException;
 import server.main.global.security.CustomUserPrincipal;
 import server.main.global.util.MatchClient;
@@ -86,6 +87,7 @@ class OrderServiceImplTest {
     @Mock PlatformBankingRepository platformBankingRepository;
     @Mock PlatformAccount platformAccount;
     @Mock PlatformTransactionManager transactionManager;
+    @Mock CandleDayRepository candleDayRepository;
 
     @InjectMocks
     OrderServiceImpl orderService;

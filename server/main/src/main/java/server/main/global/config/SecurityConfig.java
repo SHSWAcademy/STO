@@ -52,6 +52,7 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/token",
+                                "/api/token/search",
                                 "/api/token/summary",
                                 "/api/token/*/chart",
                                 "/api/token/*/info",

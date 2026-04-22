@@ -17,4 +17,7 @@ public interface AlarmService {
 
     // 알림 전체 읽음ㅁ 처리
     void markAllAsRead(Long memberId);
+
+    // 미읽음 알림 수
+    long getUnreadCount(Long memberId);
 }

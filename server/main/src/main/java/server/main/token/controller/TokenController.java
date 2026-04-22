@@ -81,4 +81,11 @@ public class TokenController {
     public ResponseEntity<TokenSummaryResponseDto> getMarketSummary() {
         return ResponseEntity.ok(tokenService.getMarketSummary());
     }
+
+    // 종목 검색
+    @GetMapping("/search")
+    public ResponseEntity<List<TokenSearchResponseDto>> searchTokens(
+            @RequestParam String keyword) {
+        return ResponseEntity.ok(tokenService.searchTokens(keyword));
+    }
 }
