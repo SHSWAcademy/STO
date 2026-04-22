@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/token",
                                 "/api/token/search",
+                                "/api/token/summary",
                                 "/api/token/*/chart",
                                 "/api/token/*/info",
                                 "/api/token/*/allocation",
@@ -63,7 +64,8 @@ public class SecurityConfig {
                                 "/api/token/*/ai-summary",
                                 "/api/disclosure",
                                 "/api/notice",
-                                "/api/notice/*"
+                                "/api/notice/*",
+                                "/api/news/sto"
                         ).permitAll()
                         .requestMatchers("/blockchain/**").hasRole("ADMIN")
                         .requestMatchers("/admin/**").hasRole("ADMIN")

@@ -25,4 +25,6 @@ public interface TokenService {
 
     List<TokenSearchResponseDto> searchTokens(String keyword);
 
+    TokenSummaryResponseDto getMarketSummary();
+
 }

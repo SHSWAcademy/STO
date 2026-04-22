@@ -95,7 +95,7 @@ function AppContent() {
 
       {/* 로그인 필요 라우트 */}
       <Route element={<MainLayout />}>
-        <Route path="/"           element={<PageWrapper><DashboardPage /></PageWrapper>} />
+        <Route path="/"           element={<DashboardPage />} />
         <Route path="/trading"    element={<TradingPage />} />
         <Route path="/portfolio"  element={<Auth><PageWrapper><MyAccountPage /></PageWrapper></Auth>} />
         <Route path="/likes"      element={<Auth><PageWrapper><LikesPage /></PageWrapper></Auth>} />

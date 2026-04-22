@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -22,4 +23,9 @@ public class TokenMainResponseDto {
     private List<SparkPointDto> sparkLine;
     private String tokenSymbol;
     private String imgUrl;
+    private String aiSummary;
+    private LocalDateTime aiSummaryUpdatedAt;
+    private Long totalSupply;
+    private Long circulatingSupply;
+    private Long initPrice;
 }

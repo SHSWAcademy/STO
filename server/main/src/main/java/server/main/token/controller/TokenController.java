@@ -76,6 +76,12 @@ public class TokenController {
         return ResponseEntity.ok(tokenService.getTickSize(tokenId));
     }
 
+    // 시장 요약 (총 자산 수, 시총, 거래량, 상승/하락 수, Top Movers)
+    @GetMapping("/summary")
+    public ResponseEntity<TokenSummaryResponseDto> getMarketSummary() {
+        return ResponseEntity.ok(tokenService.getMarketSummary());
+    }
+
     // 종목 검색
     @GetMapping("/search")
     public ResponseEntity<List<TokenSearchResponseDto>> searchTokens(
