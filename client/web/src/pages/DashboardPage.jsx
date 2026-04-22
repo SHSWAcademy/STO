@@ -592,6 +592,7 @@ export function DashboardPage() {
           </section>
         </aside>
       </div>
+
     </div>
   );
 }
