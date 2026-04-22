@@ -308,18 +308,19 @@ export function DashboardPage() {
 
   return (
     <div className="w-full bg-stone-100 px-4 py-4 lg:px-5">
-      <div className="mx-auto grid max-w-[1760px] gap-4 xl:grid-cols-[minmax(0,1fr)_390px_360px]">
-        <section className="rounded-[10px] bg-white p-5 shadow-sm">
+      <div className="mx-auto grid max-w-[1760px] items-stretch gap-4 xl:grid-cols-[minmax(0,1fr)_390px_360px]">
+        <section className="h-full rounded-[10px] bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-[17px] font-bold text-stone-900">자산 리스트</h2>
           <div className="mb-3">
             <TabSwitcher items={SORT_ITEMS} active={chartFilter} onChange={setChartFilter} variant="pill" />
           </div>
 
-          <div className="grid grid-cols-[2.2fr_1fr_1fr_1.1fr] border-b border-stone-200 px-2 py-3 text-[13px] font-bold text-stone-500">
+          <div className="grid grid-cols-[2.15fr_0.95fr_0.9fr_1fr_0.9fr] border-b border-stone-200 px-2 py-3 text-[13px] font-bold text-stone-500">
             <span className="font-bold text-stone-600">종목</span>
             <span className="text-right font-bold text-stone-600">현재가</span>
             <span className="text-right font-bold text-stone-600">등락률</span>
             <span className="text-right font-bold text-stone-600">당일 거래대금</span>
+            <span className="text-right font-bold text-stone-600">당일 거래량</span>
           </div>
 
           <div>
@@ -332,7 +333,7 @@ export function DashboardPage() {
                 <div
                   key={token.tokenId}
                   className={cn(
-                    "grid cursor-pointer grid-cols-[2.2fr_1fr_1fr_1.1fr] items-center border-b border-stone-100 px-2 py-3 transition-colors hover:bg-stone-50",
+                    "grid cursor-pointer grid-cols-[2.15fr_0.95fr_0.9fr_1fr_0.9fr] items-center border-b border-stone-100 px-2 py-3 transition-colors hover:bg-stone-50",
                     (token.fluctuationRate ?? 0) > 0 && "bg-[#FFF8F0]",
                     previewTokenId === token.tokenId && "bg-stone-100",
                   )}
@@ -381,6 +382,7 @@ export function DashboardPage() {
                     {(token.fluctuationRate ?? 0) > 0 ? "+" : ""}{token.fluctuationRate ?? 0}%
                   </span>
                   <span className="text-right text-[15px] font-semibold text-stone-600">{(token.totalTradeValue ?? 0).toLocaleString()}원</span>
+                  <span className="text-right text-[15px] font-semibold text-stone-600">{(token.totalTradeQuantity ?? 0).toLocaleString()}주</span>
                 </div>
               ))
             )}
@@ -393,7 +395,7 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-[10px] bg-white p-5 shadow-sm">
+        <section className="h-full rounded-[10px] bg-white p-5 shadow-sm">
           {previewToken ? (
             <>
               <div className="mb-4 flex items-center gap-3">
@@ -513,7 +515,7 @@ export function DashboardPage() {
           )}
         </section>
 
-        <aside className="flex flex-col gap-4">
+        <aside className="grid h-full gap-4 [grid-template-rows:auto_minmax(290px,1fr)]">
           <section className="rounded-[10px] bg-white p-5 shadow-sm">
             <h3 className="mb-3 text-[16px] font-bold text-stone-900">오늘의 요약</h3>
             <div className="mb-2 text-[13px] font-bold text-stone-500">시장 분포</div>
@@ -550,7 +552,7 @@ export function DashboardPage() {
             )}
           </section>
 
-          <section className="rounded-[10px] bg-white p-5 shadow-sm">
+          <section className="flex h-full flex-col overflow-hidden rounded-[10px] bg-white p-5 shadow-sm">
             <h3 className="mb-3 text-[16px] font-bold text-stone-900">STO 뉴스</h3>
             {newsLoading ? (
               <div className="py-8 text-center text-base font-semibold text-stone-400">뉴스를 불러오는 중입니다.</div>
