@@ -212,7 +212,7 @@ class TokenServiceImplTest {
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(baseCandle));
-        when(tradeRepository.findAggregatesByTokenIds(anyList()))
+        when(tradeRepository.findAggregatesByTokenIds(anyList(), any()))
                 .thenReturn(List.<Object[]>of(new Object[]{1L, 50000000L, 300L}));
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.DAY);
@@ -246,7 +246,7 @@ class TokenServiceImplTest {
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of());
-        when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
+        when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.DAY);
 
@@ -262,7 +262,7 @@ class TokenServiceImplTest {
 
         when(tokenRepository.findAllBySelectType(0, SelectType.TOTAL_TRADE_VALUE)).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of());
-        when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
+        when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.TOTAL_TRADE_VALUE, PeriodType.DAY);
 
@@ -277,7 +277,7 @@ class TokenServiceImplTest {
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of());
-        when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
+        when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.DAY);
 
@@ -292,7 +292,7 @@ class TokenServiceImplTest {
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(baseCandle));
-        when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
+        when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.MONTH);
 
@@ -310,7 +310,7 @@ class TokenServiceImplTest {
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(baseCandle));
-        when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
+        when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.YEAR);
 
@@ -331,7 +331,7 @@ class TokenServiceImplTest {
 
         when(tokenRepository.findAllBySelectType(0, SelectType.BASIC)).thenReturn(List.of(token1, token2));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(base1, base2));
-        when(tradeRepository.findAggregatesByTokenIds(anyList())).thenReturn(List.of());
+        when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.DAY);
 
