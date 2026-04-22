@@ -61,6 +61,7 @@ export function AppHeader() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showAlarms, setShowAlarms] = useState(false);
   const [alarms, setAlarms] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [noticeBanner, setNoticeBanner] = useState(null);
   const alarmDropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -75,13 +76,15 @@ export function AppHeader() {
     hideLoginOverlay,
   } = useApp();
 
-  const unreadCount = alarms.filter((alarm) => !alarm.isRead).length;
-
   const loadAlarms = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await api.get("/api/alarm");
-      setAlarms(Array.isArray(res.data) ? res.data : []);
+      const [listRes, countRes] = await Promise.all([
+        api.get('/api/alarm'),
+        api.get('/api/alarm/unread-count'),
+      ]);
+      setAlarms((Array.isArray(listRes.data) ? listRes.data : []).filter((a) => !a.isRead));
+      setUnreadCount(typeof countRes.data === 'number' ? countRes.data : 0);
     } catch (e) {
       console.warn("[Alarm] 목록 로드 실패", e);
     }
@@ -150,18 +153,17 @@ export function AppHeader() {
       setAlarms((prev) => {
         const safePrev = Array.isArray(prev) ? prev : [];
         const existingIds = new Set(safePrev.map((alarm) => alarm.alarmId));
-        const newItems = safeSnapshot.filter(
-          (alarm) => !existingIds.has(alarm.alarmId),
+        const newItems = safeSnapshot.filter((alarm) => !existingIds.has(alarm.alarmId));
+        const merged = [...newItems, ...safePrev].sort(
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
         );
-        return [...newItems, ...safePrev].sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-        );
+        setUnreadCount(merged.filter((a) => !a.isRead).length);
+        return merged;
       });
     },
     onNewAlarm: (alarm) => {
-      setAlarms((prev) =>
-        [alarm, ...(Array.isArray(prev) ? prev : [])].slice(0, 50),
-      );
+      setAlarms((prev) => [alarm, ...(Array.isArray(prev) ? prev : [])].slice(0, 50));
+      if (!alarm.isRead) setUnreadCount((c) => c + 1);
     },
   });
 
@@ -182,11 +184,8 @@ export function AppHeader() {
     if (!alarm.isRead) {
       try {
         await api.patch(`/api/alarm/${alarm.alarmId}/read`);
-        setAlarms((prev) =>
-          prev.map((item) =>
-            item.alarmId === alarm.alarmId ? { ...item, isRead: true } : item,
-          ),
-        );
+        setAlarms((prev) => prev.filter((item) => item.alarmId !== alarm.alarmId));
+        setUnreadCount((c) => Math.max(0, c - 1));
       } catch (e) {
         console.warn("[Alarm] 읽음 처리 실패", e);
       }
@@ -200,8 +199,9 @@ export function AppHeader() {
 
   async function handleMarkAllAsRead() {
     try {
-      await api.patch("/api/alarm/read/all");
-      setAlarms((prev) => prev.map((alarm) => ({ ...alarm, isRead: true })));
+      await api.patch('/api/alarm/read/all');
+      setAlarms([]);
+      setUnreadCount(0);
     } catch (e) {
       console.warn("[Alarm] 전체 읽음 실패", e);
     }
