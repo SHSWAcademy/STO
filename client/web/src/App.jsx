@@ -40,9 +40,9 @@ function PageWrapper({ children }) {
 // 일반 유저 레이아웃 (AppHeader + Outlet)
 function MainLayout() {
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-800">
+    <div className="flex min-h-screen flex-col bg-stone-100 text-stone-800">
       <AppHeader />
-      <main>
+      <main className="flex-1">
         <Outlet />
       </main>
       <AppFooter />
