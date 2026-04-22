@@ -165,10 +165,13 @@ public class MyAccountServiceImpl implements MyAccountService{
         } else {
             orders = orderRepository.findAllByMemberId(memberId,pageable);
         }
-        return orders.map(order -> OrderHistoryResponse.from(
-                order,
-                tradeRepository.findExecutionSummaryByOrderId(order.getOrderId())
-        ));
+        return orders.map(order -> {
+            List<Object[]> executionSummary = tradeRepository.findExecutionSummaryByOrderId(order.getOrderId());
+            return OrderHistoryResponse.from(
+                    order,
+                    executionSummary.isEmpty() ? null : executionSummary.get(0)
+            );
+        });
     }
 
     @Override

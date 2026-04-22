@@ -40,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -210,7 +211,7 @@ class TokenServiceImplTest {
         Token token = Token.builder().tokenId(1L).currentPrice(12000L).asset(asset).build();
         CandleDay baseCandle = CandleDay.builder().closePrice(10000L).token(token).build();
 
-        when(tokenRepository.findAllBySelectType(0, SelectType.BASIC, any(LocalDateTime.class))).thenReturn(List.of(token));
+        when(tokenRepository.findAllBySelectType(eq(0), eq(SelectType.BASIC), any(LocalDateTime.class))).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(baseCandle));
         when(tradeRepository.findAggregatesByTokenIds(anyList(), any()))
                 .thenReturn(List.<Object[]>of(new Object[]{1L, 50000000L, 300L}));
@@ -231,7 +232,7 @@ class TokenServiceImplTest {
 
     @Test
     void getTokenAssetsWith10Paging_토큰없음_빈리스트반환() {
-        when(tokenRepository.findAllBySelectType(0, SelectType.BASIC, any(LocalDateTime.class))).thenReturn(List.of());
+        when(tokenRepository.findAllBySelectType(eq(0), eq(SelectType.BASIC), any(LocalDateTime.class))).thenReturn(List.of());
 
         List<TokenMainResponseDto> result = tokenService.getTokenAssetsWith10Paging(0, SelectType.BASIC, PeriodType.DAY);
 
@@ -244,7 +245,7 @@ class TokenServiceImplTest {
         Asset asset = Asset.builder().assetId(1L).assetName("null가격토큰").build();
         Token token = Token.builder().tokenId(1L).currentPrice(null).asset(asset).build();
 
-        when(tokenRepository.findAllBySelectType(0, SelectType.BASIC, any(LocalDateTime.class))).thenReturn(List.of(token));
+        when(tokenRepository.findAllBySelectType(eq(0), eq(SelectType.BASIC), any(LocalDateTime.class))).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of());
         when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 
@@ -260,7 +261,7 @@ class TokenServiceImplTest {
         Asset asset = Asset.builder().assetId(1L).assetName("무거래토큰").build();
         Token token = Token.builder().tokenId(1L).currentPrice(5000L).asset(asset).build();
 
-        when(tokenRepository.findAllBySelectType(0, SelectType.TOTAL_TRADE_VALUE, any(LocalDateTime.class))).thenReturn(List.of(token));
+        when(tokenRepository.findAllBySelectType(eq(0), eq(SelectType.TOTAL_TRADE_VALUE), any(LocalDateTime.class))).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of());
         when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 
@@ -275,7 +276,7 @@ class TokenServiceImplTest {
         Asset asset = Asset.builder().assetId(1L).assetName("빌딩A").build();
         Token token = Token.builder().tokenId(1L).currentPrice(8000L).asset(asset).build();
 
-        when(tokenRepository.findAllBySelectType(0, SelectType.BASIC, any(LocalDateTime.class))).thenReturn(List.of(token));
+        when(tokenRepository.findAllBySelectType(eq(0), eq(SelectType.BASIC), any(LocalDateTime.class))).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of());
         when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 
@@ -290,7 +291,7 @@ class TokenServiceImplTest {
         Token token = Token.builder().tokenId(1L).currentPrice(20000L).asset(asset).build();
         CandleDay baseCandle = CandleDay.builder().closePrice(18000L).token(token).build();
 
-        when(tokenRepository.findAllBySelectType(0, SelectType.BASIC, any(LocalDateTime.class))).thenReturn(List.of(token));
+        when(tokenRepository.findAllBySelectType(eq(0), eq(SelectType.BASIC), any(LocalDateTime.class))).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(baseCandle));
         when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 
@@ -308,7 +309,7 @@ class TokenServiceImplTest {
         Token token = Token.builder().tokenId(1L).currentPrice(30000L).asset(asset).build();
         CandleDay baseCandle = CandleDay.builder().closePrice(25000L).token(token).build();
 
-        when(tokenRepository.findAllBySelectType(0, SelectType.BASIC, any(LocalDateTime.class))).thenReturn(List.of(token));
+        when(tokenRepository.findAllBySelectType(eq(0), eq(SelectType.BASIC), any(LocalDateTime.class))).thenReturn(List.of(token));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(baseCandle));
         when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 
@@ -329,7 +330,7 @@ class TokenServiceImplTest {
         CandleDay base1 = CandleDay.builder().closePrice(900L).token(token1).build();
         CandleDay base2 = CandleDay.builder().closePrice(1800L).token(token2).build();
 
-        when(tokenRepository.findAllBySelectType(0, SelectType.BASIC, any(LocalDateTime.class))).thenReturn(List.of(token1, token2));
+        when(tokenRepository.findAllBySelectType(eq(0), eq(SelectType.BASIC), any(LocalDateTime.class))).thenReturn(List.of(token1, token2));
         when(candleDayRepository.findLatestBeforeByTokenIds(anyList(), any())).thenReturn(List.of(base1, base2));
         when(tradeRepository.findAggregatesByTokenIds(anyList(), any())).thenReturn(List.of());
 

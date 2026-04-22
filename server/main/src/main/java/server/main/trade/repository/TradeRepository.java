@@ -122,5 +122,5 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
         WHERE t.buyOrder.orderId = :orderId
            OR t.sellOrder.orderId = :orderId
     """)
-    Object[] findExecutionSummaryByOrderId(@Param("orderId") Long orderId);
+    List<Object[]> findExecutionSummaryByOrderId(@Param("orderId") Long orderId);
 }
