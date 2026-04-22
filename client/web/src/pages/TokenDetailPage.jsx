@@ -560,7 +560,7 @@ export function TokenDetailPage() {
   }, [TOKEN_ID, user?.accessToken]);
 
   // ── 차트 상태 ────────────────────────────────────────────────
-  const [chartPeriod, setChartPeriod]   = useState('분');
+  const [chartPeriod, setChartPeriod]   = useState('일');
   const [chartData, setChartData]       = useState([]);
   const [hoveredData, setHoveredData]   = useState(null);
   const [loading, setLoading]           = useState(false);

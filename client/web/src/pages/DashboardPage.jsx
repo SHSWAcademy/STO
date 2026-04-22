@@ -233,7 +233,7 @@ export function DashboardPage() {
     setCandleLoading(true);
     const headers = {};
     if (user?.accessToken) headers.Authorization = `Bearer ${user.accessToken}`;
-    fetch(`${API}/api/token/${previewTokenId}/candle?type=MINUTE`, { headers, signal: controller.signal })
+    fetch(`${API}/api/token/${previewTokenId}/candle?type=DAY`, { headers, signal: controller.signal })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
         const candles = (Array.isArray(data) ? data : []).map(d => mapCandle(d));
@@ -249,7 +249,7 @@ export function DashboardPage() {
 
   useDashboardSocket({
     tokenIds,
-    candleType: 'MINUTE',
+    candleType: 'DAY',
     token: user?.accessToken,
     onTrade: ({ tokenId, trade }) => {
       setTokens((prev) =>
@@ -426,7 +426,7 @@ export function DashboardPage() {
 
               <div className="mb-4">
                 <div className="mb-2 flex items-center justify-between text-[13px] font-bold text-stone-500">
-                  <span>1분봉 차트</span>
+                  <span>일봉 차트</span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-bold text-green-500">
                     <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                     실시간
