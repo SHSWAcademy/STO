@@ -40,4 +40,12 @@ public interface TokenRepository extends JpaRepository<Token, Long> , TokenRepos
     Long tokenId(Long tokenId);
 
     List<Token> findAllByTokenStatus(TokenStatus tokenStatus);
+
+    //토큰 검색
+    @Query("SELECT t FROM Token t JOIN FETCH t.asset a " +
+            "WHERE t.tokenStatus = 'TRADING' " +
+            "AND (LOWER(t.tokenName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(t.tokenSymbol) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    List<Token> findByKeyword(@Param("keyword") String keyword);
+
 }

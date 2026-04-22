@@ -23,4 +23,6 @@ public interface TokenService {
 
     String getAssetName(Long tokenId);
 
+    List<TokenSearchResponseDto> searchTokens(String keyword);
+
 }
