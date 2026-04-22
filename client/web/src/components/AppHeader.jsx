@@ -320,15 +320,7 @@ export function AppHeader() {
                         className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border
   border-stone-200 bg-stone-100 text-xs font-black text-stone-400"
                       >
-                        {token.imgUrl ? (
-                          <img
-                            src={token.imgUrl}
-                            alt={token.tokenSymbol}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          token.tokenSymbol?.slice(0, 2)
-                        )}
+                        {token.tokenSymbol?.slice(0, 2)}
                       </div>
                       <div>
                         <p className="text-xs font-black text-stone-800">
