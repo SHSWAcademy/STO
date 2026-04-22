@@ -205,6 +205,11 @@ public class TokenServiceImpl implements TokenService{
                     .sparkLine(List.of())
                     .tokenSymbol(t.getTokenSymbol())
                     .imgUrl(t.getAsset().getImgUrl())
+                    .aiSummary(t.getAiSummary())
+                    .aiSummaryUpdatedAt(t.getAiSummaryUpdatedAt())
+                    .totalSupply(t.getTotalSupply())
+                    .circulatingSupply(t.getCirculatingSupply())
+                    .initPrice(t.getInitPrice())
                     .build();
         }).collect(Collectors.toList());
     }
@@ -272,6 +277,68 @@ public class TokenServiceImpl implements TokenService{
     public Map<Long, List<SparkPointDto>> getSparklines(List<Long> tokenIds, PeriodType periodType) {
         if (tokenIds == null || tokenIds.isEmpty()) return Map.of();
         return getSparklineMap(tokenIds, periodType);
+    }
+
+    @Override
+    public TokenSummaryResponseDto getMarketSummary() {
+        List<Token> allTokens = tokenRepository.findAllTradingTokensWithAsset();
+        if (allTokens.isEmpty()) {
+            return TokenSummaryResponseDto.builder()
+                    .totalAssets(0).totalMarketCap(0L).todayTradeValue(0L)
+                    .upCount(0).downCount(0).topUp(List.of()).topDown(List.of())
+                    .build();
+        }
+
+        List<Long> tokenIds = allTokens.stream().map(Token::getTokenId).toList();
+
+        long totalMarketCap = allTokens.stream()
+                .mapToLong(t -> {
+                    long price = t.getCurrentPrice() != null ? t.getCurrentPrice() : 0L;
+                    long supply = t.getTotalSupply() != null ? t.getTotalSupply() : 0L;
+                    return price * supply;
+                })
+                .sum();
+
+        LocalDateTime todayStart = getDayBucket(LocalDateTime.now());
+        long todayTradeValue = tradeRepository.sumAllTodayTradeValue(todayStart);
+
+        Map<Long, Long> basePriceMap = getBasePriceMap(tokenIds, PeriodType.DAY);
+
+        List<TopMoverDto> allMovers = allTokens.stream()
+                .map(t -> {
+                    Long basePrice = basePriceMap.get(t.getTokenId());
+                    Long currentPrice = t.getCurrentPrice() != null ? t.getCurrentPrice() : 0L;
+                    double rate = (basePrice != null && basePrice > 0)
+                            ? Math.round(((double) (currentPrice - basePrice) / basePrice) * 100 * 100.0) / 100.0
+                            : 0.0;
+                    return new TopMoverDto(t.getTokenId(), t.getAsset().getAssetName(), t.getTokenSymbol(), rate, currentPrice, t.getAsset().getImgUrl());
+                })
+                .sorted((a, b) -> Double.compare(b.getFluctuationRate(), a.getFluctuationRate()))
+                .collect(Collectors.toList());
+
+        int upCount = (int) allMovers.stream().filter(m -> m.getFluctuationRate() > 0).count();
+        int downCount = (int) allMovers.stream().filter(m -> m.getFluctuationRate() < 0).count();
+
+        List<TopMoverDto> topUp = allMovers.stream()
+                .filter(m -> m.getFluctuationRate() > 0)
+                .limit(3)
+                .collect(Collectors.toList());
+
+        List<TopMoverDto> topDown = allMovers.stream()
+                .filter(m -> m.getFluctuationRate() < 0)
+                .sorted((a, b) -> Double.compare(a.getFluctuationRate(), b.getFluctuationRate()))
+                .limit(3)
+                .collect(Collectors.toList());
+
+        return TokenSummaryResponseDto.builder()
+                .totalAssets(allTokens.size())
+                .totalMarketCap(totalMarketCap)
+                .todayTradeValue(todayTradeValue)
+                .upCount(upCount)
+                .downCount(downCount)
+                .topUp(topUp)
+                .topDown(topDown)
+                .build();
     }
 
     @Override

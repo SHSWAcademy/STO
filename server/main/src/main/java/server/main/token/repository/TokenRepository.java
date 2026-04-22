@@ -37,6 +37,9 @@ public interface TokenRepository extends JpaRepository<Token, Long> , TokenRepos
     @Query("SELECT t FROM Token t JOIN FETCH t.asset a WHERE a.assetId = :assetId")
     Optional<Token> findByAssetIdWithAsset(@Param("assetId") Long assetId);
 
+    @Query("SELECT t FROM Token t JOIN FETCH t.asset WHERE t.tokenStatus = 'TRADING'")
+    List<Token> findAllTradingTokensWithAsset();
+
     Long tokenId(Long tokenId);
 
     List<Token> findAllByTokenStatus(TokenStatus tokenStatus);

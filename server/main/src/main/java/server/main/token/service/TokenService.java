@@ -23,4 +23,6 @@ public interface TokenService {
 
     String getAssetName(Long tokenId);
 
+    TokenSummaryResponseDto getMarketSummary();
+
 }
