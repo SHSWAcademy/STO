@@ -292,4 +292,35 @@ public class TokenServiceImpl implements TokenService{
                 : findToken.getInitPrice();
         return TickSizePolicy.getTickSize(currentPrice);
     }
+
+    @Override
+    public List<TokenSearchResponseDto> searchTokens(String keyword) {
+        if (keyword == null || keyword.isBlank()) return List.of();
+
+        LocalDateTime startOfToday = getDayBucket(LocalDateTime.now());
+
+        return tokenRepository.findByKeyword(keyword).stream()
+                .map(t -> {
+                    Long currentPrice = t.getCurrentPrice() != null ? t.getCurrentPrice() : 0L;
+
+                    Long basePrice = candleDayRepository.findLatestBefore(t.getTokenId(), startOfToday)
+                            .map(CandleDay::getClosePrice)
+                            .orElse(null);
+
+                    double fluctuationRate = (basePrice != null && basePrice > 0)
+                            ? Math.round(((double)(currentPrice - basePrice) / basePrice) * 10000.0) / 100.0
+                            : 0.0;
+
+                    return TokenSearchResponseDto.builder()
+                            .tokenId(t.getTokenId())
+                            .tokenName(t.getTokenName())
+                            .tokenSymbol(t.getTokenSymbol())
+                            .currentPrice(currentPrice)
+                            .fluctuationRate(fluctuationRate)
+                            .imgUrl(t.getAsset().getImgUrl())
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
 }

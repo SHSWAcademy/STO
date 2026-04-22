@@ -75,4 +75,11 @@ public class TokenController {
     public ResponseEntity<Long> getTickSize(@PathVariable Long tokenId) {
         return ResponseEntity.ok(tokenService.getTickSize(tokenId));
     }
+
+    // 종목 검색
+    @GetMapping("/search")
+    public ResponseEntity<List<TokenSearchResponseDto>> searchTokens(
+            @RequestParam String keyword) {
+        return ResponseEntity.ok(tokenService.searchTokens(keyword));
+    }
 }
