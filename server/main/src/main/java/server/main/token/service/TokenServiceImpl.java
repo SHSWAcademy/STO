@@ -164,7 +164,8 @@ public class TokenServiceImpl implements TokenService{
 
         // 1. 토큰 조회 : 정렬 기준에 따라 페이징된 Token 목록 조회
         // selectType : 기본값 전체, 사용자가 메인 페이지에서 거래 대금, 거래량 선택 시 해당 필드로 정렬해서 가져온다
-        List<Token> tokens = tokenRepository.findAllBySelectType(page, selectType);
+        LocalDateTime todayStart = getDayBucket(LocalDateTime.now());
+        List<Token> tokens = tokenRepository.findAllBySelectType(page, selectType, todayStart);
         if (tokens.isEmpty()) return List.of();
 
         // 2. 토큰 id 추출
@@ -174,7 +175,6 @@ public class TokenServiceImpl implements TokenService{
         Map<Long, Long> basePriceMap = getBasePriceMap(tokenIds, periodType);
 
         // 4. 토큰 id 별 이때 동안의 전체 거래 대금, 전체 거래량 조회
-        LocalDateTime todayStart = getDayBucket(LocalDateTime.now());
         Map<Long, long[]> tradeAggMap = tradeRepository.findAggregatesByTokenIds(tokenIds, todayStart)
                 .stream()
                 .collect(Collectors.toMap(

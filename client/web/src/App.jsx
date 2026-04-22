@@ -9,6 +9,10 @@ import { LikesPage }            from './pages/LikesPage.jsx';
 import { DisclosurePage }       from './pages/DisclosurePage.jsx';
 import { NoticePage }           from './pages/NoticePage.jsx';
 import { TokenDetailPage }      from './pages/TokenDetailPage.jsx';
+import { AboutPage }            from './pages/AboutPage.jsx';
+import { TermsPage }            from './pages/TermsPage.jsx';
+import { PrivacyPage }          from './pages/PrivacyPage.jsx';
+import { AppFooter }            from './components/AppFooter.jsx';
 
 // Admin
 import { AdminLayout }          from './pages/admin/AdminLayout.jsx';
@@ -41,6 +45,7 @@ function MainLayout() {
       <main>
         <Outlet />
       </main>
+      <AppFooter />
     </div>
   );
 }
@@ -100,8 +105,11 @@ function AppContent() {
         <Route path="/portfolio"  element={<Auth><PageWrapper><MyAccountPage /></PageWrapper></Auth>} />
         <Route path="/likes"      element={<Auth><PageWrapper><LikesPage /></PageWrapper></Auth>} />
         <Route path="/watchlist"  element={<Navigate to="/likes" replace />} />
+        <Route path="/about"      element={<PageWrapper><AboutPage /></PageWrapper>} />
         <Route path="/disclosure" element={<PageWrapper><DisclosurePage /></PageWrapper>} />
         <Route path="/notice"     element={<PageWrapper><NoticePage /></PageWrapper>} />
+        <Route path="/terms"      element={<PageWrapper><TermsPage /></PageWrapper>} />
+        <Route path="/privacy"    element={<PageWrapper><PrivacyPage /></PageWrapper>} />
         <Route path="*"           element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
