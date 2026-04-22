@@ -678,6 +678,10 @@ function OrdersTab({
     return `${date} ${time}`;
   }
 
+  function formatWon(value) {
+    return Number(value ?? 0).toLocaleString();
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -765,8 +769,9 @@ function OrdersTab({
                       </span>
                     </div>
                     <p className="text-[10px] text-stone-400 font-bold mt-0.5">
-                      {order.orderPrice.toLocaleString()}원 |{" "}
-                      {order.orderQuantity}주
+                      지정가 {formatWon(order.orderPrice)}원 | {order.orderQuantity}주
+                      {order.filledQuantity > 0 &&
+                        ` | 체결가 ${formatWon(order.averageTradePrice)}원`}
                       {order.orderStatus !== "FILLED" &&
                         ` (잔량 ${order.remainingQuantity}주)`}
                     </p>
@@ -776,13 +781,10 @@ function OrdersTab({
                   {order.orderStatus === "FILLED" ? (
                     <div>
                       <p className="text-sm font-black text-stone-800">
-                        {(
-                          order.orderPrice * order.filledQuantity
-                        )?.toLocaleString()}
-                        원
+                        {formatWon(order.settlementAmount)}원
                       </p>
                       <span className="text-[10px] font-black text-brand-red uppercase tracking-widest">
-                        체결완료
+                        {order.orderType === "BUY" ? "실제 지불" : "실제 수령"}
                       </span>
                     </div>
                   ) : order.orderStatus === "CANCELLED" ||

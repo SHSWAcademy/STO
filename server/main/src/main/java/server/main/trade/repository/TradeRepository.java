@@ -110,4 +110,14 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
             @Param("end") LocalDateTime end,
             Pageable pageable
     );
+
+    @Query("""
+        SELECT COALESCE(SUM(t.totalTradePrice), 0),
+               COALESCE(SUM(t.feeAmount), 0),
+               COALESCE(SUM(t.tradeQuantity), 0)
+        FROM Trade t
+        WHERE t.buyOrder.orderId = :orderId
+           OR t.sellOrder.orderId = :orderId
+    """)
+    Object[] findExecutionSummaryByOrderId(@Param("orderId") Long orderId);
 }

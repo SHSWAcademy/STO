@@ -165,7 +165,10 @@ public class MyAccountServiceImpl implements MyAccountService{
         } else {
             orders = orderRepository.findAllByMemberId(memberId,pageable);
         }
-        return orders.map(OrderHistoryResponse::from);
+        return orders.map(order -> OrderHistoryResponse.from(
+                order,
+                tradeRepository.findExecutionSummaryByOrderId(order.getOrderId())
+        ));
     }
 
     @Override

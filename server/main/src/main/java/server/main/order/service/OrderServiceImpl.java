@@ -317,6 +317,8 @@ public class OrderServiceImpl implements OrderService {
         Member findMember = findOrder.getMember();
         Long memberId = findMember.getMemberId();
 
+        validateMatchResult(findOrder, tokenId, matchResult);
+
         // ORDERS 테이블 업데이트 — match 서버는 누적 체결을 모르므로 main 에서 상태 재계산
         long newTotalFilled = findOrder.getFilledQuantity() + matchResult.getFilledQuantity();
 
@@ -806,6 +808,13 @@ public class OrderServiceImpl implements OrderService {
         Order findOrder = orderRepository.findByMemberIdAndOrderId(memberId, orderId)
                 .orElseThrow(() -> new BusinessException(ENTITY_NOT_FOUNT_ERROR));
 
+        OrderStatus status = findOrder.getOrderStatus();
+        if (status != OrderStatus.OPEN && status != OrderStatus.PARTIAL) {
+            throw new BusinessException(ORDER_NOT_MODIFIABLE);
+        } else if (status == OrderStatus.PARTIAL && dto.getUpdateQuantity() <= findOrder.getFilledQuantity()) {
+            throw new BusinessException(INVALID_UPDATE_QUANTITY);
+        }
+
         // 호가 단위 검증
         TickSizePolicy.validate(dto.getUpdatePrice());
 
@@ -820,13 +829,6 @@ public class OrderServiceImpl implements OrderService {
             if (dto.getUpdatePrice() > upper) throw new BusinessException(PRICE_OVER_LIMIT);
             if (dto.getUpdatePrice() < lower) throw new BusinessException(PRICE_UNDER_LIMIT);
         });
-
-        OrderStatus status = findOrder.getOrderStatus();
-        if (status != OrderStatus.OPEN && status != OrderStatus.PARTIAL) {
-            throw new BusinessException(ORDER_NOT_MODIFIABLE);
-        } else if (status == OrderStatus.PARTIAL && dto.getUpdateQuantity() <= findOrder.getFilledQuantity()) {
-            throw new BusinessException(INVALID_UPDATE_QUANTITY);
-        }
 
         long newRemaining = dto.getUpdateQuantity() - findOrder.getFilledQuantity();
         double chargeRate = getChargeRate();
