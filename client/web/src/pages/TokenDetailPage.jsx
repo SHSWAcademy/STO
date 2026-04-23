@@ -618,8 +618,10 @@ export function TokenDetailPage() {
         return;
       }
     }
-    if (snapshot?.asks) setAsks(snapshot.asks.map(r => ({ price: r.price, amount: r.quantity })));
-    if (snapshot?.bids) setBids(snapshot.bids.map(r => ({ price: r.price, amount: r.quantity })));
+    const nextAsks = Array.isArray(snapshot?.asks) ? snapshot.asks : [];
+    const nextBids = Array.isArray(snapshot?.bids) ? snapshot.bids : [];
+    setAsks(nextAsks.map(r => ({ price: r.price, amount: r.quantity })));
+    setBids(nextBids.map(r => ({ price: r.price, amount: r.quantity })));
   }, []);
 
   useEffect(() => {
@@ -628,16 +630,30 @@ export function TokenDetailPage() {
     hogaCenteredRef.current = false;
     orderBookWsReceivedRef.current = false;
 
-    let cancelled = false;
-    api.get(`/api/token/${TOKEN_ID}/orderBook`)
-        .then(r => {
-          if (!cancelled && !orderBookWsReceivedRef.current) {
-            applyOrderBookSnapshot(r.data);
-          }
-        })
-        .catch(e => console.warn('[TokenDetailPage] 호가 스냅샷 조회 실패:', e));
+    const controller = new AbortController();
+    const fallbackDelayMs = 300;
+    const fallbackTimer = window.setTimeout(() => {
+      if (orderBookWsReceivedRef.current) return;
+      api.get(`/api/token/${TOKEN_ID}/orderBook`, { signal: controller.signal })
+          .then(r => {
+            if (!orderBookWsReceivedRef.current) {
+              applyOrderBookSnapshot(r.data);
+            }
+          })
+          .catch(e => {
+            if (
+              e?.name === 'CanceledError' ||
+              e?.name === 'AbortError' ||
+              e?.code === 'ERR_CANCELED'
+            ) {
+              return;
+            }
+            console.warn('[TokenDetailPage] 호가 스냅샷 조회 실패:', e);
+          });
+    }, fallbackDelayMs);
     return () => {
-      cancelled = true;
+      window.clearTimeout(fallbackTimer);
+      controller.abort();
     };
   }, [TOKEN_ID, applyOrderBookSnapshot]);
 
