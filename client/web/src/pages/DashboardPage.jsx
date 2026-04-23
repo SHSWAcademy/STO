@@ -41,11 +41,10 @@ function recalculateFluctuationRate(currentPrice, basePrice) {
   return Math.round(((currentPrice - basePrice) / basePrice) * 100 * 100) / 100;
 }
 
-// ?? 罹붾뱾 ?좏떥 ?????????????????????????????????????????????????????
 function formatCandleTime(candleTime) {
   if (!candleTime) return "";
   const d = new Date(candleTime);
-  return d.toTimeString().slice(0, 5);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 function mapCandle(dto) {
