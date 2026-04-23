@@ -608,7 +608,15 @@ export function TokenDetailPage() {
   const hogaCenteredRef = useRef(false);
 
   const applyOrderBookSnapshot = useCallback((data) => {
-    const snapshot = typeof data === 'string' ? JSON.parse(data) : data;
+    let snapshot = data;
+    if (typeof data === 'string') {
+      try {
+        snapshot = JSON.parse(data);
+      } catch (e) {
+        console.warn('[TokenDetailPage] 유효하지 않은 호가 스냅샷 payload:', e);
+        return;
+      }
+    }
     if (snapshot?.asks) setAsks(snapshot.asks.map(r => ({ price: r.price, amount: r.quantity })));
     if (snapshot?.bids) setBids(snapshot.bids.map(r => ({ price: r.price, amount: r.quantity })));
   }, []);
