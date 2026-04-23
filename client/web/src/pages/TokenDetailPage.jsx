@@ -631,28 +631,23 @@ export function TokenDetailPage() {
     orderBookWsReceivedRef.current = false;
 
     const controller = new AbortController();
-    const fallbackDelayMs = 300;
-    const fallbackTimer = window.setTimeout(() => {
-      if (orderBookWsReceivedRef.current) return;
-      api.get(`/api/token/${TOKEN_ID}/orderBook`, { signal: controller.signal })
-          .then(r => {
-            if (!orderBookWsReceivedRef.current) {
-              applyOrderBookSnapshot(r.data);
-            }
-          })
-          .catch(e => {
-            if (
-              e?.name === 'CanceledError' ||
-              e?.name === 'AbortError' ||
-              e?.code === 'ERR_CANCELED'
-            ) {
-              return;
-            }
-            console.warn('[TokenDetailPage] 호가 스냅샷 조회 실패:', e);
-          });
-    }, fallbackDelayMs);
+    api.get(`/api/token/${TOKEN_ID}/orderBook`, { signal: controller.signal })
+        .then(r => {
+          if (!orderBookWsReceivedRef.current) {
+            applyOrderBookSnapshot(r.data);
+          }
+        })
+        .catch(e => {
+          if (
+            e?.name === 'CanceledError' ||
+            e?.name === 'AbortError' ||
+            e?.code === 'ERR_CANCELED'
+          ) {
+            return;
+          }
+          console.warn('[TokenDetailPage] 호가 스냅샷 조회 실패:', e);
+        });
     return () => {
-      window.clearTimeout(fallbackTimer);
       controller.abort();
     };
   }, [TOKEN_ID, applyOrderBookSnapshot]);
