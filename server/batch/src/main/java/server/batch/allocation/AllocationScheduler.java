@@ -25,7 +25,7 @@ public class AllocationScheduler {
     @Qualifier("allocationJob")
     private final Job allocationJob;
 
-    @Scheduled(cron = "0 45 11 * * *")
+    @Scheduled(cron = "0 0 0 * * *")
     public void runAllocationJob() throws Exception {
         // 시스템 기초설정조회
         Common commons = commonsRepository.findFirstBy();
