@@ -595,7 +595,7 @@ export function TokenDetailPage() {
   }, [activeTab, TOKEN_ID, user?.accessToken]);
 
   // ── 호가 / 체결 상태 ────────────────────────────────────────
-  // 호가: WebSocket snapshot이 구독 즉시 전송하므로 빈 배열로 초기화
+  // 호가: REST 초기 스냅샷으로 먼저 채우고 WebSocket으로 실시간 갱신
   const [asks, setAsks]             = useState([]);
   const [bids, setBids]             = useState([]);
   const [flashingPrice, setFlashingPrice] = useState(null);
@@ -606,6 +606,51 @@ export function TokenDetailPage() {
   const hogaScrollRef  = useRef(null);
   const priceBarRef    = useRef(null);
   const hogaCenteredRef = useRef(false);
+  const orderBookWsReceivedRef = useRef(false);
+
+  const applyOrderBookSnapshot = useCallback((data) => {
+    let snapshot = data;
+    if (typeof data === 'string') {
+      try {
+        snapshot = JSON.parse(data);
+      } catch (e) {
+        console.warn('[TokenDetailPage] 유효하지 않은 호가 스냅샷 payload:', e);
+        return;
+      }
+    }
+    const nextAsks = Array.isArray(snapshot?.asks) ? snapshot.asks : [];
+    const nextBids = Array.isArray(snapshot?.bids) ? snapshot.bids : [];
+    setAsks(nextAsks.map(r => ({ price: r.price, amount: r.quantity })));
+    setBids(nextBids.map(r => ({ price: r.price, amount: r.quantity })));
+  }, []);
+
+  useEffect(() => {
+    setAsks([]);
+    setBids([]);
+    hogaCenteredRef.current = false;
+    orderBookWsReceivedRef.current = false;
+
+    const controller = new AbortController();
+    api.get(`/api/token/${TOKEN_ID}/orderBook`, { signal: controller.signal })
+        .then(r => {
+          if (!orderBookWsReceivedRef.current) {
+            applyOrderBookSnapshot(r.data);
+          }
+        })
+        .catch(e => {
+          if (
+            e?.name === 'CanceledError' ||
+            e?.name === 'AbortError' ||
+            e?.code === 'ERR_CANCELED'
+          ) {
+            return;
+          }
+          console.warn('[TokenDetailPage] 호가 스냅샷 조회 실패:', e);
+        });
+    return () => {
+      controller.abort();
+    };
+  }, [TOKEN_ID, applyOrderBookSnapshot]);
 
   useEffect(() => {
     setTodayHigh(tokenInfo?.todayHighPrice ?? null);
@@ -757,8 +802,8 @@ export function TokenDetailPage() {
     token:      user?.accessToken,
     memberId,
     onOrderBook: (data) => {
-      if (data.asks) setAsks(data.asks.map(r => ({ price: r.price, amount: r.quantity })));
-      if (data.bids) setBids(data.bids.map(r => ({ price: r.price, amount: r.quantity })));
+      orderBookWsReceivedRef.current = true;
+      applyOrderBookSnapshot(data);
     },
     onTrades: (data) => {
       if (data.tradePrice) {

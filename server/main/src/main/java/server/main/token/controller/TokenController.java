@@ -1,12 +1,18 @@
 package server.main.token.controller;
 
 
+import static server.main.global.error.ErrorCode.ORDERBOOK_SNAPSHOT_UNAVAILABLE;
+
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClientException;
+import server.main.global.error.BusinessException;
+import server.main.global.util.MatchClient;
 import server.main.token.dto.SelectType;
 import server.main.token.dto.*;
 import server.main.token.service.TokenService;
@@ -22,6 +28,7 @@ import java.util.Map;
 public class TokenController {
 
     private final TokenService tokenService;
+    private final MatchClient matchClient;
 
     // 토큰 (자산) 메인 페이지 (전체 조회)
     @GetMapping
@@ -46,6 +53,17 @@ public class TokenController {
         TokenChartDetailResponseDto dto = tokenService.getTokenDetail(tokenId);
         log.info("{}", dto);
         return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping(value = "/{tokenId}/orderBook", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> orderBookSnapshot(@PathVariable @Min(1) Long tokenId) {
+        tokenService.getTokenAssetInfo(tokenId);
+        try {
+            return ResponseEntity.ok(matchClient.getOrderBookSnapshot(tokenId));
+        } catch (RestClientException e) {
+            log.error("Match service orderBook snapshot call failed. tokenId={}", tokenId, e);
+            throw new BusinessException(ORDERBOOK_SNAPSHOT_UNAVAILABLE);
+        }
     }
 
     // 토큰 (자산) 상세 조회 - '종목 정보'

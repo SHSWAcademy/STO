@@ -64,7 +64,13 @@ public class AuthService {
 
         // 어드민 대시보드 (회원가입 시 이벤트 소켓)
         eventPublisher.publishEvent(new AdminDashboardEvent());
-        return new MemberSignupResponse(member.getMemberId(), member.getEmail(), member.getMemberName(), wallet.getWalletAddress());
+        return new MemberSignupResponse(
+                member.getMemberId(),
+                member.getEmail(),
+                member.getMemberName(),
+                wallet.getWalletAddress(),
+                accountNumber
+        );
     }
 
     public LoginResponse memberLogin(MemberLoginRequest request, HttpServletRequest httpServletRequest) {

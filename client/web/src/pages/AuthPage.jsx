@@ -26,6 +26,7 @@ export function AuthPage() {
   const [accountPassword, setAccountPassword] = useState('');
   const [signupError, setSignupError] = useState('');
   const [isSigningUp, setIsSigningUp] = useState(false);
+  const [signupResult, setSignupResult] = useState(null);
 
   const returnPath = typeof location.state?.from === 'string' ? location.state.from : '/';
 
@@ -117,6 +118,8 @@ export function AuthPage() {
         return;
       }
 
+      const body = await res.json();
+      setSignupResult(body);
       setShowComplete(true);
     } catch (err) {
       console.error('[Signup] failed:', err);
@@ -138,6 +141,16 @@ export function AuthPage() {
       setEmail(signupEmail);
       setPassword(signupPassword);
     }
+  }
+
+  function formatWalletAddress(address) {
+    if (!address || address.length <= 12) return address || '-';
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  }
+
+  function formatSecuritiesAccount(accountNumber) {
+    if (!accountNumber) return 'STONE증권 -';
+    return `STONE증권 **** ${String(accountNumber).slice(-4)}`;
   }
 
   return (
@@ -354,8 +367,8 @@ export function AuthPage() {
 
               <div className="space-y-3">
                 {[
-                  { icon: Wallet, bg: 'bg-stone-100', color: 'text-stone-600', label: '블록체인 지갑', value: '0x742d...1F3A' },
-                  { icon: Landmark, bg: 'bg-stone-100', color: 'text-brand-red', label: '증권 계좌 연결', value: '국민증권**** 4521' },
+                  { icon: Wallet, bg: 'bg-stone-100', color: 'text-stone-600', label: '블록체인 지갑', value: formatWalletAddress(signupResult?.walletAddress) },
+                  { icon: Landmark, bg: 'bg-stone-100', color: 'text-brand-red', label: '증권 계좌 연결', value: formatSecuritiesAccount(signupResult?.accountNumber) },
                 ].map((item, index) => {
                   const Icon = item.icon;
                   return (
