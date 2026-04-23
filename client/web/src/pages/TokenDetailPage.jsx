@@ -606,6 +606,7 @@ export function TokenDetailPage() {
   const hogaScrollRef  = useRef(null);
   const priceBarRef    = useRef(null);
   const hogaCenteredRef = useRef(false);
+  const orderBookWsReceivedRef = useRef(false);
 
   const applyOrderBookSnapshot = useCallback((data) => {
     let snapshot = data;
@@ -625,10 +626,19 @@ export function TokenDetailPage() {
     setAsks([]);
     setBids([]);
     hogaCenteredRef.current = false;
+    orderBookWsReceivedRef.current = false;
 
+    let cancelled = false;
     api.get(`/api/token/${TOKEN_ID}/orderBook`)
-        .then(r => applyOrderBookSnapshot(r.data))
+        .then(r => {
+          if (!cancelled && !orderBookWsReceivedRef.current) {
+            applyOrderBookSnapshot(r.data);
+          }
+        })
         .catch(e => console.warn('[TokenDetailPage] 호가 스냅샷 조회 실패:', e));
+    return () => {
+      cancelled = true;
+    };
   }, [TOKEN_ID, applyOrderBookSnapshot]);
 
   useEffect(() => {
@@ -781,6 +791,7 @@ export function TokenDetailPage() {
     token:      user?.accessToken,
     memberId,
     onOrderBook: (data) => {
+      orderBookWsReceivedRef.current = true;
       applyOrderBookSnapshot(data);
     },
     onTrades: (data) => {

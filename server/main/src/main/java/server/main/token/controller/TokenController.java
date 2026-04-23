@@ -1,7 +1,7 @@
 package server.main.token.controller;
 
 
-import static server.main.global.error.ErrorCode.MATCH_SERVICE_UNAVAILABLE;
+import static server.main.global.error.ErrorCode.ORDERBOOK_SNAPSHOT_UNAVAILABLE;
 
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
@@ -61,7 +61,7 @@ public class TokenController {
             return ResponseEntity.ok(matchClient.getOrderBookSnapshot(tokenId));
         } catch (RestClientException e) {
             log.error("Match service orderBook snapshot call failed. tokenId={}", tokenId, e);
-            throw new BusinessException(MATCH_SERVICE_UNAVAILABLE);
+            throw new BusinessException(ORDERBOOK_SNAPSHOT_UNAVAILABLE);
         }
     }
 
