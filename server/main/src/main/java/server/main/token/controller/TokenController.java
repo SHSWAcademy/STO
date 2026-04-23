@@ -56,7 +56,8 @@ public class TokenController {
     }
 
     @GetMapping(value = "/{tokenId}/orderBook", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> orderBookSnapshot(@PathVariable Long tokenId) {
+    public ResponseEntity<String> orderBookSnapshot(@PathVariable @Min(1) Long tokenId) {
+        tokenService.getTokenAssetInfo(tokenId);
         try {
             return ResponseEntity.ok(matchClient.getOrderBookSnapshot(tokenId));
         } catch (RestClientException e) {
