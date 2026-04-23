@@ -87,6 +87,21 @@
 .hoga-flash-blue { animation: hoga-flash-blue 0.5s ease-out forwards; }
 .hoga-flash-red  { animation: hoga-flash-red  0.5s ease-out forwards; }
 
+@keyframes dashboard-row-flash-blue {
+  0%   { background-color: rgba(59, 130, 246, 0.22); }
+  35%  { background-color: rgba(59, 130, 246, 0.16); }
+  100% { background-color: transparent; }
+}
+
+@keyframes dashboard-row-flash-red {
+  0%   { background-color: rgba(229, 77, 77, 0.22); }
+  35%  { background-color: rgba(229, 77, 77, 0.16); }
+  100% { background-color: transparent; }
+}
+
+.dashboard-row-flash-blue { animation: dashboard-row-flash-blue 0.7s ease-out forwards; }
+.dashboard-row-flash-red  { animation: dashboard-row-flash-red  0.7s ease-out forwards; }
+
 /* ─── 스크롤바 ─── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
