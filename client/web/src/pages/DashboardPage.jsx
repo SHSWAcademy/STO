@@ -27,7 +27,7 @@ import { useDashboardSocket } from "../hooks/useDashboardSocket.js";
 const API = API_BASE_URL;
 const PAGE_SIZE = 10;
 const CANDLE_COUNT = 20;
-const VISIBLE_NEWS_CARD_COUNT = 4;
+const VISIBLE_NEWS_CARD_COUNT = 3;
 
 const SORT_ITEMS = ["전체", "거래대금", "거래량"];
 
