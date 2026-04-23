@@ -27,6 +27,7 @@ import { useDashboardSocket } from "../hooks/useDashboardSocket.js";
 const API = API_BASE_URL;
 const PAGE_SIZE = 10;
 const CANDLE_COUNT = 20;
+const VISIBLE_NEWS_CARD_COUNT = 4;
 
 const SORT_ITEMS = ["전체", "거래대금", "거래량"];
 
@@ -825,7 +826,12 @@ export function DashboardPage() {
                 표시할 뉴스가 없습니다.
               </div>
             ) : (
-              <div className="max-h-[290px] overflow-y-auto pr-1">
+              <div
+                className="space-y-3 overflow-y-auto pr-1"
+                style={{
+                  maxHeight: `${VISIBLE_NEWS_CARD_COUNT * 120 + (VISIBLE_NEWS_CARD_COUNT - 1) * 12}px`,
+                }}
+              >
                 {newsItems.map((item, index) => (
                   <a
                     key={`${item.link}-${index}`}
@@ -833,13 +839,20 @@ export function DashboardPage() {
                     target="_blank"
                     rel="noreferrer"
                     className={cn(
-                      "mb-3 block rounded-md border-l-4 bg-[#F8F8F6] px-4 py-3 last:mb-0",
+                      "block min-h-[120px] rounded-md border-l-4 bg-[#F8F8F6] px-4 py-3",
                       index % 3 === 0 && "border-l-brand-gold",
                       index % 3 === 1 && "border-l-blue-600",
                       index % 3 === 2 && "border-l-green-500",
                     )}
                   >
-                    <div className="mb-1 text-[14px] font-bold text-stone-900">
+                    <div
+                      className="mb-1 overflow-hidden text-[14px] font-bold text-stone-900"
+                      style={{
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                      }}
+                    >
                       {item.title}
                     </div>
                     <div
