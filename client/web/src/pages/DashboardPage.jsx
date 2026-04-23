@@ -337,7 +337,7 @@ export function DashboardPage() {
       }));
       flashTimersRef.current[tokenId] = setTimeout(() => {
         setPriceFlash((prev) => ({ ...prev, [tokenId]: null }));
-      }, 500);
+      }, 700);
     },
     onCandle: ({ tokenId, candle }) => {
       if (tokenId !== previewTokenId) return;
@@ -432,6 +432,10 @@ export function DashboardPage() {
                   key={token.tokenId}
                   className={cn(
                     "grid cursor-pointer grid-cols-[2.15fr_0.95fr_0.9fr_1fr_0.9fr] items-center border-b border-stone-100 px-2 py-3 transition-colors hover:bg-stone-50",
+                    priceFlash[token.tokenId] === "red" &&
+                      "dashboard-row-flash-red",
+                    priceFlash[token.tokenId] === "blue" &&
+                      "dashboard-row-flash-blue",
                     (token.fluctuationRate ?? 0) > 0 && "bg-[#FFF8F0]",
                     previewTokenId === token.tokenId && "bg-stone-100",
                   )}
