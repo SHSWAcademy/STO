@@ -59,6 +59,7 @@ public class SecurityConfig {
                                 "/api/token/*/allocation",
                                 "/api/token/*/disclosure",
                                 "/api/token/*/tick-size",
+                                "/api/token/*/orderBook",
                                 "/api/token/*/candle",
                                 "/api/token/*/trades",
                                 "/api/token/*/ai-summary",
