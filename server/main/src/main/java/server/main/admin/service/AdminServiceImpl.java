@@ -1,10 +1,14 @@
 package server.main.admin.service;
 
-import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.*;
 import server.main.admin.entity.*;
@@ -24,9 +28,15 @@ import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.file.File;
 import server.main.global.file.FileService;
+import server.main.log.loginLog.service.LoginLogService;
+import server.main.log.orderLog.service.OrderLogService;
+import server.main.log.tradeLog.service.TradeLogService;
+import server.main.member.entity.Member;
+import server.main.member.repository.MemberRepository;
 import server.main.notice.service.NoticeService;
 import server.main.token.entity.Token;
 import server.main.token.repository.TokenRepository;
+import server.main.trade.repository.TradeRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,6 +48,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Log4j2
+@Transactional(readOnly = true)
 public class AdminServiceImpl implements AdminService {
     private final PlatformTokenHoldingsRepository platformTokenHoldingsRepository;
     private final AssetService assetService;
@@ -50,6 +61,11 @@ public class AdminServiceImpl implements AdminService {
     private final CommonRepository commonsRepository;
     private final ContractGatewayService contractGatewayService;
     private final PlatformBankingRepository platformBankingRepository;
+    private final MemberRepository memberRepository;
+    private final TradeRepository tradeRepository;
+    private final LoginLogService loginLogService;
+    private final OrderLogService orderLogService;
+    private final TradeLogService tradeLogService;
     private final AssetAccountRepository assetAccountRepository;
 
     // 자산등록
@@ -79,6 +95,7 @@ public class AdminServiceImpl implements AdminService {
             // 플랫폼 보유 테이블 SAVE
             platformTokenHoldingsRepository.save(platformTokenHoldings);
 
+            // 블록체인 contractAddress 생성 및 토큰 저장
             String contractAddress = contractGatewayService.deployToken(saveToken, platformTokenHoldings);
             saveToken.updateContractAddress(contractAddress);
 
@@ -126,6 +143,7 @@ public class AdminServiceImpl implements AdminService {
 
     // 자산 수정
     @Transactional
+    @CacheEvict(value = "tokenAssetName", key = "#dto.tokenId")
     @Override
     public void updateAsset(Long assetId, AssetUpdateRequestDTO dto, MultipartFile imageFile, MultipartFile pdfFile) {
 
@@ -168,17 +186,24 @@ public class AdminServiceImpl implements AdminService {
         LocalDate adminTargetMonth = getAdminTargetMonth();
         log.info("관리자 마감일 : {}", adminTargetMonth );
         // 배당 이벤트내역 조회
-        // 자산ID를 MAP의 키값으로 설정
+        // 자산ID를 MAP의 키값으로 생성
         Map<Long, AllocationEvent> allocationEventMap = allocationEventRepository
                 .findAllBySettlementMonth(targetMonth.getYear(), targetMonth.getMonthValue())
                 .stream()
                 .collect(Collectors.toMap(e -> e.getAssetId(), e -> e));
         log.info("배당 이벤트 내역 조회 : {}", allocationEventMap);
+
+        // 자산ID를 MAP의 키값으로 생성
+        Map<Long, AssetAccount> assetAccountMap = assetAccountRepository.findAll()
+                .stream()
+                .collect(Collectors.toMap(e -> e.getAssetId(), e -> e));
+
         // assetId를 기준으로 매핑 후 리턴
         return tokens.stream()
                 .map(token -> {
                     AllocationEvent event = allocationEventMap.get(token.getAsset().getAssetId());
-                    return adminMapper.toAllocationListResponseDTO(token, event, targetMonth, adminTargetMonth);
+                    AssetAccount assetAccount = assetAccountMap.get(token.getAsset().getAssetId());
+                    return adminMapper.toAllocationListResponseDTO(token, event, targetMonth, adminTargetMonth, assetAccount);
                 }).collect(Collectors.toList());
     }
 
@@ -363,15 +388,153 @@ public class AdminServiceImpl implements AdminService {
                 .build();
     }
 
+    // 멤버 리스트 조회
+    @Override
+    public Page<MemberListResponseDTO> getMemberList(int page, int size) {
+        // 멤버 먼저 조회
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Member> members = memberRepository.findAll(pageable);
+        log.info("멤버 리스트 조회 : {}", members);
+        // 멤버ID만 리스트로담기 (멤버별 거래내역 담기위해)
+        List<Long> memberIds = members.getContent().stream()
+                .map(member -> member.getMemberId())
+                .collect(Collectors.toList());
+
+        // 구매 유저 총 투자 금액 조회흐 맵으로 변환 Key:memberID, value:totalAmount
+        Map<Long, Long> tradeAmount = tradeRepository.sumTotalBuyerUser(memberIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],   // 멤버ID
+                        row -> (Long) row[1]    // 총 투자금
+                ));
+        log.info("멤버별 투자금액 조회 : {}", tradeAmount);
+
+        return members.map(member ->
+                // 멤버의 ID값으로 투자금액 MAP의 키값으로 추출후 DTO변환
+                adminMapper.toMemberListResponseDTO(
+                        member,
+                        tradeAmount.getOrDefault(member.getMemberId(), 0L)  // 투자금 없으면 0원
+                )
+        );
+    }
+
+    // 멤버 활성/비활성화 처리
+    @Transactional
+    @Override
+    public void updateMember(Long memberId, boolean isActive) {
+        // 활성/비활성화 멤버 대상 조회
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUNT_ERROR));
+
+        member.updateIsActive(isActive);
+    }
+
+    // 대시보드 데이터 조회
+    @Override
+    public DashBoardResponseDTO getDashBoard() {
+        // 활성화 유저수 조회
+        long totalUserCount = memberRepository.countByIsActiveTrue();
+        // 신규 가입자 수 조회
+        long newUserCount = memberRepository.countByCreatedAtBetweenAndIsActiveTrue(startOfToday(), startOfTomorrow());
+        // 일일, 누적 체결수 / 일일, 누적 체결금액 조회
+        Object[] tradeInfo = tradeRepository.findTradeStats(startOfToday(), startOfTomorrow());
+        log.info("거래 집계 조회 : {}", tradeInfo);
+        Object[] tradeRow = (Object[]) tradeInfo[0];
+        // 일일, 누적 체결수
+        long dailyExecutionCount  = ((Number) tradeRow[0]).longValue();
+        long totalExecutionCount  = ((Number) tradeRow[1]).longValue();
+        // 일일, 누적 체결금액 조회
+        long dailyExecutionAmount = ((Number) tradeRow[2]).longValue();
+        long totalExecutionAmount = ((Number) tradeRow[3]).longValue();
+
+        // 토큰 테이블 조회 (거래중인것만)
+        List<Object[]> result = tokenRepository.findTradingTokensWithTotalHolding();
+        log.info("토큰 테이블 조회(대시보드): {}", result);
+        // 토큰 리스트 조회후 dto변환
+        List<DashBoardTokenList> tokenList = result.stream()
+                .map(row -> {
+                    Token token = (Token) row[0];
+                    Long currentQuantity = ((Number) row[1]).longValue();
+                    return adminMapper.toDashBoardTokenList(token, currentQuantity);
+                })
+                .toList();
+
+        return DashBoardResponseDTO.builder()
+                .totalUserCount(totalUserCount)
+                .dailyExecutionCount(dailyExecutionCount)
+                .totalExecutionCount(totalExecutionCount)
+                .dailyExecutionAmount(dailyExecutionAmount)
+                .totalExecutionAmount(totalExecutionAmount)
+                .newUserCount(newUserCount)
+                .tokenList(tokenList)
+                .build();
+    }
+
+    // 대시보드 거래내역 데이터 조회
+    @Override
+    public Page<DashBoardTradeListDTO> getDashBoardTradeList(int page, int size) {
+        // 거래내역 전체 조회
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<DashBoardTradeListDTO> tradeList = tradeRepository.findAllWithDetails(pageable)
+                .map(trade -> adminMapper.toDashBoardTradeListDTO(trade));
+        log.info("거래내역 조회 : {}", tradeList);
+
+        return tradeList;
+    }
+
+    // 로그관리 데이터 조회
+    @Override
+    public Page<SystemLogResponseDTO> getSystemLong(String category, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<SystemLogResponseDTO> list = null;
+
+        // 로그인, 주문, 거래 내역 조회
+        if (category.equals("loginLog")) {
+             list = loginLogService.findLoginLog(pageable)
+                     .map(loginLog -> SystemLogResponseDTO.builder()
+                             .loginLogId(loginLog.getLoginLogId())
+                             .ip(loginLog.getIp())
+                             .task(loginLog.getTask())
+                             .result(loginLog.getResult())
+                             .detail(loginLog.getDetail())
+                             .createdAt(loginLog.getCreatedAt())
+                             .identifier(loginLog.getIdentifier())
+                             .build());
+             log.info("로그인 로그 조회 : {}", list);
+        } else if (category.equals("oderLog")) {
+            list = orderLogService.findOrderLog(pageable)
+                    .map(orderLog -> SystemLogResponseDTO.builder()
+                            .orderLogId(orderLog.getOrderLogId())
+                            .orderType(orderLog.getOrderType())
+                            .task(orderLog.getTask())
+                            .result(orderLog.getResult())
+                            .identifier(orderLog.getIdentifier())
+                            .detail(orderLog.getDetail())
+                            .createdAt(orderLog.getCreatedAt())
+                            .build());
+            log.info("주문 로그 조회 : {}", list);
+        } else {
+            list = tradeLogService.findTradeLog(pageable)
+                    .map(tradeLog -> SystemLogResponseDTO.builder()
+                            .tradeLogId(tradeLog.getTradeLogId())
+                            .task(tradeLog.getTask())
+                            .detail(tradeLog.getDetail())
+                            .identifier(tradeLog.getIdentifier())
+                            .result(tradeLog.getResult())
+                            .createdAt(tradeLog.getCreatedAt())
+                            .build());
+            log.info("거래 로그 조회 : {}", list);
+        }
+        return list;
+    }
+
     // 마감월 리턴 메서드
-    // 플랫폼설정 테이블에서 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
+    // 플랫폼설정 테이블에서 관리자 입력 마감일을 불러와 마감일보다 지났다면 다음월로 검증됨
     private YearMonth getTargetMonth() {
         Common commons = commonsRepository.findCommon();
-        return LocalDate.now().getDayOfMonth() > commons.getAllocateDate()
+        return LocalDate.now().getDayOfMonth() > commons.getAllocateSetDate()
                 ? YearMonth.now().plusMonths(1)
                 : YearMonth.now();
     }
-
     // 관리자 마감일 리턴
     private LocalDate getAdminTargetMonth() {
         Common commons = commonsRepository.findCommon();
@@ -380,4 +543,40 @@ public class AdminServiceImpl implements AdminService {
                 : YearMonth.now();
         return targetMonth.atDay(commons.getAllocateSetDate());
     }
+
+    // 정산 현황 조회
+    @Override
+    public TradeStatsResponseDTO getSettlementStats() {
+        Object[] global = tradeRepository.findGlobalSettlementStats().get(0);
+        List<Object[]> tokenRows = tradeRepository.findTokenSettlementStats();
+        log.info("블록체인 종합데이터 조회 확인 : {}", global);
+        List<TokenStatsDTO> tokenStatsList = tokenRows.stream()
+                .map(row -> TokenStatsDTO.builder()
+                        .tokenId((Long) row[0])
+                        .tokenSymbol((String) row[1])
+                        .count((Long) row[2])
+                        .pending((Long) row[3])
+                        .amount((Long) row[4])
+                        .contract_address((String) row[5])
+                        .build())
+                .collect(Collectors.toList());
+        log.info("블록체인 정산현황 조회 : {}", tokenStatsList);
+
+        return TradeStatsResponseDTO.builder()
+                .totalTx((Long) global[0])
+                .pendingCount((Long) global[1])
+                .successCount((Long) global[2])
+                .totalAmount((Long) global[3])
+                .tokenStatsList(tokenStatsList)
+                .build();
+    }
+
+    // 현재 일자 조회용 메서드
+    private LocalDateTime startOfToday() {
+        return LocalDate.now().atStartOfDay();
+    }
+    private LocalDateTime startOfTomorrow() {
+        return LocalDate.now().plusDays(1).atStartOfDay();
+    }
 }
+

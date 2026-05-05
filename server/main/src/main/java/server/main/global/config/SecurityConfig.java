@@ -2,6 +2,7 @@ package server.main.global.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -32,37 +33,57 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-//        http
-//                .csrf(AbstractHttpConfigurer::disable)
-//                .formLogin(AbstractHttpConfigurer::disable)
-//                .httpBasic(AbstractHttpConfigurer::disable)
-//                .cors(cors -> cors.configurationSource(corsConfig.corsConfigurationSource()))
-//                .sessionManagement(session ->
-//                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-//                .authorizeHttpRequests(auth -> auth
-//                        .requestMatchers(
-//                                /* 공개 url 규칙표 즉 비회원 */
-//                                "/api/auth/**",
-//                                "/api/tokens/**",
-//                                "/swagger-ui/**",
-//                                "/v3/api-docs/**",
-//                                "/ws/trading/**"
-//                        ).permitAll()
-//                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-//                        .anyRequest().authenticated()
-//                )
-//                .exceptionHandling(exception -> exception
-//                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-//                        .accessDeniedHandler(jwtAccessDeniedHandler)
-//                )
-//                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
-                // 개발동안은 시큐리티 비활성화
-                http
+        http
                 .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfig.corsConfigurationSource()))
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
-                );
+                        .requestMatchers(
+                                /* 공개 url 규칙표 즉 비회원 */
+                                "/api/auth/**",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/ws/trading/**",
+                                "/ws/admin/**",
+                                "/file/**"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/token",
+                                "/api/token/search",
+                                "/api/token/summary",
+                                "/api/token/*/chart",
+                                "/api/token/*/info",
+                                "/api/token/*/allocation",
+                                "/api/token/*/disclosure",
+                                "/api/token/*/tick-size",
+                                "/api/token/*/orderBook",
+                                "/api/token/*/candle",
+                                "/api/token/*/trades",
+                                "/api/token/*/ai-summary",
+                                "/api/disclosure",
+                                "/api/notice",
+                                "/api/notice/*",
+                                "/api/news/sto"
+                        ).permitAll()
+                        .requestMatchers("/blockchain/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .anyRequest().authenticated()
+                )
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler)
+                )
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                // 개발동안은 시큐리티 비활성화
+//                http
+//                .csrf(AbstractHttpConfigurer::disable)
+//                .cors(cors -> cors.configurationSource(corsConfig.corsConfigurationSource()))
+//                .authorizeHttpRequests(auth -> auth
+//                        .anyRequest().permitAll()
+//                );
         return http.build();
     }
 }

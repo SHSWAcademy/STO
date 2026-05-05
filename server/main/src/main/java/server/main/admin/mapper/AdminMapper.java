@@ -6,9 +6,12 @@ import server.main.admin.entity.PlatformBanking;
 import server.main.admin.entity.PlatformTokenHolding;
 import server.main.allocation.entity.AllocationEvent;
 import server.main.asset.entity.Asset;
+import server.main.asset.entity.AssetAccount;
 import server.main.global.file.File;
+import server.main.member.entity.Member;
 import server.main.token.entity.Token;
 import server.main.token.entity.TokenStatus;
+import server.main.trade.entity.Trade;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -22,7 +25,7 @@ public class AdminMapper {
                 .totalSupply(dto.getTotalSupply())
                 .asset(asset)
                 .tokenName(dto.getAssetName())
-                .currentPrice(Double.valueOf(dto.getInitPrice()))
+                .currentPrice(dto.getInitPrice())
                 .circulatingSupply(dto.getTotalSupply() - dto.getHoldingSupply())   // 전체개수 - 플랫폼 소유 갯수
                 .tokenSymbol(dto.getTokenSymbol())
                 .initPrice(dto.getInitPrice())
@@ -96,7 +99,8 @@ public class AdminMapper {
     }
 
     // 베당 리스트 조회 (기존 자산리스트 + allocation 테이블 합쳐서)
-    public AllocationListResponseDTO toAllocationListResponseDTO(Token token, AllocationEvent allocationEvent, YearMonth targetMonth, LocalDate adminTargetMonth) {
+    public AllocationListResponseDTO toAllocationListResponseDTO(Token token, AllocationEvent allocationEvent,
+                                                                 YearMonth targetMonth, LocalDate adminTargetMonth, AssetAccount assetAccount) {
         return AllocationListResponseDTO.builder()
                 .assetId(token.getAsset().getAssetId())
                 .assetName(token.getAsset().getAssetName())
@@ -107,6 +111,7 @@ public class AdminMapper {
                 .allocationBatchStatus(allocationEvent != null ? allocationEvent.getAllocationBatchStatus() : null)
                 .targetMonth(targetMonth)
                 .allocateSetMonth(adminTargetMonth)
+                .remainder(assetAccount.getAccumulated_remainder())
                 .build();
     }
 
@@ -148,6 +153,50 @@ public class AdminMapper {
                 .holdingSupply(platformTokenHolding.getHoldingSupply())
                 .imgUrl(platformTokenHolding.getToken().getAsset().getImgUrl())
                 .tokenId(platformTokenHolding.getToken().getTokenId())
+                .build();
+    }
+
+    // 멤버 리스트 관리 entity -> dto 변환
+    public MemberListResponseDTO toMemberListResponseDTO(Member member, Long totalAmount) {
+        return MemberListResponseDTO.builder()
+                .memberId(member.getMemberId())
+                .email(member.getEmail())
+                .memberName(member.getMemberName())
+                .isActive(member.getIsActive())
+                .createdAt(member.getCreatedAt())
+                .totalTradeAmount(totalAmount)
+                .build();
+    }
+
+    // 거래내역 entity -> dto 변환
+    public DashBoardTradeListDTO toDashBoardTradeListDTO(Trade trade) {
+        return DashBoardTradeListDTO.builder()
+                .tradeId(trade.getTradeId())
+                .feeAmount(trade.getFeeAmount())
+                .tradePrice(trade.getTradePrice())
+                .tradeQuantity(trade.getTradeQuantity())
+                .sellerId(trade.getSeller().getMemberId())
+                .buyerId(trade.getBuyer().getMemberId())
+                .sellerName(trade.getBuyer().getMemberName())
+                .buyerName(trade.getBuyer().getMemberName())
+                .settlementStatus(String.valueOf(trade.getSettlementStatus()))
+                .totalTradePrice(trade.getTotalTradePrice())
+                .executedAt(trade.getExecutedAt())
+                .createdAt(trade.getCreatedAt())
+                .tokenId(trade.getToken().getTokenId())
+                .tokenName(trade.getToken().getTokenName())
+                .build();
+    }
+
+    // 대시보드 토큰 리스트 entity -> dto변환
+    public DashBoardTokenList toDashBoardTokenList(Token token, Long currentQuantity){
+        return DashBoardTokenList.builder()
+                .tokenId(token.getTokenId())
+                .tokenSymbol(token.getTokenSymbol())
+                .tokenName(token.getTokenName())
+                .totalSupply(token.getTotalSupply())
+                .holdingSupply(token.getTotalSupply() - token.getCirculatingSupply())
+                .currentQuantity(currentQuantity)
                 .build();
     }
 }

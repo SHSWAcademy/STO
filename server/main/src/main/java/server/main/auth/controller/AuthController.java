@@ -1,5 +1,6 @@
 package server.main.auth.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,8 +30,9 @@ public class AuthController {
     }
 
     @PostMapping("/member/login")
-    public ResponseEntity<LoginResponse> memberLogin(@Valid @RequestBody MemberLoginRequest request) {
-        return ResponseEntity.ok(authService.memberLogin(request));
+    public ResponseEntity<LoginResponse> memberLogin(@Valid @RequestBody MemberLoginRequest request,
+                                                        HttpServletRequest httpServletRequest) {
+        return ResponseEntity.ok(authService.memberLogin(request, httpServletRequest));
     }
 
     @PostMapping("/admin/login")

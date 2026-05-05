@@ -1,19 +1,19 @@
 package server.main.global.util;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import server.main.order.dto.MatchOrderRequestDto;
 import server.main.order.dto.MatchResultDto;
 import server.main.order.dto.UpdateMatchOrderRequestDto;
 
-import java.util.Map;
-
-
-// main -> match 로 전달
+// main -> match 전달
 @Component
-@RequiredArgsConstructor
 public class MatchClient {
 
     @Value("${match.server.url}")
@@ -21,29 +21,40 @@ public class MatchClient {
 
     private final RestTemplate restTemplate;
 
-    // 상세 페이지로 들어올 때 호가창 정보를 먼저 매치 서버에서 받아와야 한다 (현재까지의 호가 상태 스냅샷 받아오기)
-    // 웹소켓이 있어도 해당 로직이 없으면 상세 페이지 접속 후 첫 호가가 일어나기 전까지 호가 상태를 조회할 수 없다
+    public MatchClient(@Qualifier("matchRestTemplate") RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
     public String getOrderBookSnapshot(Long tokenId) {
-        String url = matchServerUrl + "/internal/orderBook/" + tokenId;
-        return restTemplate.getForObject(url, String.class);
+        String url = matchServerUrl + "/internal/orders/" + tokenId;
+        String snapshot = restTemplate.getForObject(url, String.class);
+        if (!StringUtils.hasText(snapshot)) {
+            throw new RestClientException("match server returned empty orderbook snapshot. tokenId=" + tokenId);
+        }
+        return snapshot;
     }
 
-
-    // 주문 생성
     public MatchResultDto sendOrder(MatchOrderRequestDto dto) {
-        return restTemplate.postForObject(matchServerUrl + "/internal/orders", dto, MatchResultDto.class);
+        MatchResultDto body = restTemplate.postForObject(matchServerUrl + "/internal/orders", dto, MatchResultDto.class);
+        if (body == null) {
+            throw new RestClientException("match server response body was null. orderId=" + dto.getOrderId());
+        }
+        return body;
     }
 
-
-    // 수정 시 match에 던지는 파라미터, orderId, sequence 만 던지는 것이 아니라 updatePrice, updateQuantity도 같이 던집니다 !!! (혹시 필요없다면 말씀해주세요)
-    public void updateOrder(UpdateMatchOrderRequestDto dto) {
+    public MatchResultDto updateOrder(UpdateMatchOrderRequestDto dto) {
         String url = matchServerUrl + "/internal/orders/" + dto.getOrderId();
-        restTemplate.put(url, dto);
+        MatchResultDto body = restTemplate.exchange(
+                url, HttpMethod.PUT, new HttpEntity<>(dto), MatchResultDto.class
+        ).getBody();
+        if (body == null) {
+            throw new RestClientException("match server response body was null. orderId=" + dto.getOrderId());
+        }
+        return body;
     }
 
-    // 주문 삭제 시 match 에게 전달, dto 말고 orderId만 던지는데 혹시 값 더 필요하다면 말씀해주세요!
-    public void cancelOrder(Long orderId) {
-        String url = matchServerUrl + "/internal/orders/" + orderId;
+    public void cancelOrder(Long orderId, Long tokenId) {
+        String url = matchServerUrl + "/internal/orders/" + orderId + "?tokenId=" + tokenId;
         restTemplate.delete(url);
     }
 }

@@ -1,12 +1,14 @@
 package server.main.token.repository;
 
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import server.main.token.entity.Token;
 
-import java.util.List;
-import java.util.Optional;
+import server.main.token.entity.Token;
+import server.main.token.entity.TokenStatus;
 
 public interface TokenRepository extends JpaRepository<Token, Long> , TokenRepositoryCustom {
 
@@ -22,5 +24,31 @@ public interface TokenRepository extends JpaRepository<Token, Long> , TokenRepos
     @Query("SELECT t FROM Token t JOIN FETCH t.asset a WHERE t.tokenStatus = 'TRADING' AND a.isAllocated = true ")
     List<Token> findAllTokensWithAssetAllocationList();
 
+    // 토큰테이블, 멤버 토큰 보유 테이블 조회 (admin)
+    @Query(""" 
+            SELECT t, COALESCE(SUM(h.currentQuantity + h.lockedQuantity), 0)  
+            FROM Token t 
+            LEFT JOIN MemberTokenHolding h ON h.token = t 
+            WHERE t.tokenStatus = 'TRADING' 
+            GROUP BY t 
+           """)
+    List<Object[]> findTradingTokensWithTotalHolding();
+
+    @Query("SELECT t FROM Token t JOIN FETCH t.asset a WHERE a.assetId = :assetId")
+    Optional<Token> findByAssetIdWithAsset(@Param("assetId") Long assetId);
+
+    @Query("SELECT t FROM Token t JOIN FETCH t.asset WHERE t.tokenStatus = 'TRADING'")
+    List<Token> findAllTradingTokensWithAsset();
+
     Long tokenId(Long tokenId);
+
+    List<Token> findAllByTokenStatus(TokenStatus tokenStatus);
+
+    //토큰 검색
+    @Query("SELECT t FROM Token t JOIN FETCH t.asset a " +
+            "WHERE t.tokenStatus = 'TRADING' " +
+            "AND (LOWER(t.tokenName) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(t.tokenSymbol) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    List<Token> findByKeyword(@Param("keyword") String keyword);
+
 }

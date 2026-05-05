@@ -8,15 +8,15 @@ import { useApp } from '../../context/AppContext.jsx';
 import { StoneLogo } from '../../components/ui/StoneLogo.jsx';
 
 const MENU_ITEMS = [
-  { icon: LayoutDashboard, label: '대시보드',        path: '/admin' },
-  { icon: Users,           label: '사용자 관리',      path: '/admin/users' },
-  { icon: TrendingUp,      label: '자산 관리',        path: '/admin/assets' },
-  { icon: BarChart3,       label: '플랫폼 수익/보유', path: '/admin/revenue' },
-  { icon: DollarSign,      label: '배당 관리',        path: '/admin/dividends' },
-  { icon: FileText,        label: '공지사항 관리',    path: '/admin/notices' },
-  { icon: FileText,        label: '공시 관리',        path: '/admin/content' },
-  { icon: Database,        label: '로그 관리',        path: '/admin/logs' },
-  { icon: Settings,        label: '시스템 설정',      path: '/admin/settings' },
+  { icon: LayoutDashboard, label: '대시보드',        path: '/admin-console' },
+  { icon: Users,           label: '사용자 관리',      path: '/admin-console/users' },
+  { icon: TrendingUp,      label: '자산 관리',        path: '/admin-console/assets' },
+  { icon: BarChart3,       label: '플랫폼 수익/보유', path: '/admin-console/revenue' },
+  { icon: DollarSign,      label: '배당 관리',        path: '/admin-console/dividends' },
+  { icon: FileText,        label: '공지사항 관리',    path: '/admin-console/notices' },
+  { icon: FileText,        label: '공시 관리',        path: '/admin-console/content' },
+  { icon: Database,        label: '로그 관리',        path: '/admin-console/logs' },
+  { icon: Settings,        label: '시스템 설정',      path: '/admin-console/settings' },
 ];
 
 export function AdminLayout() {
@@ -26,12 +26,12 @@ export function AdminLayout() {
 
   function handleLogout() {
     logout();
-    navigate('/');
+    navigate('/admin-console');
   }
 
-  // exact match for /admin, prefix match for sub-pages
+  // exact match for /admin-console, prefix match for sub-pages
   function isActive(path) {
-    if (path === '/admin') return location.pathname === '/admin';
+    if (path === '/admin-console') return location.pathname === '/admin-console';
     return location.pathname.startsWith(path);
   }
 

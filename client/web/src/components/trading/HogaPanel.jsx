@@ -1,5 +1,5 @@
-import { Target, CheckCircle, X } from 'lucide-react';
-import { HOGA_ASKS, HOGA_BIDS, HOGA_EXECUTIONS } from '../../data/mock.js';
+import { Target, CheckCircle } from 'lucide-react';
+import { HOGA_EXECUTIONS } from '../../data/mock.js';
 import { HogaRow } from './HogaRow.jsx';
 
 // HogaPanel — 호가창 (원본 middle column, w-[400px])
@@ -9,12 +9,12 @@ import { HogaRow } from './HogaRow.jsx';
 //   right(w-28): 통계 패널
 // bottom: 판매대기 / 구매대기 합계 바
 
-// 가격 대비 등락률 계산 기준가 (전일 종가 가정)
-const BASE_PRICE = 12160;
-const MAX_ASK_AMOUNT = Math.max(...HOGA_ASKS.map(r => r.amount));
-const MAX_BID_AMOUNT = Math.max(...HOGA_BIDS.map(r => r.amount));
-
-export function HogaPanel({ currentPrice }) {
+// asks/bids: 백엔드 OrderBookEventDto.PriceLevel { price, quantity }
+// lastTrade: { price, isBuy, key } — 체결 시 해당 가격 행 깜빡임 트리거
+export function HogaPanel({ currentPrice, asks = [], bids = [], lastTrade = null }) {
+  const BASE_PRICE = currentPrice || 1;
+  const MAX_ASK_AMOUNT = asks.length > 0 ? Math.max(...asks.map(r => r.quantity)) : 1;
+  const MAX_BID_AMOUNT = bids.length > 0 ? Math.max(...bids.map(r => r.quantity)) : 1;
   return (
     <div className="w-[400px] bg-[#ffffff] rounded-2xl border border-stone-200 flex flex-col overflow-hidden shadow-sm text-stone-800">
 
@@ -28,7 +28,6 @@ export function HogaPanel({ currentPrice }) {
         </div>
         <div className="flex gap-2">
           <button className="p-1 hover:text-stone-800 text-stone-400"><Target size={14} /></button>
-          <X size={14} className="text-stone-400 cursor-pointer hover:text-stone-800" />
         </div>
       </div>
 
@@ -57,14 +56,15 @@ export function HogaPanel({ currentPrice }) {
 
             {/* 매도호가 — 낮은 가격이 아래(현재가 인접), flex-col-reverse로 역순 */}
             <div className="flex flex-col-reverse">
-              {HOGA_ASKS.map((row, i) => (
+              {asks.map((row, i) => (
                 <HogaRow
                   key={`ask-${i}`}
                   price={row.price}
-                  amount={row.amount}
+                  amount={row.quantity}
                   changePercent={((row.price - BASE_PRICE) / BASE_PRICE) * 100}
                   side="ask"
                   maxAmount={MAX_ASK_AMOUNT}
+                  flashKey={lastTrade?.price === row.price ? lastTrade.key : undefined}
                 />
               ))}
             </div>
@@ -78,22 +78,20 @@ export function HogaPanel({ currentPrice }) {
                 <span className="text-xs font-black text-stone-800 font-mono tracking-tight">
                   {currentPrice.toLocaleString()}
                 </span>
-                <span className="text-[8px] font-bold text-brand-blue">
-                  {(((currentPrice - BASE_PRICE) / BASE_PRICE) * 100).toFixed(2)}%
-                </span>
               </div>
             </div>
 
             {/* 매수호가 */}
             <div className="flex flex-col">
-              {HOGA_BIDS.map((row, i) => (
+              {bids.map((row, i) => (
                 <HogaRow
                   key={`bid-${i}`}
                   price={row.price}
-                  amount={row.amount}
+                  amount={row.quantity}
                   changePercent={((row.price - BASE_PRICE) / BASE_PRICE) * 100}
                   side="bid"
                   maxAmount={MAX_BID_AMOUNT}
+                  flashKey={lastTrade?.price === row.price ? lastTrade.key : undefined}
                 />
               ))}
             </div>
@@ -125,11 +123,11 @@ export function HogaPanel({ currentPrice }) {
             </div>
             <div className="flex justify-between text-[8px] font-bold text-stone-400">
               <span>최고</span>
-              <span className="text-brand-red">{Math.max(...HOGA_ASKS.map(r => r.price)).toLocaleString()}</span>
+              <span className="text-brand-red">{asks.length > 0 ? Math.max(...asks.map(r => r.price)).toLocaleString() : '-'}</span>
             </div>
             <div className="flex justify-between text-[8px] font-bold text-stone-400">
               <span>최저</span>
-              <span className="text-brand-blue">{Math.min(...HOGA_BIDS.map(r => r.price)).toLocaleString()}</span>
+              <span className="text-brand-blue">{bids.length > 0 ? Math.min(...bids.map(r => r.price)).toLocaleString() : '-'}</span>
             </div>
           </div>
           <div className="h-px bg-stone-200" />
@@ -150,13 +148,13 @@ export function HogaPanel({ currentPrice }) {
         <div className="flex gap-2">
           <span className="text-stone-400">판매대기</span>
           <span className="text-brand-blue">
-            {HOGA_ASKS.reduce((s, r) => s + r.amount, 0).toLocaleString()}
+            {asks.reduce((s, r) => s + r.quantity, 0).toLocaleString()}
           </span>
         </div>
         <span className="text-stone-400">애프터마켓</span>
         <div className="flex gap-2">
           <span className="text-brand-red">
-            {HOGA_BIDS.reduce((s, r) => s + r.amount, 0).toLocaleString()}
+            {bids.reduce((s, r) => s + r.quantity, 0).toLocaleString()}
           </span>
           <span className="text-stone-400">구매대기</span>
         </div>

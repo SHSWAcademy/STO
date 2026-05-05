@@ -4,11 +4,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import server.main.candle.entity.CandleDay;
+import server.main.candle.repository.CandleDayRepository;
 import server.main.trade.dto.TradeResponseDto;
 import server.main.trade.entity.Trade;
 import server.main.trade.mapper.TradeMapper;
 import server.main.trade.repository.TradeRepository;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -18,32 +22,45 @@ import java.util.List;
 public class TradeServiceImpl implements TradeService {
     private final TradeRepository tradeRepository;
     private final TradeMapper tradeMapper;
+    private final CandleDayRepository candleDayRepository;
 
     @Override
     public List<TradeResponseDto> getTrades(Long tokenId) {
-        List<Trade> trades = tradeRepository.findTradeList(tokenId); // 50개 가져옴
+        LocalDateTime since = getDayBucket();
 
-        Long totalVolume = tradeRepository.sumDailyVolume(tokenId); // 오늘 거래된 누적 합 조회
+        List<Trade> trades = tradeRepository.findTradeList(tokenId, since);
+        Long totalVolume = tradeRepository.sumDailyVolume(tokenId, since);
+        Long totalTradeValue = tradeRepository.sumDailyTradeValue(tokenId, since);
 
         List<TradeResponseDto> dtos =
                 trades.stream().map(tradeMapper::toDto).toList();
 
-        // 등락률 계산 : (이번 체결가 - 이전 체결가) / 이전 체결가       곱하기 100
-        for (int i = 0; i < dtos.size(); i++) {
-            if (i < trades.size() - 1) { // 가장 첫번째 값이 아닐 경우
-                long current = trades.get(i).getTradePrice();   // 이번 체결가
-                long previous = trades.get(i + 1).getTradePrice();  // 이전 체결가
+        // 등락률 계산 : (체결가 - 전날 종가) / 전날 종가 × 100
+        Long yesterdayClose = candleDayRepository.findLatestBefore(tokenId, since)
+                .map(CandleDay::getClosePrice)
+                .orElse(null);
 
-                double change = (double)(current - previous) / previous * 100;
-
-                dtos.get(i).setPercentageChange(Math.round(change * 100.0) / 100.0);
+        for (TradeResponseDto dto : dtos) {
+            if (yesterdayClose != null && yesterdayClose > 0) {
+                double change = (double)(dto.getTradePrice() - yesterdayClose) / yesterdayClose * 100;
+                dto.setPercentageChange(Math.round(change * 100.0) / 100.0);
             } else {
-                dtos.get(i).setPercentageChange(0.0); // 첫 번째 체결 등락률 = 0.0
+                dto.setPercentageChange(0.0);
             }
         }
 
-        // 총 체결량
-        dtos.forEach(dto -> dto.setTotalVolume(totalVolume));
+        // 당일 누적 거래량 / 거래대금
+        dtos.forEach(dto -> {
+            dto.setTotalVolume(totalVolume);
+            dto.setTotalTradeValue(totalTradeValue);
+        });
         return dtos;
+    }
+
+    private LocalDateTime getDayBucket() {
+        LocalDateTime now = LocalDateTime.now();
+        return now.getHour() >= 9
+                ? LocalDate.now().atTime(9, 0)
+                : LocalDate.now().minusDays(1).atTime(9, 0);
     }
 }

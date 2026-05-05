@@ -1,87 +1,129 @@
-import { useState } from 'react';
-import { Bell, ChevronRight, Filter, FileText, Download, TrendingUp } from 'lucide-react';
+﻿import { useEffect, useState } from 'react';
+import { Bell, ChevronRight, Filter, LoaderCircle } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 import { TabSwitcher } from '../components/ui/TabSwitcher.jsx';
 import { SearchInput } from '../components/ui/SearchInput.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
+import api from '../lib/api.js';
 
-const NOTICES = [
-  { id: 1, title: '3월 21일 서비스 점검 및 시스템 고도화 안내',   date: '2026.03.20', category: '시스템', important: true,  desc: '안정적인 서비스 제공을 위해 시스템 점검이 진행될 예정입니다.' },
-  { id: 3, title: '신규 STO 자산 상장 안내 (강남 오피스 빌딩 A)', date: '2026.03.18', category: '일반',   important: false, desc: '새로운 부동산 STO 자산이 상장되었습니다.' },
-  { id: 5, title: '개인정보 처리방침 개정 안내',                   date: '2026.03.15', category: '일반',   important: false, desc: '개인정보 처리방침이 일부 개정되었습니다.' },
-  { id: 6, title: 'STONE 플랫폼 베타 서비스 오픈 이벤트',          date: '2026.03.10', category: '일반',   important: true,  desc: '베타 서비스 오픈 기념 다양한 이벤트를 확인하세요.' },
-  { id: 7, title: '보안 강화를 위한 2단계 인증(2FA) 설정 권고',   date: '2026.03.05', category: '시스템', important: false, desc: '안전한 거래를 위해 2단계 인증을 설정해주세요.' },
-];
+const NOTICE_TABS = ['전체', '일반', '시스템'];
+const NOTICE_LABEL = {
+  GENERAL: '일반',
+  SYSTEM: '시스템',
+};
+
+function formatDate(value) {
+  if (!value) return '-';
+  return new Date(value).toLocaleDateString('ko-KR');
+}
 
 export function NoticePage() {
-  const [activeTab, setActiveTab]           = useState('전체');
-  const [searchQuery, setSearchQuery]       = useState('');
+  const [activeTab, setActiveTab] = useState('전체');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [items, setItems] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [selectedNotice, setSelectedNotice] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
-  const tabs = ['전체', '일반', '시스템'];
+  useEffect(() => {
+    let mounted = true;
 
-  const filtered = NOTICES.filter(n => {
-    const matchesTab    = activeTab === '전체' || n.category === activeTab;
-    const matchesSearch = n.title.toLowerCase().includes(searchQuery.toLowerCase());
+    async function loadNotices() {
+      setLoading(true);
+      try {
+        const { data } = await api.get('/api/notice', {
+          params: { page, size: 10 },
+        });
+
+        if (!mounted) return;
+        setItems(Array.isArray(data?.content) ? data.content : []);
+        setTotalPages(Math.max(data?.totalPages ?? 1, 1));
+      } catch (error) {
+        console.error('[NoticePage] 목록 조회 실패:', error);
+        if (!mounted) return;
+        setItems([]);
+        setTotalPages(1);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadNotices();
+    return () => {
+      mounted = false;
+    };
+  }, [page]);
+
+  const filteredItems = items.filter((item) => {
+    const typeLabel = NOTICE_LABEL[item.noticeType] ?? '일반';
+    const keyword = searchQuery.trim().toLowerCase();
+    const matchesTab = activeTab === '전체' || typeLabel === activeTab;
+    const matchesSearch =
+      keyword.length === 0 ||
+      String(item.noticeTitle ?? '').toLowerCase().includes(keyword) ||
+      String(item.noticeContent ?? '').toLowerCase().includes(keyword);
+
     return matchesTab && matchesSearch;
   });
 
-  // 상세 보기
+  async function handleSelectNotice(notice) {
+    setDetailLoading(true);
+    try {
+      const { data } = await api.get(`/api/notice/${notice.noticeId}`);
+      setSelectedNotice({
+        noticeId: notice.noticeId,
+        noticeType: data.noticeType,
+        noticeTitle: data.noticeTitle,
+        noticeContent: data.noticeContent,
+        createdAt: data.createdAt,
+      });
+    } catch (error) {
+      console.error('[NoticePage] 상세 조회 실패:', error);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
   if (selectedNotice) {
+    const typeLabel = NOTICE_LABEL[selectedNotice.noticeType] ?? '일반';
     return (
-      <div className="max-w-[800px] mx-auto space-y-8">
+      <div className="mx-auto max-w-[800px] space-y-8">
         <button
+          type="button"
           onClick={() => setSelectedNotice(null)}
-          className="flex items-center gap-2 text-stone-400 hover:text-stone-800 transition-colors font-bold text-sm"
+          className="flex items-center gap-2 text-sm font-bold text-stone-400 transition-colors hover:text-stone-800"
         >
           <ChevronRight className="rotate-180" size={18} /> 목록으로 돌아가기
         </button>
 
-        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
-          <div className="p-8 border-b border-stone-200">
-            <div className="flex items-center gap-3 mb-4">
-              <Badge variant={selectedNotice.category !== '시스템' && selectedNotice.important ? 'gold' : 'muted'}>
-                {selectedNotice.category}
-              </Badge>
-              <span className="text-[10px] font-bold text-stone-400 font-mono">
-                {selectedNotice.date}
+        <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+          <div className="border-b border-stone-200 p-8">
+            <div className="mb-4 flex items-center gap-3">
+              <Badge variant={typeLabel === '시스템' ? 'muted' : 'gold'}>{typeLabel}</Badge>
+              <span className="font-mono text-[10px] font-bold text-stone-400">
+                {formatDate(selectedNotice.createdAt)}
               </span>
             </div>
-            <h2 className="text-2xl font-black text-stone-800 leading-tight">
-              {selectedNotice.title}
+            <h2 className="text-2xl font-black leading-tight text-stone-800">
+              {selectedNotice.noticeTitle}
             </h2>
           </div>
 
-          <div className="p-8 space-y-6">
-            <div className="text-stone-500 leading-relaxed font-medium">
-              {selectedNotice.desc}
-              <br /><br />
-              안녕하세요, STONE입니다.<br /><br />
-              항상 저희 서비스를 이용해 주시는 고객님께 깊은 감사의 말씀을 드립니다.
-              본 공지사항을 통해 안내드리는 내용을 확인하시어 서비스 이용에 참고하시기 바랍니다.
-              <br /><br />
-              [주요 내용]<br />
-              - 일시: {selectedNotice.date}<br />
-              - 대상: 전체 서비스 이용자<br />
-              - 상세: {selectedNotice.desc}
-              <br /><br />
-              더욱 안정적이고 편리한 서비스를 제공하기 위해 최선을 다하겠습니다.
-              감사합니다.
+          <div className="space-y-6 p-8">
+            <div className="whitespace-pre-wrap leading-relaxed text-stone-600">
+              {selectedNotice.noticeContent}
             </div>
 
-            <div className="pt-8 border-t border-stone-200 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-100 text-stone-500 text-xs font-bold hover:bg-stone-200 transition-all">
-                  <FileText size={14} /> 첨부파일.pdf
-                </button>
-                <button className="p-2 rounded-xl bg-stone-100 text-stone-400 hover:text-stone-600 transition-all">
-                  <Download size={18} />
-                </button>
-              </div>
+            <div className="flex items-center justify-end border-t border-stone-200 pt-8">
               <button
+                type="button"
                 onClick={() => setSelectedNotice(null)}
-                className="px-6 py-2 rounded-xl bg-stone-800 text-white text-xs font-black uppercase tracking-widest shadow-lg hover:bg-black transition-all"
+                className="rounded-xl bg-stone-800 px-6 py-2 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all hover:bg-black"
               >
                 확인 완료
               </button>
@@ -92,64 +134,73 @@ export function NoticePage() {
     );
   }
 
-  // 목록
   return (
-    <div className="max-w-[1000px] mx-auto space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="mx-auto max-w-[1000px] space-y-8">
+      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div>
-          <h2 className="text-3xl font-black text-stone-800 tracking-tight uppercase">
+          <h2 className="text-3xl font-black tracking-tight text-stone-800 uppercase">
             공지사항
           </h2>
-          <p className="text-sm text-stone-500 font-bold mt-2">
-            STONE 플랫폼의 새로운 소식을 전해드립니다.
+          <p className="mt-2 text-sm font-bold text-stone-500">
+            서비스 운영과 점검 관련 안내를 확인하세요.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="제목 검색..." />
-          <button className="p-2.5 rounded-2xl bg-stone-100 border border-stone-200 text-stone-400 hover:text-stone-800 transition-all">
+          <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="공지 제목 검색" />
+          <button className="rounded-2xl border border-stone-200 bg-stone-100 p-2.5 text-stone-400 transition-all hover:text-stone-800">
             <Filter size={20} />
           </button>
         </div>
       </div>
 
-      <TabSwitcher variant="pill" items={tabs} active={activeTab} onChange={setActiveTab} />
+      <TabSwitcher variant="pill" items={NOTICE_TABS} active={activeTab} onChange={setActiveTab} />
 
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
         <div className="divide-y divide-stone-100">
-          {filtered.length > 0 ? (
-            filtered.map(notice => (
-              <div
-                key={notice.id}
-                onClick={() => setSelectedNotice(notice)}
-                className="group p-6 hover:bg-stone-50 transition-all cursor-pointer"
-              >
-                <div className="flex items-start justify-between gap-6">
-                  <div className="flex items-start gap-6">
-                    <div className={cn(
-                      'w-12 h-12 rounded-2xl flex items-center justify-center transition-all shrink-0',
-                      notice.important
-                        ? 'bg-stone-800 text-white shadow-lg'
-                        : 'bg-stone-100 text-stone-400 group-hover:bg-stone-200'
-                    )}>
-                      {notice.category === '배당' ? <TrendingUp size={20} /> : <Bell size={20} />}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <Badge variant={notice.category !== '시스템' && notice.important ? 'gold' : 'muted'}>
-                          {notice.category}
-                        </Badge>
-                        <span className="text-[10px] font-bold text-stone-400 font-mono">{notice.date}</span>
+          {loading ? (
+            <EmptyState message="공지사항을 불러오는 중입니다." className="m-4" />
+          ) : filteredItems.length > 0 ? (
+            filteredItems.map((notice) => {
+              const typeLabel = NOTICE_LABEL[notice.noticeType] ?? '일반';
+              return (
+                <div
+                  key={notice.noticeId}
+                  onClick={() => handleSelectNotice(notice)}
+                  className="group cursor-pointer p-6 transition-all hover:bg-stone-50"
+                >
+                  <div className="flex items-start justify-between gap-6">
+                    <div className="flex items-start gap-6">
+                      <div
+                        className={cn(
+                          'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-all',
+                          typeLabel === '시스템'
+                            ? 'bg-stone-800 text-white shadow-lg'
+                            : 'bg-stone-100 text-stone-400 group-hover:bg-stone-200',
+                        )}
+                      >
+                        <Bell size={20} />
                       </div>
-                      <h3 className="text-base font-bold text-stone-800 group-hover:text-stone-600 transition-colors mb-2">
-                        {notice.title}
-                      </h3>
-                      <p className="text-sm text-stone-500 line-clamp-1">{notice.desc}</p>
+                      <div>
+                        <div className="mb-1 flex items-center gap-3">
+                          <Badge variant={typeLabel === '시스템' ? 'muted' : 'gold'}>{typeLabel}</Badge>
+                          <span className="font-mono text-[10px] font-bold text-stone-400">
+                            {formatDate(notice.createdAt)}
+                          </span>
+                        </div>
+                        <h3 className="mb-2 text-base font-bold text-stone-800 transition-colors group-hover:text-stone-600">
+                          {notice.noticeTitle}
+                        </h3>
+                        <p className="line-clamp-1 text-sm text-stone-500">{notice.noticeContent}</p>
+                      </div>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-stone-400 transition-colors group-hover:text-stone-600">
+                      {detailLoading && selectedNotice === null ? <LoaderCircle size={16} className="animate-spin" /> : null}
+                      <ChevronRight size={20} />
                     </div>
                   </div>
-                  <ChevronRight className="text-stone-400 group-hover:text-stone-600 transition-colors mt-1" size={20} />
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <EmptyState message="검색 결과가 없습니다." className="m-4" />
           )}
@@ -157,17 +208,19 @@ export function NoticePage() {
       </div>
 
       <div className="flex justify-center gap-2">
-        {[1, 2, 3].map(p => (
+        {Array.from({ length: totalPages }, (_, index) => index).map((value) => (
           <button
-            key={p}
+            key={value}
+            type="button"
+            onClick={() => setPage(value)}
             className={cn(
-              'w-10 h-10 rounded-xl font-bold text-xs transition-all',
-              p === 1
+              'h-10 w-10 rounded-xl text-xs font-bold transition-all',
+              value === page
                 ? 'bg-stone-800 text-white shadow-lg'
-                : 'bg-white border border-stone-200 text-stone-400 hover:text-stone-800 hover:bg-stone-100'
+                : 'border border-stone-200 bg-white text-stone-400 hover:bg-stone-100 hover:text-stone-800',
             )}
           >
-            {p}
+            {value + 1}
           </button>
         ))}
       </div>

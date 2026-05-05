@@ -3,6 +3,7 @@ import {
   ArrowRight,
   FileText,
   Image as ImageIcon,
+  LoaderCircle,
   MapPinned,
   Upload,
 } from "lucide-react";
@@ -33,6 +34,12 @@ const EMPTY_FORM = {
   imageFile: null,
   pdfFile: null,
 };
+
+const SAVING_MESSAGES = [
+  "자산 등록 요청을 처리하고 있습니다.",
+  "블록체인 컨트랙트를 배포하고 있습니다.",
+  "배포 결과를 시스템에 반영하고 있습니다.",
+];
 
 function calcTotalSupply(totalValue, initPrice) {
   const total = Number(String(totalValue).replace(/,/g, ""));
@@ -91,6 +98,33 @@ function SelectInput({ value, onChange, options }) {
   );
 }
 
+function FileTrigger({
+  icon: Icon,
+  fileName,
+  helperText,
+  accept,
+  onChange,
+}) {
+  return (
+    <label className="flex w-full cursor-pointer items-center gap-3 overflow-hidden rounded-md border border-dashed border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-600 transition-colors hover:border-brand-blue hover:text-brand-blue">
+      <Icon className="h-4 w-4 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-stone-700">{fileName}</p>
+        <p className="truncate text-[11px] text-stone-400">{helperText}</p>
+      </div>
+      <span className="shrink-0 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-500">
+        파일 선택
+      </span>
+      <input
+        type="file"
+        accept={accept}
+        onChange={(e) => onChange(e.target.files?.[0])}
+        className="sr-only"
+      />
+    </label>
+  );
+}
+
 function loadDaumPostcodeScript() {
   const existingScript = document.querySelector(
     'script[src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"]',
@@ -109,8 +143,7 @@ function loadDaumPostcodeScript() {
     script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () =>
-      reject(new Error("다음 주소 검색 스크립트를 불러오지 못했습니다."));
+    script.onerror = () => reject(new Error("다음 주소 검색 스크립트를 불러오지 못했습니다."));
     document.head.appendChild(script);
   });
 }
@@ -119,6 +152,7 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitError, setSubmitError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savingMessageIndex, setSavingMessageIndex] = useState(0);
   const [imagePreviewSrc, setImagePreviewSrc] = useState(null);
   const [addressLoading, setAddressLoading] = useState(false);
 
@@ -158,6 +192,19 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
     setImagePreviewSrc(objectUrl);
     return () => URL.revokeObjectURL(objectUrl);
   }, [form.imageFile, form.imgUrl]);
+
+  useEffect(() => {
+    if (!saving) {
+      setSavingMessageIndex(0);
+      return undefined;
+    }
+
+    const interval = window.setInterval(() => {
+      setSavingMessageIndex((prev) => (prev + 1) % SAVING_MESSAGES.length);
+    }, 2200);
+
+    return () => window.clearInterval(interval);
+  }, [saving]);
 
   function set(key, value) {
     setForm((prev) => {
@@ -262,12 +309,13 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
   const holdingReadOnly = !isNew;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 overflow-x-hidden">
+    <form onSubmit={handleSubmit} className="relative space-y-8 overflow-x-hidden">
       <div className="flex items-center gap-4">
         <button
           type="button"
           onClick={onBack}
-          className="rounded-md border border-stone-200 bg-white p-2 text-stone-400 transition-colors hover:text-stone-800"
+          disabled={saving}
+          className="rounded-md border border-stone-200 bg-white p-2 text-stone-400 transition-colors hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <ArrowRight className="h-5 w-5 rotate-180" />
         </button>
@@ -276,7 +324,9 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
             {isNew ? "신규 자산 등록" : "자산 정보 수정"}
           </h2>
           <p className="text-sm text-stone-400">
-            {isNew ? "새 자산 정보를 입력합니다" : `${detail?.assetName} (${detail?.tokenSymbol})`}
+            {isNew
+              ? "자산 정보와 첨부 파일을 입력해 등록을 완료하세요."
+              : `${detail?.assetName ?? "선택한 자산"} (${detail?.tokenSymbol ?? "-"}) 정보를 수정합니다.`}
           </p>
         </div>
       </div>
@@ -295,26 +345,23 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
                 ) : (
                   <div className="flex flex-col items-center gap-2 text-stone-400">
                     <ImageIcon className="h-6 w-6" />
-                    <p className="text-xs">이미지 파일을 선택하면 미리보기가 표시됩니다</p>
+                    <p className="text-xs">이미지 파일을 선택하면 미리보기가 표시됩니다.</p>
                   </div>
                 )}
               </div>
-              <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-600 transition-colors hover:border-brand-blue hover:text-brand-blue">
-                <Upload className="h-4 w-4 shrink-0" />
-                <span className="truncate">{form.imageFile?.name ?? form.imgUrl ?? "이미지 파일 선택"}</span>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg"
-                  onChange={(e) => handleFileChange("imageFile", e.target.files?.[0])}
-                  className="sr-only"
-                />
-              </label>
+              <FileTrigger
+                icon={Upload}
+                fileName={form.imageFile?.name ?? form.imgUrl ?? "이미지 파일 선택"}
+                helperText="PNG, JPG 형식의 대표 이미지를 업로드하세요."
+                accept="image/png,image/jpeg,image/jpg"
+                onChange={(file) => handleFileChange("imageFile", file)}
+              />
             </Field>
 
             <Field label="자산명">
               <TextInput
                 value={form.assetName}
-                placeholder="강남 오피스 빌딩 A"
+                placeholder="강남 스피어 빌딩 A"
                 onChange={(e) => set("assetName", e.target.value)}
               />
             </Field>
@@ -331,7 +378,7 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
                 <button
                   type="button"
                   onClick={handleAddressSearch}
-                  disabled={addressLoading}
+                  disabled={addressLoading || saving}
                   className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-stone-200 bg-white px-4 py-3 text-sm font-medium text-stone-700 transition-colors hover:border-brand-blue hover:text-brand-blue disabled:opacity-60"
                 >
                   <MapPinned className="h-4 w-4" />
@@ -344,16 +391,13 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
             </Field>
 
             <Field label="첨부 파일 (보고서 PDF)">
-              <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-stone-300 bg-stone-100 px-4 py-3 text-sm text-stone-600 transition-colors hover:border-brand-blue hover:text-brand-blue">
-                <FileText className="h-4 w-4 shrink-0" />
-                <span className="truncate">{form.pdfFile?.name ?? form.originName ?? "PDF 파일 선택"}</span>
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(e) => handleFileChange("pdfFile", e.target.files?.[0])}
-                  className="sr-only"
-                />
-              </label>
+              <FileTrigger
+                icon={FileText}
+                fileName={form.pdfFile?.name ?? form.originName ?? "PDF 파일 선택"}
+                helperText="공시 또는 보고서 PDF를 첨부하세요."
+                accept="application/pdf"
+                onChange={(file) => handleFileChange("pdfFile", file)}
+              />
             </Field>
           </div>
 
@@ -363,7 +407,11 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
             </h3>
 
             <Field label="토큰명">
-              <TextInput value={form.tokenName} placeholder="자산명을 입력하면 자동 설정됩니다" readOnly />
+              <TextInput
+                value={form.tokenName}
+                placeholder="자산명을 입력하면 자동 설정됩니다."
+                readOnly
+              />
             </Field>
 
             <Field label="토큰 심볼">
@@ -413,7 +461,7 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
             <Field label="총 공급량 (자동 계산)">
               <TextInput value={`${totalSupply.toLocaleString()} ST`} readOnly />
               <p className="mt-1 text-[10px] text-stone-400">
-                * 자산 총 금액 ÷ 토큰 발행가로 자동 계산됩니다
+                자산 총 금액과 토큰 발행가를 기준으로 자동 계산됩니다.
               </p>
             </Field>
           </div>
@@ -479,7 +527,7 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
 
             {holdingReadOnly && (
               <p className="text-[10px] text-stone-400">
-                * 수정 시 플랫폼 보유 방식과 보유 수량은 읽기 전용입니다.
+                수정 시 플랫폼 보유 방식과 보유 수량은 읽기 전용입니다.
               </p>
             )}
 
@@ -487,7 +535,7 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
               {[
                 ["총 공급량", `${totalSupply.toLocaleString()} ST`],
                 ["플랫폼 보유량", `${holdingSupply.toLocaleString()} ST`],
-                ["일반 판매 가능량", `${available.toLocaleString()} ST`],
+                ["일반 매물 가능량", `${available.toLocaleString()} ST`],
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between gap-4">
                   <span className="text-xs font-medium text-stone-400">{label}</span>
@@ -507,20 +555,42 @@ export function AssetForm({ detail, isNew, onBack, onSave }) {
             <button
               type="button"
               onClick={onBack}
-              className="flex-1 rounded-md border border-stone-200 bg-white py-4 text-sm font-medium text-stone-400 transition-colors hover:bg-stone-100"
+              disabled={saving}
+              className="flex-1 rounded-md border border-stone-200 bg-white py-4 text-sm font-medium text-stone-400 transition-colors hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
               취소
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-[2] rounded-md bg-brand-blue py-4 text-sm font-medium text-white transition-colors hover:bg-brand-blue-dk"
+              className="flex-[2] rounded-md bg-brand-blue py-4 text-sm font-medium text-white transition-colors hover:bg-brand-blue-dk disabled:cursor-wait disabled:opacity-80"
             >
               {saving ? "저장 중..." : isNew ? "자산 등록" : "변경사항 저장"}
             </button>
           </div>
         </div>
       </div>
+
+      {saving && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-stone-950/55 px-6 backdrop-blur-[2px]">
+          <div className="w-full max-w-md rounded-2xl border border-white/15 bg-white px-8 py-7 text-center shadow-2xl">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-blue/10 text-brand-blue">
+              <LoaderCircle className="h-8 w-8 animate-spin" />
+            </div>
+            <h3 className="mt-5 text-lg font-black text-stone-800">
+              {isNew ? "블록체인 배포 진행 중" : "자산 정보 반영 중"}
+            </h3>
+            <p className="mt-2 text-sm font-medium leading-relaxed text-stone-500">
+              {isNew ? SAVING_MESSAGES[savingMessageIndex] : "변경사항을 저장하고 있습니다."}
+            </p>
+            {isNew && (
+              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">
+                CONTRACT DEPLOYMENT
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </form>
   );
 }

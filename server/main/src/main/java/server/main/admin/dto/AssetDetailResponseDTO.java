@@ -24,7 +24,7 @@ public class AssetDetailResponseDTO {
     private String tokenName;
     private String tokenSymbol;
     private Long initPrice;
-    private Double currentPrice;
+    private Long currentPrice;
     private Long circulatingSupply;
     private TokenStatus tokenStatus;
     private LocalDateTime issuedAt;

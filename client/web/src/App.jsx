@@ -5,14 +5,19 @@ import { AuthPage }             from './pages/AuthPage.jsx';
 import { TradingPage }          from './pages/TradingPage.jsx';
 import { DashboardPage }        from './pages/DashboardPage.jsx';
 import { MyAccountPage }        from './pages/MyAccountPage.jsx';
-import { WatchlistPage }        from './pages/WatchlistPage.jsx';
+import { LikesPage }            from './pages/LikesPage.jsx';
 import { DisclosurePage }       from './pages/DisclosurePage.jsx';
 import { NoticePage }           from './pages/NoticePage.jsx';
-import { MockupPage }           from './pages/MockupPage.jsx';
+import { TokenDetailPage }      from './pages/TokenDetailPage.jsx';
+import { AboutPage }            from './pages/AboutPage.jsx';
+import { TermsPage }            from './pages/TermsPage.jsx';
+import { PrivacyPage }          from './pages/PrivacyPage.jsx';
+import { AppFooter }            from './components/AppFooter.jsx';
 
 // Admin
 import { AdminLayout }          from './pages/admin/AdminLayout.jsx';
 import { AdminDashboard }       from './pages/admin/AdminDashboard.jsx';
+import { RealtimeSettlementPage } from './pages/admin/RealtimeSettlementPage.jsx';
 import { UserManagement }       from './pages/admin/UserManagement.jsx';
 import { AssetManagement }      from './pages/admin/asset';
 import { PlatformRevenue }      from './pages/admin/PlatformRevenue.jsx';
@@ -21,6 +26,7 @@ import { NoticeManagement }     from './pages/admin/notice/index.jsx';
 import { DisclosureManagement } from './pages/admin/disclosure/index.jsx';
 import { SystemLogs }           from './pages/admin/SystemLogs.jsx';
 import { SystemSettings }       from './pages/admin/SystemSettings.jsx';
+import { AdminLoginPage }       from './pages/admin/AdminLoginPage.jsx';
 
 // 일반 페이지 공통 패딩 래퍼
 function PageWrapper({ children }) {
@@ -34,22 +40,23 @@ function PageWrapper({ children }) {
 // 일반 유저 레이아웃 (AppHeader + Outlet)
 function MainLayout() {
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-800">
+    <div className="flex min-h-screen flex-col bg-stone-100 text-stone-800">
       <AppHeader />
-      <main>
+      <main className="flex-1">
         <Outlet />
       </main>
+      <AppFooter />
     </div>
   );
 }
 
-// MockupPage 전용 독립 레이아웃 (비로그인 접근 가능)
-function MockupLayout() {
+// TokenDetailPage 전용 독립 레이아웃 (비로그인 접근 가능)
+function TokenDetailLayout() {
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-800">
+    <div className="h-screen overflow-hidden bg-stone-100 text-stone-800 flex flex-col">
       <AppHeader />
-      <main>
-        <MockupPage />
+      <main className="flex-1 min-h-0 overflow-hidden">
+        <TokenDetailPage />
       </main>
     </div>
   );
@@ -61,11 +68,21 @@ function Auth({ children }) {
   return user ? children : <AuthPage />;
 }
 
+function AdminAuth({ children }) {
+  const { user } = useApp();
+  return user?.role === 'admin' ? children : <AdminLoginPage />;
+}
+
 function AppContent() {
   return (
     <Routes>
+      <Route
+        path="/admin-console/settlement-live"
+        element={<AdminAuth><RealtimeSettlementPage /></AdminAuth>}
+      />
+
       {/* 관리자 라우트 */}
-      <Route path="/admin" element={<Auth><AdminLayout /></Auth>}>
+      <Route path="/admin-console" element={<AdminAuth><AdminLayout /></AdminAuth>}>
         <Route index             element={<AdminDashboard />} />
         <Route path="users"     element={<UserManagement />} />
         <Route path="assets"    element={<AssetManagement />} />
@@ -78,17 +95,22 @@ function AppContent() {
       </Route>
 
       {/* 비로그인 접근 가능 — 독립 최상위 라우트 */}
-      <Route path="/token/:tokenId" element={<MockupLayout />} />
+      <Route path="/token/:tokenId" element={<TokenDetailLayout />} />
+      <Route path="/login" element={<AuthPage />} />
 
       {/* 로그인 필요 라우트 */}
       <Route element={<MainLayout />}>
-        <Route path="/"           element={<Auth><PageWrapper><DashboardPage /></PageWrapper></Auth>} />
-        <Route path="/trading"    element={<Auth><TradingPage /></Auth>} />
+        <Route path="/"           element={<DashboardPage />} />
+        <Route path="/trading"    element={<TradingPage />} />
         <Route path="/portfolio"  element={<Auth><PageWrapper><MyAccountPage /></PageWrapper></Auth>} />
-        <Route path="/watchlist"  element={<Auth><PageWrapper><WatchlistPage /></PageWrapper></Auth>} />
-        <Route path="/disclosure" element={<Auth><PageWrapper><DisclosurePage /></PageWrapper></Auth>} />
-        <Route path="/notice"     element={<Auth><PageWrapper><NoticePage /></PageWrapper></Auth>} />
-        <Route path="*"           element={<Auth><Navigate to="/" replace /></Auth>} />
+        <Route path="/likes"      element={<Auth><PageWrapper><LikesPage /></PageWrapper></Auth>} />
+        <Route path="/watchlist"  element={<Navigate to="/likes" replace />} />
+        <Route path="/about"      element={<PageWrapper><AboutPage /></PageWrapper>} />
+        <Route path="/disclosure" element={<PageWrapper><DisclosurePage /></PageWrapper>} />
+        <Route path="/notice"     element={<PageWrapper><NoticePage /></PageWrapper>} />
+        <Route path="/terms"      element={<PageWrapper><TermsPage /></PageWrapper>} />
+        <Route path="/privacy"    element={<PageWrapper><PrivacyPage /></PageWrapper>} />
+        <Route path="*"           element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

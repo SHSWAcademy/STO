@@ -11,6 +11,7 @@ import server.main.token.entity.Token;
 import server.main.token.entity.TokenStatus;
 import server.main.trade.entity.QTrade;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -26,7 +27,7 @@ public class TokenRepositoryImpl implements TokenRepositoryCustom {
     // TOTAL_TRADE_VALUE - 토큰 별 전체 거래 금액으로 정렬
     // TOTAL_TRADE_QUANTITY - 토큰 별 전체 거래 수량으로 정렬
     @Override
-    public List<Token> findAllBySelectType(int page, SelectType selectType) {
+    public List<Token> findAllBySelectType(int page, SelectType selectType, LocalDateTime tradeSince) {
         QToken token = QToken.token;
         QAsset asset = QAsset.asset;
         QTrade trade = QTrade.trade;
@@ -54,7 +55,10 @@ public class TokenRepositoryImpl implements TokenRepositoryCustom {
         List<Long> tokenIds = queryFactory
                 .select(token.tokenId)
                 .from(token)
-                .leftJoin(trade).on(trade.token.eq(token))
+                .leftJoin(trade).on(
+                        trade.token.eq(token),
+                        trade.executedAt.goe(tradeSince)
+                )
                 .where(token.tokenStatus.eq(TokenStatus.TRADING))
                 .groupBy(token.tokenId)
                 .orderBy(orderSpecifier, token.tokenId.asc()) // 총 거래 금액 or 수량 DESC 정렬, 동일할 경우 tokenId ASC 정렬

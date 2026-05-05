@@ -4,44 +4,42 @@ import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import server.main.myAccount.entity.Account;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
-@Table(name = "BANKINGS")
 @NoArgsConstructor
-@EntityListeners(AuditingEntityListener.class)
+@Table(name = "bankings")
 public class MemberBank {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "banking_id")
     private Long bankingId;
-
-    private Long bankingAmount;
-
-    private Long balanceSnapshot;
-
-    @Enumerated(value = EnumType.STRING)
-    private TxType txType;
-
-    @Enumerated(value = EnumType.STRING)
-    private TxStatus txStatus;
-
-    @CreatedDate
-    private LocalDateTime createdAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id")
     private Account account;
 
+    @Enumerated(EnumType.STRING)
+    private TxType txType;
+
+    @Enumerated(EnumType.STRING)
+    private TxStatus txStatus;
+
+    private Long bankingAmount;
+    private Long balanceSnapshot;
+    private LocalDateTime createdAt;
+
     @Builder
-    public MemberBank(Long bankingAmount, TxType txType, TxStatus txStatus, Long balanceSnapshot) {
-        this.bankingAmount = bankingAmount;
+    public MemberBank(Account account, TxType txType, TxStatus txStatus,
+                      Long bankingAmount, Long balanceSnapshot) {
+        this.account = account;
         this.txType = txType;
         this.txStatus = txStatus;
+        this.bankingAmount = bankingAmount;
         this.balanceSnapshot = balanceSnapshot;
+        this.createdAt = LocalDateTime.now();
     }
 }

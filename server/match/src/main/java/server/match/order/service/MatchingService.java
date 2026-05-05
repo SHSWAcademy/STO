@@ -1,21 +1,29 @@
 package server.match.order.service;
 
-import org.springframework.stereotype.Service;
-import server.match.order.dto.MatchResultDto;
-import server.match.order.dto.TradeExecutionDto;
-import server.match.order.entity.OrderStatus;
-import server.match.order.entity.OrderType;
-import server.match.order.model.Order;
-import server.match.order.model.OrderBook;
-
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 
+import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
+import server.match.global.redis.RedisPublisher;
+import server.match.order.dto.MatchResultDto;
+import server.match.order.dto.TradeEventDto;
+import server.match.order.dto.TradeExecutionDto;
+import server.match.order.entity.OrderStatus;
+import server.match.order.entity.OrderType;
+import server.match.order.model.Order;
+import server.match.order.model.OrderBook;
+
 @Service
+@RequiredArgsConstructor
 public class MatchingService {
+
+    private final RedisPublisher redisPublisher;
 
     public MatchResultDto match(Order incomingOrder, OrderBook orderBook) {
         List<TradeExecutionDto> executions = new ArrayList<>();
@@ -34,8 +42,38 @@ public class MatchingService {
 
                 Deque<Order> queue = bestEntry.getValue();
                 Order counterOrder = queue.peek();
+                if (counterOrder == null) {
+                    throw new IllegalStateException("Order book contains an empty price level at price: " + bestPrice);
+                }
 
-                long tradeQuantity = Math.min(incomingOrder.getRemainingQuantity(), counterOrder.getRemainingQuantity());
+//                // STP: 자기 자신과는 체결하지 않음
+//                if (incomingOrder.getMemberId().equals(counterOrder.getMemberId())) {
+//                    break;
+//                }
+
+                long incomingRemaining = incomingOrder.getRemainingQuantity();
+                long counterRemaining = counterOrder.getRemainingQuantity();
+                if (incomingRemaining <= 0 || counterRemaining <= 0) {
+                    throw new IllegalStateException(
+                            "Order book contains non-positive remaining quantity: tokenId="
+                                    + incomingOrder.getTokenId()
+                                    + ", incomingOrderId="
+                                    + incomingOrder.getOrderId()
+                                    + ", counterOrderId="
+                                    + counterOrder.getOrderId()
+                                    + ", price="
+                                    + bestPrice
+                                    + ", incomingRemaining="
+                                    + incomingRemaining
+                                    + ", counterRemaining="
+                                    + counterRemaining
+                    );
+                }
+
+                long tradeQuantity = Math.min(incomingRemaining, counterRemaining);
+                if (tradeQuantity <= 0) {
+                    throw new IllegalStateException("Trade quantity must be positive");
+                }
 
                 incomingOrder.reduceQuantity(tradeQuantity);
                 counterOrder.reduceQuantity(tradeQuantity);
@@ -48,14 +86,31 @@ public class MatchingService {
                         .tradeQuantity(tradeQuantity)
                         .build());
 
+                // 체결 1건 발생 → trades 채널로 publish
+                redisPublisher.publishTrade(TradeEventDto.builder()
+                        .tokenId(incomingOrder.getTokenId())
+                        .tradePrice(bestPrice)
+                        .tradeQuantity(tradeQuantity)
+                        .isBuy(OrderType.BUY.equals(incomingOrder.getOrderType()))
+                        .tradeTime(LocalDateTime.now())
+                        .build());
+
                 if (counterOrder.getRemainingQuantity() == 0) {
                     orderBook.removeOrder(counterOrder);
                 }
             }
 
-            if (incomingOrder.getRemainingQuantity() > 0) {
+            if (incomingOrder.getRemainingQuantity() == 0) {
+                // 전량 체결: 이미 오더북에 있던 주문이면 제거 (가격 동일 수정 케이스)
+                Order existingOrder = orderBook.findById(incomingOrder.getOrderId());
+                if (existingOrder != null) {
+                    orderBook.removeOrder(existingOrder);
+                }
+            } else if (orderBook.findById(incomingOrder.getOrderId()) == null) {
+                // 잔량 있고 오더북에 없을 때만 추가
                 orderBook.addOrder(incomingOrder);
             }
+            redisPublisher.publishOrderBook(orderBook);
         }
 
         OrderStatus finalStatus;
@@ -70,6 +125,7 @@ public class MatchingService {
         return MatchResultDto.builder()
                 .orderId(incomingOrder.getOrderId())
                 .tokenId(incomingOrder.getTokenId())
+                .orderSequence(incomingOrder.getSequence()) // FILLED면 null, OPEN/PARTIAL이면 부여된 번호
                 .finalStatus(finalStatus)
                 .filledQuantity(filledQuantity)
                 .remainingQuantity(incomingOrder.getRemainingQuantity())

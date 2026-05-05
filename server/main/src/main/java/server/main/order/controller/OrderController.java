@@ -1,19 +1,29 @@
 package server.main.order.controller;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.graphql.GraphQlProperties;
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import server.main.order.dto.OrderCapacityResponseDto;
+import server.main.order.dto.CancelOrderRequestDto;
 import server.main.order.dto.OrderRequestDto;
 import server.main.order.dto.PendingOrderResponseDto;
 import server.main.order.dto.UpdateOrderRequestDto;
+import server.main.order.service.OrderFacade;
 import server.main.order.service.OrderService;
-
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -21,12 +31,13 @@ import java.util.List;
 @Slf4j
 public class OrderController {
 
+    private final OrderFacade orderFacade;
     private final OrderService orderService;
 
     // 매수, 매도 요청
     @PostMapping("/{tokenId}/order")
     public ResponseEntity<Void> order(@PathVariable Long tokenId, @Validated @RequestBody OrderRequestDto dto) {
-        orderService.createOrder(tokenId, dto);
+        orderFacade.createOrder(tokenId, dto);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
@@ -47,15 +58,18 @@ public class OrderController {
 
     // 호가 수정
     @PutMapping("/order/update/{orderId}")
-    public ResponseEntity<Void> orderUpdate(@PathVariable Long orderId, @Validated @RequestBody UpdateOrderRequestDto dto) {
-        orderService.updateOrder(orderId, dto);
+    public ResponseEntity<Void> orderUpdate(@PathVariable Long orderId,
+            @Validated @RequestBody UpdateOrderRequestDto dto) {
+        orderFacade.updateOrder(orderId, dto);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build(); // 204 No Content
     }
 
     // 호가 삭제 (soft delete)
     @DeleteMapping("/order/cancel/{orderId}")
-    public ResponseEntity<Void> orderCancel(@PathVariable Long orderId) {
-        orderService.cancelOrder(orderId);
+    public ResponseEntity<Void> orderCancel(@PathVariable Long orderId,
+            @Validated @RequestBody CancelOrderRequestDto dto) {
+        orderFacade.cancelOrder(orderId, dto);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
+
 }

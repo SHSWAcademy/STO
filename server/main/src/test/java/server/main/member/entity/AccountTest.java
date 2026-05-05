@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import server.main.myAccount.entity.Account;
 
 class AccountTest {
 
@@ -23,37 +24,57 @@ class AccountTest {
         assertThat(account.getLockedBalance()).isEqualTo(1_000_000L);
     }
 
-    // settleBuyTrade
+    // settleBuyTrade — 수수료 없음 (기존 로직 검증)
     @Test
     void settleBuyTrade_주문가_체결가_동일_차액없음() {
-        // 주문가=체결가=12000, 수량=5 → lockedAmount=60000, tradeAmount=60000
-        // 순 비용 = 60000 (환급 없음)
         account.lockBalance(60_000L);
-        long availableAfterLock = account.getAvailableBalance(); // -60000
-        account.settleBuyTrade(60_000L, 60_000L);
+        long availableAfterLock = account.getAvailableBalance();
+        account.settleBuyTrade(60_000L, 60_000L, 0L);
 
         assertThat(account.getLockedBalance()).isEqualTo(0L);
-        assertThat(account.getAvailableBalance()).isEqualTo(availableAfterLock); // 환급 없으므로 변화 없음
+        assertThat(account.getAvailableBalance()).isEqualTo(availableAfterLock);
     }
 
     @Test
     void settleBuyTrade_주문가_높을때_차액_환급() {
-        // 주문가 12000, 체결가 10000, 수량 5 → lockedAmount=60000, tradeAmount=50000
-        // 차액 10000 환급 → 순 비용 = 50000
         account.lockBalance(60_000L);
-        long availableBeforeLock = account.getAvailableBalance() + 60_000L; // lock 이전 기준
-        account.settleBuyTrade(50_000L, 60_000L);
+        long availableBeforeLock = account.getAvailableBalance() + 60_000L;
+        account.settleBuyTrade(50_000L, 60_000L, 0L);
 
         assertThat(account.getLockedBalance()).isEqualTo(0L);
-        assertThat(account.getAvailableBalance()).isEqualTo(availableBeforeLock - 50_000L); // 순 비용 50000
+        assertThat(account.getAvailableBalance()).isEqualTo(availableBeforeLock - 50_000L);
     }
 
-    // settleSellTrade
+    // settleBuyTrade — 수수료 포함
+    @Test
+    void settleBuyTrade_수수료_포함_차액_환급() {
+        // 주문가 12000, 체결가 10000, 수량 5
+        // lockedAmount = 60000 + 6(수수료lock) = 60006
+        // tradeAmount = 50000, feeAmount = 5
+        // 환급 = 60006 - 50000 - 5 = 10001
+        account.lockBalance(60_006L);
+        account.settleBuyTrade(50_000L, 60_006L, 5L);
+
+        assertThat(account.getLockedBalance()).isEqualTo(0L);
+        assertThat(account.getAvailableBalance()).isEqualTo(-60_006L + (60_006L - 50_000L - 5L));
+    }
+
+    // settleSellTrade — 수수료 없음 (기존 로직 검증)
     @Test
     void settleSellTrade_매도_대금_수령() {
-        account.settleSellTrade(50_000L);
+        account.settleSellTrade(50_000L, 0L);
 
         assertThat(account.getAvailableBalance()).isEqualTo(50_000L);
+    }
+
+    // settleSellTrade — 수수료 포함
+    @Test
+    void settleSellTrade_수수료_차감_후_수령() {
+        // tradeAmount = 50000, feeAmount = 5
+        // 수령액 = 50000 - 5 = 49995
+        account.settleSellTrade(50_000L, 5L);
+
+        assertThat(account.getAvailableBalance()).isEqualTo(49_995L);
     }
 
     // cancelOrder
@@ -69,8 +90,8 @@ class AccountTest {
     // relockBalance
     @Test
     void relockBalance_주문수정_금액증가() {
-        account.lockBalance(60_000L); // 기존 주문
-        account.relockBalance(60_000L, 100_000L); // 수정: 더 큰 금액
+        account.lockBalance(60_000L);
+        account.relockBalance(60_000L, 100_000L);
 
         assertThat(account.getLockedBalance()).isEqualTo(100_000L);
         assertThat(account.getAvailableBalance()).isEqualTo(-100_000L);

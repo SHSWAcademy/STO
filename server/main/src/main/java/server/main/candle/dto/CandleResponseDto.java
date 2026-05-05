@@ -11,11 +11,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class CandleResponseDto {
     private CandleType candleType;     // WS push 시 어느 주기 봉인지 구분 (REST 응답 시 null)
-    private Double openPrice;
-    private Double highPrice;
-    private Double lowPrice;
-    private Double closePrice;
-    private Double volume;
+    private Long openPrice;
+    private Long highPrice;
+    private Long lowPrice;
+    private Long closePrice;
+    private Long volume;
     private LocalDateTime candleTime;
     private Integer tradeCount;
 }

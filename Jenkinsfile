@@ -1,22 +1,33 @@
 pipeline {
     agent any
 
+    environment {
+        DEPLOY_PATH = '/srv/stone/app/STO'
+        GIT_BRANCH  = 'dev'
+    }
+
+    triggers {
+        pollSCM('H/5 * * * *')
+    }
+
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Build') {
-            steps {
-                sh 'docker compose build --no-cache'
-            }
-        }
-
         stage('Deploy') {
             steps {
-                sh 'docker compose up -d'
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'deploy-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'DEPLOY_USER'
+                    )
+                ]) {
+                    sh '''
+                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} "
+                            cd ${DEPLOY_PATH} &&
+                            git pull origin ${GIT_BRANCH} &&
+                            docker compose up -d --build
+                        "
+                    '''
+                }
             }
         }
     }

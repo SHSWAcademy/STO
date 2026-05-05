@@ -32,6 +32,7 @@ public enum ErrorCode {
     INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "INSUFFICIENT_BALANCE", "원화 잔고가 부족합니다."),
     INSUFFICIENT_TOKEN_BALANCE(HttpStatus.BAD_REQUEST, "INSUFFICIENT_TOKEN_BALANCE", "보유 토큰이 부족합니다."),
     INVALID_AMOUNT(HttpStatus.BAD_REQUEST, "INVALID_AMOUNT", "금액은 0보다 커야 합니다."),
+    ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", "계좌를 찾을 수 없습니다."),
 
     // ── 토큰(부동산) ─────────────────────────────────────────
     TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "TOKEN_NOT_FOUND", "토큰을 찾을 수 없습니다."),
@@ -44,6 +45,10 @@ public enum ErrorCode {
     ORDER_NOT_OWNED(HttpStatus.FORBIDDEN, "ORDER_NOT_OWNED", "본인의 주문이 아닙니다."),
     ORDER_NOT_MODIFIABLE(HttpStatus.BAD_REQUEST, "ORDER_NOT_MODIFIABLE", "수정할 수 없는 주문 상태입니다."),
     INVALID_UPDATE_QUANTITY(HttpStatus.BAD_REQUEST, "INVALID_UPDATE_QUANTITY", "이미 체결된 수량보다 적은 수량으로 수정할 수 없습니다."),
+    INVALID_TICK_SIZE(HttpStatus.BAD_REQUEST, "INVALID_TICK_SIZE", "호가 단위에 맞지 않는 가격입니다."),
+
+    PRICE_OVER_LIMIT(HttpStatus.BAD_REQUEST, "PRICE_OVER_LIMIT", "상한가를 초과한 주문 가격입니다."),
+    PRICE_UNDER_LIMIT(HttpStatus.BAD_REQUEST, "PRICE_UNDER_LIMIT", "하한가 미만의 주문 가격입니다."),
 
     // ── 거래 시간 ────────────────────────────────────────────
     OUTSIDE_TRADING_HOURS(HttpStatus.BAD_REQUEST, "OUTSIDE_TRADING_HOURS", "거래 시간이 아닙니다. (09:00 ~ 15:30)"),
@@ -51,6 +56,8 @@ public enum ErrorCode {
     // ── Match 서비스 ──────────────────────────────────────────
     MATCH_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "MATCH_SERVICE_UNAVAILABLE",
             "체결 서비스 연결 실패로 주문이 처리되지 않았습니다."),
+    ORDERBOOK_SNAPSHOT_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ORDERBOOK_SNAPSHOT_UNAVAILABLE",
+            "호가 정보를 불러오지 못했습니다."),
 
     // ── 관심 종목 ─────────────────────────────────────────────
     WATCHLIST_ALREADY_EXISTS(HttpStatus.CONFLICT, "WATCHLIST_ALREADY_EXISTS", "이미 관심 종목에 추가된 토큰입니다."),
@@ -70,6 +77,7 @@ public enum ErrorCode {
     WALLET_CREATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WALLET_CREATION_FAILED", "지갑 생성에 실패했습니다."),
     WALLET_ALREADY_EXISTS(HttpStatus.CONFLICT, "WALLET_ALREADY_EXISTS", "이미 지갑이 존재합니다."),
     WALLET_ENCRYPTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "WALLET_ENCRYPTION_FAILED", "지갑 키 암호화에 실패했습니다."),
+    MEMBER_WALLET_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_WALLET_NOT_FOUND", "MEMBER 지갑을 찾을 수 없습니다."),
 
     // ── 블록체인 ──────────────────────────────────────────────────
     CONTRACT_DEPLOY_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "CONTRACT_DEPLOY_FAILED", "컨트랙트 배포에 실패했습니다."),

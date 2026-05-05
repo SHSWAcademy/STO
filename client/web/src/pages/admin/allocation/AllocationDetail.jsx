@@ -42,18 +42,12 @@ export function AllocationDetail({
       return;
     }
 
-    if (details[0]?.allocationEventId) {
-      setSelectedHistoryId(details[0].allocationEventId);
-      return;
-    }
-
     setSelectedHistoryId(null);
   }, [currentMonthAllocation, details]);
 
   const selectedHistory =
     details.find((detail) => detail.allocationEventId === selectedHistoryId) ??
     currentMonthAllocation ??
-    details[0] ??
     null;
 
   return (
@@ -91,6 +85,16 @@ export function AllocationDetail({
 
       <div className="grid gap-8 lg:grid-cols-[450px_minmax(0,1fr)]">
         <div className="space-y-8">
+          {!currentMonthAllocation && selectedHistoryId && (
+            <button
+              type="button"
+              onClick={() => setSelectedHistoryId(null)}
+              className="w-full rounded-md border border-brand-blue bg-brand-blue-light px-4 py-3 text-sm font-semibold text-brand-blue transition-colors hover:bg-white"
+            >
+              이번 정산월 입력으로 돌아가기
+            </button>
+          )}
+
           <AllocationForm
             item={item}
             details={details}
@@ -175,9 +179,6 @@ export function AllocationDetail({
                         <td className="px-6 py-4 text-center">
                           {detail.storedName ? (
                             <div className="flex items-center justify-center gap-2">
-                              <span className="max-w-[180px] truncate text-xs font-medium text-stone-600">
-                                {detail.originName ?? detail.storedName}
-                              </span>
                               <a
                                 href={pdfViewUrl(detail.storedName)}
                                 target="_blank"

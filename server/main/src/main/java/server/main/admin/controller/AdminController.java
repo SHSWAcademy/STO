@@ -1,5 +1,6 @@
 package server.main.admin.controller;
 
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.RequestBody;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -8,12 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import server.main.admin.dto.*;
-import server.main.admin.entity.Common;
 import server.main.admin.service.AdminService;
 
-import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/admin")
@@ -47,7 +45,7 @@ public class AdminController {
     }
 
     // 자산 수정
-    // 수정 대상 : 자산명, 자산주소, 자산PDF, 자산 이미지, 토큰 심볼, 토큰 상태
+    // 수정 대상 : 자산명, 자산주소, 자산 PDF, 자산 이미지, 토큰 심볼, 토큰 상태
     @PatchMapping("/asset/{assetId}")
     public ResponseEntity<Void> assetUpdate(
             @PathVariable Long assetId,
@@ -112,4 +110,50 @@ public class AdminController {
         PlatformProfitAccountResponseDTO list = adminService.getPlatformProfitAccount();
         return ResponseEntity.ok(list);
     }
- }
+
+    // 유저관리 조회
+    @GetMapping("/memberlist")
+    public ResponseEntity<Page<MemberListResponseDTO>> getMemberList(@RequestParam(defaultValue = "0") int page,
+                                                                    @RequestParam(defaultValue = "10") int size) {
+        Page<MemberListResponseDTO> list = adminService.getMemberList(page, size);
+        return ResponseEntity.ok(list);
+    }
+
+    // 유저 활성/비활성화
+    @PatchMapping("/memberlist/{memberId}")
+    public ResponseEntity<Void> updateMember(@PathVariable Long memberId,
+                                             @RequestParam Boolean isActive) {
+        adminService.updateMember(memberId, isActive);
+        return ResponseEntity.ok().build();
+    }
+
+    // 대쉬보드 조회
+    @GetMapping("/dashboard")
+    public ResponseEntity<DashBoardResponseDTO> getDashBoard() {
+        DashBoardResponseDTO list = adminService.getDashBoard();
+        return ResponseEntity.ok(list);
+    }
+
+    // 대시보드 리스트 조회
+    @GetMapping("/dashboard/list")
+    public ResponseEntity<Page<DashBoardTradeListDTO>> getDashBoardTradeList(@RequestParam(defaultValue = "0") int page,
+                                                                          @RequestParam(defaultValue = "10") int size) {
+        Page<DashBoardTradeListDTO> list = adminService.getDashBoardTradeList(page, size);
+        return ResponseEntity.ok(list);
+    }
+
+    // 로그관리 조회
+    @GetMapping("/systemlog")
+    public ResponseEntity<Page<SystemLogResponseDTO>> getSystemLog(@RequestParam String category,
+                                                                   @RequestParam(defaultValue = "0") int page,
+                                                                   @RequestParam(defaultValue = "10") int size) {
+        Page<SystemLogResponseDTO> list = adminService.getSystemLong(category, page, size);
+        return ResponseEntity.ok(list);
+    }
+
+    // 블록체인 대시보드
+    @GetMapping("/trade/stats")
+    public ResponseEntity<TradeStatsResponseDTO> getSettlementStats() {
+        return ResponseEntity.ok(adminService.getSettlementStats());
+    }
+}

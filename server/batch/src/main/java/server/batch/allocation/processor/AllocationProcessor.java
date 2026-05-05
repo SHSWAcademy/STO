@@ -106,6 +106,7 @@ public class AllocationProcessor implements ItemProcessor<AllocationEvent, Alloc
         return AllocationResult.builder()
                 .event(event)
                 .tokenId(tokenId.getTokenId())
+                .tokenName(tokenId.getTokenName())
                 .memberPayouts(memberPayouts)
                 .platformAmount(adminPayout)
                 .totalDeduction(effectiveIncome)

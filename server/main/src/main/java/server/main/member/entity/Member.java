@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import server.main.global.util.BaseEntity;
+import server.main.myAccount.entity.Account;
 
 @Entity
 @Getter
@@ -45,4 +46,8 @@ public class Member extends BaseEntity {
         return member;
     }
 
+    // 멤버 활성/비활성화 처리 (admin)
+    public void updateIsActive(boolean isActive) {
+        this.isActive = isActive;
+    }
 }

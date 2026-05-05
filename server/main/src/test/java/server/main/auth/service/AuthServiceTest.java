@@ -3,8 +3,8 @@ package server.main.auth.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.Field;
 import java.util.Optional;
 
@@ -24,10 +24,14 @@ import server.main.auth.dto.MemberSignupResponse;
 import server.main.global.error.BusinessException;
 import server.main.global.error.ErrorCode;
 import server.main.global.security.JwtTokenProvider;
-import server.main.member.entity.Account;
+import server.main.log.loginLog.service.LoginLogService;
+import server.main.myAccount.entity.Account;
 import server.main.member.entity.Member;
+import server.main.member.entity.Wallet;
 import server.main.member.repository.AccountRepository;
 import server.main.member.repository.MemberRepository;
+import server.main.member.service.CustodialWalletService;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -50,6 +54,18 @@ class AuthServiceTest {
     @Mock
     private AccountRepository accountRepository;
 
+    @Mock
+    private LoginLogService loginLogService;
+
+    @Mock
+    private CustodialWalletService custodialWalletService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private HttpServletRequest httpServletRequest;
+
     // ── 회원가입 테스트 ────────────────────────────────────────────
 
     @Test
@@ -61,6 +77,8 @@ class AuthServiceTest {
         given(memberRepository.existsByEmail("user@test.com")).willReturn(false);
         given(passwordEncoder.encode(anyString())).willReturn("encoded");
         given(accountRepository.existsByAccountNumber(anyString())).willReturn(false);
+        given(custodialWalletService.createMemberWallet(any(Member.class)))
+                .willReturn(Wallet.createForMember(null, "0xwallet", "encrypted-key"));
 
         // when
         MemberSignupResponse response = authService.signup(request);
@@ -102,8 +120,9 @@ class AuthServiceTest {
             .willReturn(true);
         given(jwtTokenProvider.createMemberToken(1L, "user@test.com"))
             .willReturn("jwt.token.here");
+        given(httpServletRequest.getRemoteAddr()).willReturn("127.0.0.1");
         // when
-        LoginResponse response = authService.memberLogin(request);
+        LoginResponse response = authService.memberLogin(request, httpServletRequest);
         // then
         assertThat(response.getAccessToken()).isEqualTo("jwt.token.here");
         assertThat(response.getUserType()).isEqualTo("MEMBER");
@@ -119,9 +138,10 @@ class AuthServiceTest {
             .willReturn(Optional.empty());
         given(passwordEncoder.matches(anyString(), anyString()))
             .willReturn(false);
+        given(httpServletRequest.getRemoteAddr()).willReturn("127.0.0.1");
 
         // when & then
-        assertThatThrownBy(() -> authService.memberLogin(request))
+        assertThatThrownBy(() -> authService.memberLogin(request, httpServletRequest))
             .isInstanceOf(BusinessException.class)
             .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LOGIN_FAILED);
     }
@@ -137,9 +157,10 @@ class AuthServiceTest {
                 .willReturn(Optional.of(member));
         given(passwordEncoder.matches("wrongPassword", "encodedPassword"))
                 .willReturn(false);
+        given(httpServletRequest.getRemoteAddr()).willReturn("127.0.0.1");
 
         // when & then
-        assertThatThrownBy(() -> authService.memberLogin(request))
+        assertThatThrownBy(() -> authService.memberLogin(request, httpServletRequest))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LOGIN_FAILED);
     }
@@ -154,9 +175,10 @@ class AuthServiceTest {
                 .willReturn(Optional.empty());
         given(passwordEncoder.matches(anyString(), anyString()))
                 .willReturn(false);
+        given(httpServletRequest.getRemoteAddr()).willReturn("127.0.0.1");
 
         // when & then
-        assertThatThrownBy(() -> authService.memberLogin(request))
+        assertThatThrownBy(() -> authService.memberLogin(request, httpServletRequest))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LOGIN_FAILED);
     }
@@ -171,9 +193,10 @@ class AuthServiceTest {
                 .willReturn(Optional.empty());
         given(passwordEncoder.matches(anyString(), anyString()))
                 .willReturn(false);
+        given(httpServletRequest.getRemoteAddr()).willReturn("127.0.0.1");
 
         // when
-        assertThatThrownBy(() -> authService.memberLogin(request))
+        assertThatThrownBy(() -> authService.memberLogin(request, httpServletRequest))
                 .isInstanceOf(BusinessException.class);
 
         // then - dummy hash 로 matches 가 반드시 한 번 호출됨

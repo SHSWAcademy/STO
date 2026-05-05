@@ -1,322 +1,921 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  Users, TrendingUp, ArrowUpRight, ArrowDownRight,
-  Activity, DollarSign, PieChart, Clock, Search, Filter,
-  ChevronDown, Info,
-} from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-  PieChart as RePieChart, Pie,
-} from 'recharts';
-import { cn } from '../../lib/utils.js';
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Coins,
+  MonitorPlay,
+  Sparkles,
+  RefreshCw,
+  Radio,
+  TrendingUp,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import api from "../../lib/api.js";
+import { cn } from "../../lib/utils.js";
+import { useApp } from "../../context/AppContext.jsx";
+import { useAdminDashboardSocket } from "../../hooks/useAdminDashboardSocket.js";
 
-const VOLUME_DATA = [
-  { name: '03/19', volume: 2400 },
-  { name: '03/20', volume: 1398 },
-  { name: '03/21', volume: 9800 },
-  { name: '03/22', volume: 3908 },
-  { name: '03/23', volume: 4800 },
-  { name: '03/24', volume: 3800 },
-  { name: '03/25', volume: 4300 },
-];
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
-const ASSET_DISTRIBUTION = [
-  { name: '강남 오피스', value: 45, color: 'var(--color-brand-blue)' },
-  { name: '제주 리조트', value: 25, color: 'var(--color-brand-red)' },
-  { name: '미술품 A',   value: 15, color: 'var(--color-brand-gold)' },
-  { name: '기타',       value: 15, color: 'var(--color-stone-400)' },
-];
-
-const TOKEN_DETAILS = {
-  '강남 오피스': {
-    total: 10000,
-    traded: 7500,
-    holders: [
-      { name: '김철수', amount: 1200, percent: 12 },
-      { name: '이영희', amount: 850,  percent: 8.5 },
-      { name: '박지민', amount: 600,  percent: 6 },
-      { name: '최민호', amount: 450,  percent: 4.5 },
-      { name: '기타',   amount: 4400, percent: 44 },
-    ],
-  },
-  '제주 리조트': {
-    total: 5000,
-    traded: 2100,
-    holders: [
-      { name: '정우성', amount: 500, percent: 10 },
-      { name: '한지민', amount: 300, percent: 6 },
-      { name: '박서준', amount: 250, percent: 5 },
-      { name: '기타',   amount: 1050, percent: 21 },
-    ],
-  },
-  '미술품 A': {
-    total: 1000,
-    traded: 950,
-    holders: [
-      { name: '이정재', amount: 200, percent: 20 },
-      { name: '공유',   amount: 150, percent: 15 },
-      { name: '기타',   amount: 600, percent: 60 },
-    ],
-  },
+const emptyPage = {
+  content: [],
+  number: 0,
+  size: DEFAULT_PAGE_SIZE,
+  totalElements: 0,
+  totalPages: 0,
+  first: true,
+  last: true,
 };
 
-function StatCard({ title, value, change, icon: Icon, color }) {
+function toNumber(value) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null);
+}
+
+function formatNumber(value) {
+  return toNumber(value).toLocaleString();
+}
+
+function formatCurrency(value) {
+  return `${formatNumber(value)}원`;
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).replace("T", " ");
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function getPageNumber(value) {
+  return Number.isInteger(value) && value >= 0 ? value : 0;
+}
+
+function normalizeTradePage(pageData, fallbackPage, fallbackSize) {
+  const nextTradePage = pageData ?? emptyPage;
+
+  return {
+    content: nextTradePage.content ?? [],
+    number: getPageNumber(nextTradePage.number ?? fallbackPage),
+    size: nextTradePage.size ?? fallbackSize,
+    totalElements: nextTradePage.totalElements ?? 0,
+    totalPages: nextTradePage.totalPages ?? 0,
+    first: Boolean(nextTradePage.first),
+    last: Boolean(nextTradePage.last),
+  };
+}
+
+function normalizeDashboardPayload(payload, prevDashboard) {
+  const body = payload?.data ?? payload?.dashboard ?? payload;
+
+  if (Array.isArray(body)) {
+    return {
+      ...(prevDashboard ?? {}),
+      tokenList: body,
+    };
+  }
+
+  if (!body || typeof body !== "object") {
+    return prevDashboard ?? null;
+  }
+
+  return {
+    ...(prevDashboard ?? {}),
+    ...body,
+    tokenList: body.tokenList ?? prevDashboard?.tokenList ?? [],
+  };
+}
+
+function PageButton({ children, active, disabled, onClick, ariaLabel }) {
   return (
-    <div className="bg-white p-6 rounded-lg border border-stone-200 transition-colors">
-      <div className="flex items-center justify-between mb-4">
-        <div className={cn('p-3 rounded-xl', color)}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        <div className={cn(
-          'flex items-center gap-1 text-xs font-black',
-          change > 0 ? 'text-brand-blue' : 'text-brand-red',
-        )}>
-          {change > 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-          {Math.abs(change)}%
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex h-9 min-w-9 items-center justify-center rounded-lg border px-3 text-xs font-bold transition-colors",
+        active
+          ? "border-stone-800 bg-stone-800 text-white"
+          : "border-stone-200 bg-white text-stone-500 hover:bg-stone-100",
+        disabled && "cursor-not-allowed opacity-40 hover:bg-white",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  helper,
+  icon: Icon,
+  iconClassName,
+  iconBgClassName,
+  highlighted,
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border bg-white p-6 transition-all duration-700",
+        highlighted
+          ? "scale-[1.015] border-brand-gold bg-[#fff7dc] shadow-[0_0_0_2px_rgba(201,168,76,0.28),0_18px_34px_rgba(201,168,76,0.22)]"
+          : "border-stone-200",
+      )}
+    >
+      <div className="mb-4 flex items-center justify-between">
+        <div className={cn("rounded-lg p-3", iconBgClassName)}>
+          <Icon className={cn("h-6 w-6", iconClassName)} />
         </div>
       </div>
-      <p className="text-xs text-stone-400 mb-1">{title}</p>
+      <p className="mb-1 text-xs font-bold text-stone-400">{title}</p>
       <h3 className="text-2xl font-semibold text-stone-800">{value}</h3>
+      {helper && (
+        <p className="mt-2 text-xs font-medium text-stone-400">{helper}</p>
+      )}
+    </div>
+  );
+}
+
+function SettlementBadge({ value }) {
+  const normalized = String(value ?? "-");
+  const isSuccess =
+    normalized.includes("성공") || normalized.toUpperCase() === "SUCCESS";
+  const isFail =
+    normalized.includes("실패") || normalized.toUpperCase() === "FAILED";
+
+  return (
+    <span
+      className={cn(
+        "inline-flex rounded-md px-2 py-1 text-[10px] font-semibold",
+        isSuccess && "bg-[#e8f4ee] text-[#3d7a58]",
+        isFail && "bg-brand-red-light text-brand-red-dk",
+        !isSuccess && !isFail && "bg-[#fef6dc] text-[#a07828]",
+      )}
+    >
+      {normalized}
+    </span>
+  );
+}
+
+function TokenOwnershipCard({ token }) {
+  const totalSupply = toNumber(
+    firstDefined(token.totalSupply, token.total_supply),
+  );
+  const platformSupply = toNumber(
+    firstDefined(token.holdingSupply, token.holding_supply),
+  );
+  const userSupply = toNumber(
+    firstDefined(
+      token.currentQuantity,
+      token.current_quantity,
+      token.userQuantity,
+      token.user_quantity,
+      token.userHoldingQuantity,
+      token.user_holding_quantity,
+    ),
+  );
+  const ownedSupply = userSupply + platformSupply;
+  const userPercent = totalSupply > 0 ? (userSupply / totalSupply) * 100 : 0;
+  const platformPercent =
+    totalSupply > 0 ? (platformSupply / totalSupply) * 100 : 0;
+  const ownedPercent = totalSupply > 0 ? (ownedSupply / totalSupply) * 100 : 0;
+  const filledSquares = Math.round(Math.min(userPercent, 100));
+
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white p-6">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="truncate text-base font-black text-stone-800">
+            {token.tokenName || "-"}
+          </p>
+          <p className="mt-1 text-xs font-bold text-stone-400">
+            {token.tokenSymbol || "-"}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-md bg-stone-100 px-2 py-1 text-[10px] font-black text-stone-400">
+          ID {token.tokenId ?? "-"}
+        </span>
+      </div>
+
+      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(260px,0.9fr)]">
+        <div className="space-y-6">
+          <div className="flex flex-col gap-8 md:flex-row md:items-center">
+            <div className="grid w-full max-w-[320px] aspect-square shrink-0 grid-cols-10 gap-1.5 rounded-lg border border-stone-200 bg-stone-100 p-3">
+              {Array.from({ length: 100 }).map((_, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "rounded-[3px]",
+                    index < filledSquares ? "bg-brand-blue" : "bg-stone-200",
+                  )}
+                />
+              ))}
+            </div>
+
+            <div className="min-w-[220px] flex-1 space-y-5">
+              <div>
+                <span className="block text-[10px] font-black uppercase tracking-widest text-stone-400">
+                  발행 및 보유 현황
+                </span>
+                <p className="mt-1 text-sm font-black text-stone-800">
+                  총 {formatNumber(totalSupply)} 토큰
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-3 w-3 rounded-[2px] bg-brand-blue" />
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">
+                      유저 보유
+                    </p>
+                    <p className="text-sm font-black text-stone-800">
+                      {formatNumber(userSupply)} 토큰 · {userPercent.toFixed(1)}
+                      %
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="h-3 w-3 rounded-[2px] bg-stone-200" />
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-stone-400">
+                      플랫폼 보유
+                    </p>
+                    <p className="text-sm font-black text-stone-800">
+                      {formatNumber(platformSupply)} 토큰 ·{" "}
+                      {platformPercent.toFixed(1)}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 rounded-lg border border-stone-200 bg-stone-100 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-stone-400">
+                    보유량 구성
+                  </span>
+                  <span className="text-[10px] font-black text-brand-blue">
+                    {ownedPercent.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-stone-200">
+                  <div
+                    className="h-full rounded-full bg-brand-blue"
+                    style={{ width: `${Math.min(ownedPercent, 100)}%` }}
+                  />
+                </div>
+                <p className="text-[10px] font-bold text-stone-400">
+                  유저 + 플랫폼 보유량 {formatNumber(ownedSupply)} / 총 발행량{" "}
+                  {formatNumber(totalSupply)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-lg border border-stone-200 bg-stone-50 p-5">
+          <p className="text-xs font-black uppercase tracking-widest text-stone-400">
+            토큰 요약
+          </p>
+          {[
+            ["총 발행량", totalSupply],
+            ["플랫폼 보유량", platformSupply],
+            ["유저 보유량", userSupply],
+          ].map(([label, value]) => (
+            <div
+              key={label}
+              className="flex items-center justify-between border-b border-stone-200 py-3 last:border-b-0"
+            >
+              <span className="text-xs font-bold text-stone-400">{label}</span>
+              <span className="text-sm font-black text-stone-800">
+                {formatNumber(value)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
 export function AdminDashboard() {
-  const [selectedAsset, setSelectedAsset] = useState('강남 오피스');
-  const currentAsset = TOKEN_DETAILS[selectedAsset] || TOKEN_DETAILS['강남 오피스'];
-  const untraded = currentAsset.total - currentAsset.traded;
-  const tradedPercent = (currentAsset.traded / currentAsset.total) * 100;
+  const { user } = useApp();
+  const [dashboard, setDashboard] = useState(null);
+  const [tradePage, setTradePage] = useState(emptyPage);
+  const [liveTrades, setLiveTrades] = useState([]);
+  const [dashboardUpdatedAt, setDashboardUpdatedAt] = useState(null);
+  const [tradeUpdatedAt, setTradeUpdatedAt] = useState(null);
+  const [dashboardHighlighted, setDashboardHighlighted] = useState(false);
+  const [highlightedTradeId, setHighlightedTradeId] = useState(null);
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(DEFAULT_PAGE_SIZE);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [tradeListLoading, setTradeListLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [tradeListRefreshKey, setTradeListRefreshKey] = useState(0);
+  const [selectedTokenId, setSelectedTokenId] = useState("");
+
+  const handleDashboardMessage = useCallback((nextDashboard) => {
+    setDashboard((prev) => normalizeDashboardPayload(nextDashboard, prev));
+    setDashboardUpdatedAt(new Date());
+    setDashboardHighlighted(true);
+  }, []);
+
+  const handleTradeMessage = useCallback((trade) => {
+    if (!trade) return;
+
+    setLiveTrades((prev) => {
+      const filtered = prev.filter((item) => item.tradeId !== trade.tradeId);
+      return [trade, ...filtered].slice(0, 5);
+    });
+    setTradeUpdatedAt(new Date());
+    setHighlightedTradeId(trade.tradeId ?? `${trade.executedAt ?? trade.createdAt ?? Date.now()}`);
+  }, []);
+
+  useAdminDashboardSocket({
+    token: user?.accessToken ?? localStorage.getItem("token"),
+    onDashboard: handleDashboardMessage,
+    onTrade: handleTradeMessage,
+  });
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadDashboard() {
+      setDashboardLoading(true);
+      setError("");
+
+      try {
+        const { data } = await api.get("/admin/dashboard");
+        if (!mounted) return;
+        setDashboard(data ?? null);
+        setDashboardUpdatedAt(new Date());
+      } catch (loadError) {
+        console.error("[AdminDashboard] dashboard load failed:", loadError);
+        if (!mounted) return;
+        setDashboard(null);
+        setError("대시보드 데이터를 불러오지 못했습니다.");
+      } finally {
+        if (mounted) setDashboardLoading(false);
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadTradeList() {
+      setTradeListLoading(true);
+      setError("");
+
+      try {
+        const { data } = await api.get("/admin/dashboard/list", {
+          params: { page, size },
+        });
+        if (!mounted) return;
+        setTradePage(normalizeTradePage(data, page, size));
+      } catch (loadError) {
+        console.error("[AdminDashboard] trade list load failed:", loadError);
+        if (!mounted) return;
+        setTradePage(emptyPage);
+        setError("거래내역 데이터를 불러오지 못했습니다.");
+      } finally {
+        if (mounted) setTradeListLoading(false);
+      }
+    }
+
+    loadTradeList();
+
+    return () => {
+      mounted = false;
+    };
+  }, [page, size, tradeListRefreshKey]);
+
+  useEffect(() => {
+    if (!dashboardHighlighted) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setDashboardHighlighted(false);
+    }, 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [dashboardHighlighted]);
+
+  useEffect(() => {
+    if (!highlightedTradeId) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setHighlightedTradeId(null);
+    }, 2400);
+    return () => window.clearTimeout(timeoutId);
+  }, [highlightedTradeId]);
+
+  const tokenList = dashboard?.tokenList ?? [];
+  const trades = tradePage.content ?? [];
+
+  const selectedToken = useMemo(() => {
+    if (tokenList.length === 0) return null;
+    return (
+      tokenList.find(
+        (token) => String(token.tokenId ?? "") === selectedTokenId,
+      ) ?? tokenList[0]
+    );
+  }, [selectedTokenId, tokenList]);
+
+  const tokenSymbolById = useMemo(() => {
+    return new Map(
+      tokenList.map((token) => [
+        String(token.tokenId ?? ""),
+        token.tokenSymbol || "-",
+      ]),
+    );
+  }, [tokenList]);
+
+  useEffect(() => {
+    if (tokenList.length === 0) {
+      if (selectedTokenId) setSelectedTokenId("");
+      return;
+    }
+
+    const hasSelectedToken = tokenList.some(
+      (token) => String(token.tokenId ?? "") === selectedTokenId,
+    );
+
+    if (!hasSelectedToken) {
+      setSelectedTokenId(String(tokenList[0].tokenId ?? ""));
+    }
+  }, [selectedTokenId, tokenList]);
+
+  const pageNumbers = useMemo(() => {
+    const totalPages = tradePage.totalPages || 1;
+    const current = tradePage.number || 0;
+    const start = Math.max(0, Math.min(current - 2, totalPages - 5));
+    const end = Math.min(totalPages, start + 5);
+
+    return Array.from({ length: end - start }, (_, index) => start + index);
+  }, [tradePage.number, tradePage.totalPages]);
+
+  function handleSizeChange(event) {
+    setSize(Number(event.target.value));
+    setPage(0);
+  }
+
+  function goToPage(nextPage) {
+    if (nextPage < 0 || nextPage >= tradePage.totalPages || nextPage === page)
+      return;
+    setPage(nextPage);
+  }
+
+  const tradeFrom =
+    tradePage.totalElements === 0 ? 0 : tradePage.number * tradePage.size + 1;
+  const tradeTo = Math.min(
+    (tradePage.number + 1) * tradePage.size,
+    tradePage.totalElements,
+  );
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-stone-800">어드민 대시보드</h1>
-          <p className="text-sm text-stone-400">플랫폼의 실시간 현황을 한눈에 확인하세요.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-2 bg-white border border-stone-200 rounded-md text-sm font-medium text-stone-500 hover:bg-stone-100 flex items-center gap-2">
-            <Clock className="w-4 h-4" /> 최근 7일
-          </button>
-          <button className="px-4 py-2 bg-brand-blue text-white rounded-md text-sm font-medium hover:bg-brand-blue-dk transition-colors">
-            보고서 다운로드
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-6">
-        <StatCard title="총 가입자 수"  value="12,482명"  change={12.5}  icon={Users}    color="bg-brand-blue" />
-        <StatCard title="일일 거래액"   value="4.28억원"  change={-2.4}  icon={DollarSign} color="bg-brand-red" />
-        <StatCard title="활성 사용자"   value="1,248명"   change={8.2}   icon={Activity}  color="bg-stone-400" />
-        <StatCard title="총 예치금"     value="128.5억원" change={5.1}   icon={PieChart}  color="bg-brand-red" />
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-2 gap-8">
-        <div className="bg-white p-8 rounded-lg border border-stone-200">
-          <h3 className="text-lg font-semibold text-stone-800 mb-6">자산별 거래 비중</h3>
-          <div className="h-[300px] flex items-center">
-            <div className="flex-1 h-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <RePieChart>
-                  <Pie data={ASSET_DISTRIBUTION} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
-                    {ASSET_DISTRIBUTION.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)' }} />
-                </RePieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="w-40 space-y-3">
-              {ASSET_DISTRIBUTION.map(item => (
-                <div key={item.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-xs font-bold text-stone-500">{item.name}</span>
-                  </div>
-                  <span className="text-xs font-black text-stone-800">{item.value}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <h1 className="text-2xl font-semibold text-stone-800">
+            어드민 대시보드
+          </h1>
+          <p className="text-sm text-stone-400">
+            사용자, 체결, 토큰 발행량과 최근 거래내역을 확인합니다.
+          </p>
         </div>
 
-        <div className="bg-white p-8 rounded-lg border border-stone-200">
-          <h3 className="text-lg font-semibold text-stone-800 mb-6">일별 거래량 추이</h3>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={VOLUME_DATA}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-stone-200)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: 'var(--color-stone-400)' }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: 'var(--color-stone-400)' }} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)' }} labelStyle={{ fontWeight: 800, color: 'var(--color-stone-800)', marginBottom: '4px' }} />
-                <Bar dataKey="volume" fill="var(--color-brand-red)" radius={[4, 4, 0, 0]} barSize={24} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Link
+            to="/admin-console/settlement-live"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-stone-800 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-stone-700"
+          >
+            <MonitorPlay className="h-4 w-4" />
+            실시간 정산 보기
+          </Link>
+          <span className="rounded-lg bg-white px-3 py-2 text-xs font-bold text-stone-400">
+            요약{" "}
+            {dashboardUpdatedAt
+              ? `${formatDateTime(dashboardUpdatedAt)} 갱신`
+              : "연결 대기중"}
+          </span>
         </div>
       </div>
 
-      {/* Token Issuance & Ownership Analysis */}
-      <div className="bg-white p-8 rounded-lg border border-stone-200 space-y-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h3 className="text-lg font-semibold text-stone-800">토큰 발행 및 소유권 분석</h3>
-            <div className="group relative">
-              <Info size={14} className="text-stone-400 cursor-help" />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-stone-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                발행된 총 토큰 중 유통 중인 물량과 주요 보유자 현황을 나타냅니다.
+      {error && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-100 bg-red-50 px-6 py-4 text-sm font-medium text-red-600">
+          <AlertCircle className="h-5 w-5" />
+          {error}
+        </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <StatCard
+          title="총 사용자"
+          value={`${formatNumber(dashboard?.totalUserCount)}명`}
+          icon={Users}
+          iconClassName="text-brand-blue"
+          iconBgClassName="bg-brand-blue-light"
+          highlighted={dashboardHighlighted}
+        />
+        <StatCard
+          title="신규 가입자"
+          value={`${formatNumber(dashboard?.newUserCount)}명`}
+          helper="오늘 기준"
+          icon={UserPlus}
+          iconClassName="text-brand-green"
+          iconBgClassName="bg-brand-green-light"
+          highlighted={dashboardHighlighted}
+        />
+        <StatCard
+          title="일일 체결수"
+          value={`${formatNumber(dashboard?.dailyExecutionCount)}건`}
+          helper="오늘 기준"
+          icon={TrendingUp}
+          iconClassName="text-brand-red"
+          iconBgClassName="bg-brand-red-light"
+          highlighted={dashboardHighlighted}
+        />
+        <StatCard
+          title="누적 체결수"
+          value={`${formatNumber(dashboard?.totalExecutionCount)}건`}
+          icon={TrendingUp}
+          iconClassName="text-stone-600"
+          iconBgClassName="bg-stone-200"
+          highlighted={dashboardHighlighted}
+        />
+        <StatCard
+          title="일일 체결금액"
+          value={formatCurrency(dashboard?.dailyExecutionAmount)}
+          helper="오늘 기준"
+          icon={Coins}
+          iconClassName="text-brand-gold"
+          iconBgClassName="bg-[#fef6dc]"
+          highlighted={dashboardHighlighted}
+        />
+        <StatCard
+          title="누적 체결금액"
+          value={formatCurrency(dashboard?.totalExecutionAmount)}
+          icon={Coins}
+          iconClassName="text-brand-blue"
+          iconBgClassName="bg-[#e8f0fa]"
+          highlighted={dashboardHighlighted}
+        />
+      </div>
+
+      {liveTrades.length > 0 && (
+        <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+          <div className="flex flex-col gap-3 border-b border-stone-200 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Radio className="h-5 w-5 text-brand-red" />
+                <h3 className="text-base font-semibold text-stone-800">
+                  실시간 체결 내역
+                </h3>
               </div>
+              <p className="mt-1 text-xs font-medium text-stone-400">
+                거래가 체결되면 이 영역에 최신 체결이 먼저 표시됩니다.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-lg bg-stone-100 px-3 py-2 text-xs font-bold text-stone-500">
+              <Clock3 className="h-4 w-4" />
+              {tradeUpdatedAt
+                ? `${formatDateTime(tradeUpdatedAt)} 갱신`
+                : "체결 대기중"}
             </div>
           </div>
-          <div className="relative">
-            <select
-              value={selectedAsset}
-              onChange={e => setSelectedAsset(e.target.value)}
-              className="appearance-none bg-stone-100 border border-stone-200 rounded-xl px-4 py-2 pr-10 text-sm font-bold text-stone-500 outline-none focus:border-brand-blue cursor-pointer"
+
+          <div className="grid gap-0 divide-y divide-stone-200">
+            {liveTrades.map((trade) => {
+              const highlightKey =
+                trade.tradeId ??
+                `${trade.executedAt ?? trade.createdAt ?? ""}`;
+
+              return (
+                <div
+                  key={`${trade.tradeId ?? "trade"}-${trade.executedAt ?? trade.createdAt ?? ""}`}
+                  className={cn(
+                    "relative grid gap-3 px-6 py-3 transition-all duration-700 hover:bg-stone-50 lg:grid-cols-[1.2fr_1fr_1fr_1fr_0.8fr]",
+                    highlightedTradeId === highlightKey &&
+                      "scale-[1.01] bg-[#fff4cf] shadow-[inset_6px_0_0_#c9a84c,0_0_0_2px_rgba(201,168,76,0.65),0_18px_36px_rgba(201,168,76,0.28)]",
+                  )}
+                >
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="truncate text-sm font-black text-stone-800">
+                        {trade.tokenName ?? `Token ${trade.tokenId ?? "-"}`}
+                      </p>
+                      {highlightedTradeId === highlightKey && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-brand-gold px-2 py-0.5 text-[10px] font-black text-white shadow-sm">
+                          <Sparkles className="h-3 w-3" />
+                          NEW
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-[10px] font-bold text-stone-400">
+                      체결 ID {trade.tradeId ?? "-"} ·{" "}
+                      {trade.tokenSymbol ??
+                        tokenSymbolById.get(String(trade.tokenId ?? "")) ??
+                        "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-stone-400">
+                      매도자
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-stone-600">
+                      {trade.sellerName ?? "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-stone-400">
+                      매수자
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-stone-600">
+                      {trade.buyerName ?? "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-stone-400">
+                      체결 금액
+                    </p>
+                    <p className="mt-1 text-sm font-black text-stone-800">
+                      {formatCurrency(trade.totalTradePrice)}
+                    </p>
+                    <p className="mt-1 text-[10px] font-bold text-stone-400">
+                      {formatNumber(trade.tradeQuantity)}개 ·{" "}
+                      {formatCurrency(trade.tradePrice)}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-start gap-2 lg:items-end">
+                    <SettlementBadge value={trade.settlementStatus} />
+                    <p className="text-xs font-bold text-stone-500">
+                      {formatDateTime(trade.executedAt ?? trade.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-stone-200 bg-white">
+        <div className="flex flex-col gap-4 border-b border-stone-200 p-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-stone-800">
+              토큰 발행 및 소유권 분석
+            </h3>
+            <p className="mt-1 text-xs font-medium text-stone-400">
+              거래중인 토큰의 총 발행량, 플랫폼 보유량, 유저 보유량을
+              표시합니다.
+            </p>
+          </div>
+
+          {tokenList.length > 0 && (
+            <label className="flex items-center gap-2 text-xs font-bold text-stone-400">
+              토큰 선택
+              <select
+                value={String(selectedToken?.tokenId ?? "")}
+                onChange={(event) => setSelectedTokenId(event.target.value)}
+                className="min-w-[220px] rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 outline-none focus:border-brand-blue"
+              >
+                {tokenList.map((token) => (
+                  <option
+                    key={token.tokenId}
+                    value={String(token.tokenId ?? "")}
+                  >
+                    {token.tokenName || "-"} ({token.tokenSymbol || "-"})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+
+        <div className="p-6">
+          {dashboardLoading ? (
+            <div className="py-16 text-center text-sm text-stone-400">
+              불러오는 중...
+            </div>
+          ) : tokenList.length === 0 ? (
+            <div className="py-16 text-center text-sm text-stone-400">
+              표시할 토큰 데이터가 없습니다.
+            </div>
+          ) : selectedToken ? (
+            <TokenOwnershipCard
+              key={[
+                selectedToken.tokenId,
+                selectedToken.totalSupply,
+                selectedToken.holdingSupply,
+                selectedToken.currentQuantity,
+              ].join("-")}
+              token={selectedToken}
+            />
+          ) : (
+            <div className="py-16 text-center text-sm text-stone-400">
+              표시할 토큰 데이터가 없습니다.
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-stone-200 bg-white">
+        <div className="flex flex-col gap-3 border-b border-stone-200 bg-stone-50 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-stone-800">
+              최근 거래내역
+            </h3>
+            <p className="text-xs font-medium text-stone-400">
+              전체 {tradePage.totalElements.toLocaleString()}건 중{" "}
+              {tradeFrom.toLocaleString()}-{tradeTo.toLocaleString()} 표시
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() => setTradeListRefreshKey((prev) => prev + 1)}
+              className="flex items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-500 transition-colors hover:bg-stone-100"
             >
-              {Object.keys(TOKEN_DETAILS).map(asset => (
-                <option key={asset} value={asset}>{asset}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 pointer-events-none" />
+              <RefreshCw
+                className={cn("h-4 w-4", tradeListLoading && "animate-spin")}
+              />
+              거래내역 새로고침
+            </button>
+
+            <label className="flex items-center gap-2 text-xs font-bold text-stone-400">
+              페이지당 표시
+              <select
+                value={size}
+                onChange={handleSizeChange}
+                className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 outline-none focus:border-brand-blue"
+              >
+                {PAGE_SIZE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}개
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-12">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest block">발행 및 유통 현황</span>
-                <p className="text-sm font-black text-stone-800">총 {currentAsset.total.toLocaleString()} 토큰</p>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] font-black text-brand-blue uppercase tracking-widest block">유통 비율</span>
-                <p className="text-xl font-black text-brand-blue">{tradedPercent.toFixed(1)}%</p>
-              </div>
-            </div>
-
-            <div className="flex gap-12 items-center">
-              <div className="grid grid-cols-10 gap-1 w-full max-w-[240px] aspect-square p-2 bg-stone-100 rounded-2xl border border-stone-200">
-                {Array.from({ length: 100 }).map((_, i) => {
-                  const isTraded = i < Math.round(tradedPercent);
-                  return (
-                    <div
-                      key={i}
-                      className={cn('w-full h-full rounded-[2px]', isTraded ? 'bg-brand-blue' : 'bg-stone-200')}
-                    />
-                  );
-                })}
-              </div>
-
-              <div className="flex-1 space-y-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-[2px] bg-brand-blue" />
-                    <div>
-                      <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest leading-none mb-1">유통 중</p>
-                      <p className="text-sm font-black text-stone-800">{currentAsset.traded.toLocaleString()} 토큰</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-[2px] bg-stone-200" />
-                    <div>
-                      <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest leading-none mb-1">미유통 (회사 보유)</p>
-                      <p className="text-sm font-black text-stone-800">{untraded.toLocaleString()} 토큰</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-stone-100 rounded-xl border border-stone-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-stone-400">실시간 유통 밀도</span>
-                    <span className="text-[10px] font-black text-brand-blue">High</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-stone-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-brand-blue rounded-full" style={{ width: `${tradedPercent}%` }} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <span className="text-xs font-black text-stone-400 uppercase tracking-widest">주요 보유자 (Top Holders)</span>
-            <div className="space-y-3">
-              {currentAsset.holders.map((holder, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-stone-100 rounded-xl border border-transparent hover:border-stone-200 transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-white rounded-lg border border-stone-200 flex items-center justify-center text-[10px] font-black text-stone-400">
-                      {idx + 1}
-                    </div>
-                    <div>
-                      <p className="text-xs font-black text-stone-800">{holder.name}</p>
-                      <p className="text-[10px] font-bold text-stone-400">{holder.amount.toLocaleString()} 토큰</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-black text-brand-blue">{holder.percent}%</p>
-                    <div className="w-16 h-1 bg-stone-200 rounded-full mt-1 overflow-hidden">
-                      <div className="h-full bg-brand-blue" style={{ width: `${holder.percent}%` }} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Transactions */}
-      <div className="bg-white rounded-lg border border-stone-200 overflow-hidden">
-        <div className="p-6 border-b border-stone-200 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <h3 className="text-lg font-semibold text-stone-800">최근 거래 내역</h3>
-            <div className="flex items-center gap-2 bg-stone-100 border border-stone-200 rounded-xl px-3 py-1.5">
-              <Search className="w-3.5 h-3.5 text-stone-400" />
-              <input type="text" placeholder="거래번호, 사용자 검색..." className="bg-transparent border-none outline-none text-xs font-bold w-48" />
-            </div>
-          </div>
-          <button className="text-sm font-bold text-brand-blue hover:underline">전체 보기</button>
-        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-stone-100 border-b border-stone-200">
-                {['거래번호','사용자','종목','유형','수량','금액','상태'].map(h => (
-                  <th key={h} className="px-6 py-4 text-[10px] font-semibold text-stone-400 uppercase tracking-wide">{h}</th>
+              <tr className="border-b border-stone-200 bg-stone-100">
+                {[
+                  "체결ID",
+                  "토큰",
+                  "매도자",
+                  "매수자",
+                  "체결가",
+                  "수량",
+                  "총 체결금액",
+                  "정산상태",
+                  "체결시간",
+                ].map((header) => (
+                  <th
+                    key={header}
+                    className={cn(
+                      "px-6 py-4 text-[10px] font-semibold uppercase tracking-wide text-stone-400",
+                      header === "정산상태" && "text-center",
+                    )}
+                  >
+                    {header}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200">
-              {[
-                { id: 'TX-10294', user: '김철수', stock: '강남 빌딩 STO', type: '매수', qty: '10주', amount: '1,000,000원', status: '완료' },
-                { id: 'TX-10293', user: '이영희', stock: '제주 리조트 STO', type: '매도', qty: '5주', amount: '500,000원', status: '완료' },
-                { id: 'TX-10292', user: '박지민', stock: '강남 빌딩 STO', type: '매수', qty: '20주', amount: '2,000,000원', status: '대기' },
-                { id: 'TX-10291', user: '최민호', stock: '미술품 STO', type: '매수', qty: '1주', amount: '10,000,000원', status: '완료' },
-              ].map((tx, i) => (
-                <tr key={i} className="hover:bg-stone-100 transition-all">
-                  <td className="px-6 py-4 text-sm font-mono font-bold text-stone-500">{tx.id}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-stone-800">{tx.user}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-stone-500">{tx.stock}</td>
-                  <td className="px-6 py-4">
-                    <span className={cn('px-2 py-1 rounded-md text-[10px] font-semibold',
-                      tx.type === '매수' ? 'bg-brand-red-light text-brand-red-dk' : 'bg-[#e8f0fa] text-brand-blue-dk'
-                    )}>{tx.type}</span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-stone-500">{tx.qty}</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-stone-800">{tx.amount}</td>
-                  <td className="px-6 py-4">
-                    <span className={cn('px-2 py-1 rounded-md text-[10px] font-semibold',
-                      tx.status === '대기' ? 'bg-[#fef6dc] text-[#a07828]' : 'bg-[#e8f4ee] text-[#3d7a58]'
-                    )}>{tx.status}</span>
+              {tradeListLoading ? (
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="px-6 py-16 text-center text-sm text-stone-400"
+                  >
+                    불러오는 중...
                   </td>
                 </tr>
-              ))}
+              ) : trades.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="px-6 py-16 text-center text-sm text-stone-400"
+                  >
+                    표시할 거래내역이 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                trades.map((trade) => (
+                  <tr
+                    key={trade.tradeId}
+                    className="transition-colors hover:bg-stone-50"
+                  >
+                    <td className="px-6 py-4 text-sm font-mono font-bold text-stone-500">
+                      {trade.tradeId ?? "-"}
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="whitespace-nowrap text-sm font-black text-stone-800">
+                        ID {trade.tokenName ?? "-"}
+                      </p>
+                      <p className="text-[10px] font-bold text-stone-400">
+                        {trade.tokenSymbol ??
+                          tokenSymbolById.get(String(trade.tokenId ?? "")) ??
+                          "-"}
+                      </p>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-bold text-stone-500">
+                      {trade.sellerName ?? "-"}
+                    </td>
+                    <td className="px-6 py-4 text-sm font-bold text-stone-500">
+                      {trade.buyerName ?? "-"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-stone-500">
+                      {formatCurrency(trade.tradePrice)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-stone-500">
+                      {formatNumber(trade.tradeQuantity)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-black text-stone-800">
+                      {formatCurrency(trade.totalTradePrice)}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <SettlementBadge value={trade.settlementStatus} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-stone-500">
+                      {formatDateTime(trade.executedAt ?? trade.createdAt)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex flex-col gap-4 border-t border-stone-200 bg-stone-50 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-bold text-stone-400">
+            {tradePage.totalPages > 0
+              ? `${(tradePage.number + 1).toLocaleString()} / ${tradePage.totalPages.toLocaleString()} 페이지`
+              : "0 / 0 페이지"}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <PageButton
+              disabled={
+                tradePage.first || tradeListLoading || tradePage.totalPages === 0
+              }
+              onClick={() => goToPage(tradePage.number - 1)}
+              ariaLabel="이전 페이지"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </PageButton>
+
+            {pageNumbers.map((pageNumber) => (
+              <PageButton
+                key={pageNumber}
+                active={pageNumber === tradePage.number}
+                disabled={tradeListLoading}
+                onClick={() => goToPage(pageNumber)}
+                ariaLabel={`${pageNumber + 1} 페이지`}
+              >
+                {pageNumber + 1}
+              </PageButton>
+            ))}
+
+            <PageButton
+              disabled={tradePage.last || tradeListLoading || tradePage.totalPages === 0}
+              onClick={() => goToPage(tradePage.number + 1)}
+              ariaLabel="다음 페이지"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </PageButton>
+          </div>
         </div>
       </div>
     </div>

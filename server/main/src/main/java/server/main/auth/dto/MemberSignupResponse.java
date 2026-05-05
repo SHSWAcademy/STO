@@ -11,4 +11,5 @@ public class MemberSignupResponse {
     private String email;
     private String name;
     private String walletAddress;
+    private String accountNumber;
 }

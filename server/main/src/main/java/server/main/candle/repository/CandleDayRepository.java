@@ -1,6 +1,7 @@
 package server.main.candle.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import server.main.candle.entity.CandleDay;
@@ -8,14 +9,42 @@ import server.main.candle.entity.CandleMinute;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface CandleDayRepository extends JpaRepository<CandleDay, Long> {
+
+    @Query("SELECT c FROM CandleDay c WHERE c.token.tokenId = :tokenId ORDER BY c.candleTime DESC LIMIT 1")
+    Optional<CandleDay> findLatest(@Param("tokenId") Long tokenId);
+
+    @Query("SELECT c FROM CandleDay c WHERE c.token.tokenId = :tokenId AND c.candleTime < :startOfToday ORDER BY c.candleTime DESC LIMIT 1")
+    Optional<CandleDay> findLatestBefore(@Param("tokenId") Long tokenId, @Param("startOfToday") LocalDateTime startOfToday);
+
     @Query("SELECT c FROM CandleDay c WHERE c.token.tokenId = :tokenId AND c.candleTime < :before ORDER BY c.candleTime DESC LIMIT 35")
     List<CandleDay> findTop35Before(@Param("tokenId") Long tokenId, @Param("before") LocalDateTime before);
 
     @Query("SELECT c FROM CandleDay c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :startOfDay AND c.candleTime < :endOfDay")
     List<CandleDay> findTodayByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("startOfDay") LocalDateTime startOfDay, @Param("endOfDay") LocalDateTime endOfDay);
 
-    @Query("SELECT c FROM CandleDay c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :since ORDER BY c.token.tokenId ASC, c.candleTime ASC")
-    List<CandleDay> findRecentByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("since") LocalDateTime since);
+    @Query("SELECT c FROM CandleDay c WHERE c.token.tokenId IN :tokenIds AND c.candleTime >= :since AND c.candleTime < :before ORDER BY c.token.tokenId ASC, c.candleTime ASC")
+    List<CandleDay> findRecentByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("since") LocalDateTime since, @Param("before") LocalDateTime before);
+
+    @Query(nativeQuery = true, value = """
+        SELECT DISTINCT ON (token_id) candle_id, token_id, open_price, high_price, low_price, close_price, volume, candle_time, trade_count
+        FROM candle_days
+        WHERE token_id IN :tokenIds AND candle_time < :before
+        ORDER BY token_id, candle_time DESC
+    """)
+    List<CandleDay> findLatestBeforeByTokenIds(@Param("tokenIds") List<Long> tokenIds, @Param("before") LocalDateTime before);
+
+    @Modifying
+    @Query(nativeQuery = true, value =
+        "INSERT INTO candle_days (token_id, candle_time, open_price, high_price, low_price, close_price, volume, trade_count) " +
+        "VALUES (:tokenId, :candleTime, :openPrice, :highPrice, :lowPrice, :closePrice, :volume, :tradeCount) " +
+        "ON CONFLICT (token_id, candle_time) DO UPDATE SET " +
+        "high_price = EXCLUDED.high_price, low_price = EXCLUDED.low_price, " +
+        "close_price = EXCLUDED.close_price, volume = EXCLUDED.volume, trade_count = EXCLUDED.trade_count")
+    void upsert(@Param("tokenId") Long tokenId, @Param("candleTime") LocalDateTime candleTime,
+                @Param("openPrice") Long openPrice, @Param("highPrice") Long highPrice,
+                @Param("lowPrice") Long lowPrice, @Param("closePrice") Long closePrice,
+                @Param("volume") Long volume, @Param("tradeCount") Integer tradeCount);
 }
