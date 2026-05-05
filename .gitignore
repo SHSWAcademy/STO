@@ -1,46 +1,48 @@
-# 의존성
+# Dependencies
 node_modules/
 /.pnp
 .pnp.js
 
-# 빌드 결과물
+# Build outputs
 /dist
 /build
 /.next
 /out
 
-# 환경변수
+# Environment / secrets
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!*.env.example
 
-# 로그
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# 에디터 설정
+# Editor settings
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# OS 파일
+# OS files
 .DS_Store
 Thumbs.db
 Desktop.ini
 
-# 캐시
+# Caches
 .eslintcache
 .cache/
 .parcel-cache/
 .turbo/
 
-# 테스트 커버리지
+# Coverage
 /coverage
 
-# 타입스크립트
+# TypeScript
 *.tsbuildinfo
+
+# Spring local secrets
+**/src/main/resources/application-local.properties
+**/src/main/resources/application-secret.properties

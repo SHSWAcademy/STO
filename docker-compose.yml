@@ -1,24 +1,4 @@
 services:
-  db:
-    image: postgres:18
-    container_name: postgres
-    restart: always
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
-    volumes:
-      - app_postgres_data:/var/lib/postgresql
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
-    deploy:
-      resources:
-        limits:
-          memory: 1g
-          cpus: '0.2'
-
   redis:
     image: redis:7
     container_name: redis
@@ -35,7 +15,7 @@ services:
           cpus: '0.1'
 
   main:
-    build: ./server/main
+    image: ${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/sto-main:${IMAGE_TAG}
     container_name: app-main
     restart: always
     ports:
@@ -47,14 +27,20 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
       BLOCKCHAIN_PRIVATE_KEY: ${BLOCKCHAIN_PRIVATE_KEY}
+      BLOCKCHAIN_WALLET_ENCRYPTION_KEY: ${BLOCKCHAIN_WALLET_ENCRYPTION_KEY}
       BLOCKCHAIN_RPC_URL: ${BLOCKCHAIN_RPC_URL}
       BLOCKCHAIN_CONTRACT_ADDRESS: ${BLOCKCHAIN_CONTRACT_ADDRESS}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      NAVER_API_CLIENT_ID: ${NAVER_CLIENT_ID}
-      NAVER_API_CLIENT_SECRET: ${NAVER_CLIENT_SECRET}
+      NAVER_CLIENT_ID: ${NAVER_CLIENT_ID}
+      NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET}
     depends_on:
-      - db
       - redis
     deploy:
       resources:
@@ -63,7 +49,7 @@ services:
           cpus: '0.3'
 
   match:
-    build: ./server/match
+    image: ${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/sto-match:${IMAGE_TAG}
     container_name: app-match
     restart: always
     ports:
@@ -74,11 +60,15 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       BLOCKCHAIN_PRIVATE_KEY: ${BLOCKCHAIN_PRIVATE_KEY}
       BLOCKCHAIN_RPC_URL: ${BLOCKCHAIN_RPC_URL}
       BLOCKCHAIN_CONTRACT_ADDRESS: ${BLOCKCHAIN_CONTRACT_ADDRESS_MATCH}
     depends_on:
-      - db
       - redis
     deploy:
       resources:
@@ -87,7 +77,7 @@ services:
           cpus: '0.2'
 
   batch:
-    build: ./server/batch
+    image: ${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/sto-batch:${IMAGE_TAG}
     container_name: app-batch
     restart: always
     volumes:
@@ -96,11 +86,15 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Seoul
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       BLOCKCHAIN_PRIVATE_KEY: ${BLOCKCHAIN_PRIVATE_KEY}
       BLOCKCHAIN_RPC_URL: ${BLOCKCHAIN_RPC_URL}
       BLOCKCHAIN_CONTRACT_ADDRESS: ${BLOCKCHAIN_CONTRACT_ADDRESS_BATCH}
     depends_on:
-      - db
       - redis
     deploy:
       resources:
@@ -109,9 +103,7 @@ services:
           cpus: '0.1'
 
   nginx:
-    build:
-      context: .
-      dockerfile: ./nginx/Dockerfile
+    image: ${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/sto-nginx:${IMAGE_TAG}
     container_name: nginx
     restart: always
     ports:
@@ -121,7 +113,3 @@ services:
       - /etc/timezone:/etc/timezone:ro
     depends_on:
       - main
-
-volumes:
-  app_postgres_data:
-    external: true
